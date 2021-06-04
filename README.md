@@ -11,7 +11,7 @@ Untar the zipped archive:
 tar -xvzf QCxMS.vX.X.tar.xz
 ```
 
-The following files are being extracted: `qceims` `pqceims` `q-batch` `getres` `.mass_raw.agr` `.XTBPARAM` `EXAMPLE`
+The following files are being extracted: `qcxms` `pqcxms` `q-batch` `getres` `.mass_raw.agr` `.XTBPARAM` `EXAMPLE`
 
 Place the executables into your ``$HOME/bin/`` directory or path. Place the `.XTBPARAM` folder and `.mass_raw.arg` file into your `$HOME` directory (these files can appear to be hidden). 
 To evaluate the results and create a spectrum, download and use the [PlotMS](https://github.com/qcxms/PlotMS) program. For visualization of the calculated spectra, we recommend the useage of the **xmgrace** program. Examples for an input file and coordinate file can found in the `EXAMPLES` file.
