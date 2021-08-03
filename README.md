@@ -27,5 +27,6 @@ A more detailed documentation on topics like installation and input settings can
 - All names have been changed from `qceims.xxx` to `qcxms.xxx`.
 - The `q-batch`, `pqcxms` and `plotms` script have been updated.
 - Collision induced dissociation (CID) calculations are now available. Set *cid* in the `qcxms.in` file. 
-- GFN1- and GFN2-xTB calculations can be used for CID calculations. DFT methods are not yet tested. OM and PM methods do currently not work.
 
+**The tblite library for xTB calculations**
+- The [tblite](https://github.com/awvwgk/tblite) library has been included into the program code. This keeps xTB up-to-date and increases the computational time for calculations done with GFN1- and GFN2-xTB. 
