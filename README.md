@@ -29,4 +29,4 @@ A more detailed documentation on topics like installation and input settings can
 - Collision induced dissociation (CID) calculations are now available. Set *cid* in the `qcxms.in` file. 
 
 **The tblite library for xTB calculations**
-- The [tblite](https://github.com/awvwgk/tblite) library has been included into the program code. This keeps xTB up-to-date and increases the computational time for calculations done with GFN1- and GFN2-xTB. 
+- The [tblite](https://github.com/awvwgk/tblite) library has been included into the program code. This keeps xtb up-to-date and decreases the computational time for calculations done with GFN1- and GFN2-xTB when compared to earlier versions. 
