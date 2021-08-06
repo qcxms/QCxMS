@@ -93,37 +93,44 @@ module qcxms_read_coordinates
     tmcoord = .false.
 
     ! this is not yet finished
-start: if ( init ) then
-      inquire(file='coord',exist=ex)
+!start: if ( init ) then
+!      inquire(file='coord',exist=ex)
+!
+!exst: if ( ex ) then
+!        fname = 'coord'
+!
+!      else ! get argument line input file or give file name
+!
+!        call get_command_argument(1, value=xyzfile, status=check)
+!        fname = xyzfile
+!
+!        if (check > 0 ) then
+!          write(*,*) '- Which input file ? - '
+!          read(*,'(a)') xyzfile
+!
+!          if (xyzfile /= ' ') then 
+!            tmcoord = .false.
+!            fname = xyzfile
+!            write(*,*) ' Reading input file : ', fname
+!          else
+!            stop '- No input provided - E X I T - '
+!          endif
+!
+!        endif 
+!
+!      endif exst
+!
+!    endif start
 
+!    if (fname == 'coord') tmcoord = .true.
+
+    inquire(file='coord',exist=ex)
 exst: if ( ex ) then
         fname = 'coord'
 
       else ! get argument line input file or give file name
-
-        call get_command_argument(1, value=xyzfile, status=check)
-        fname = xyzfile
-
-        if (check > 0 ) then
-          write(*,*) '- Which input file ? - '
-          read(*,'(a)') xyzfile
-
-          if (xyzfile /= ' ') then 
-            tmcoord = .false.
-            fname = xyzfile
-            write(*,*) ' Reading input file : ', fname
-          else
-            stop '- No input provided - E X I T - '
-          endif
-
-        endif 
-
+        stop ' - No coord file available - E X I T - '
       endif exst
-
-    endif start
-
-    ! this check is important for '.not. init' call 
-    if (fname == 'coord') tmcoord = .true.
 
     open(file=fname, newunit=io_coord, status='old', iostat=io_error)
 
@@ -138,7 +145,7 @@ exst: if ( ex ) then
   
     ! either turbomole coord file or xyz file
 
-    if (tmcoord) then
+!    if (tmcoord) then
       do
         read(io_coord,'(a)',iostat=iocheck)line
         if (iocheck < 0) exit
@@ -162,29 +169,29 @@ exst: if ( ex ) then
 
       enddo
 
-    else ! no coord file (here we take xyz)
-      read(io_coord,*) nuc
-      read(io_coord,*)
-
-      if (.not. init) then
-
-        nuc = 0
-        do
-          read(io_coord, '(a)',iostat=iocheck) line
-          if (iocheck > 0) stop 'error in xyz file'
-          if (iocheck < 0) exit ! EOF
-
-          nuc=nuc+1
-
-          call readl(line,xx,nn)
-          iat(nuc)=toNumber(line)
-          xyz(1,nuc)=xx(1)*aatoau
-          xyz(2,nuc)=xx(2)*aatoau
-          xyz(3,nuc)=xx(3)*aatoau
-
-        end do
-      endif
-    endif
+!    else ! no coord file (here we take xyz)
+!      read(io_coord,*) nuc
+!      read(io_coord,*)
+!
+!      if (.not. init) then
+!
+!        nuc = 0
+!        do
+!          read(io_coord, '(a)',iostat=iocheck) line
+!          if (iocheck > 0) stop 'error in xyz file'
+!          if (iocheck < 0) exit ! EOF
+!
+!          nuc=nuc+1
+!
+!          call readl(line,xx,nn)
+!          iat(nuc)=toNumber(line)
+!          xyz(1,nuc)=xx(1)*aatoau
+!          xyz(2,nuc)=xx(2)*aatoau
+!          xyz(3,nuc)=xx(3)*aatoau
+!
+!        end do
+!      endif
+!    endif
     
     close(io_coord)
 

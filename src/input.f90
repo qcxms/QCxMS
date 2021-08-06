@@ -10,7 +10,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
   use cidcommon
   use common1 
   use newcommon
-  use print_output, only: qcstring
+  use qcxms_info, only: qcstring
   use xtb_mctc_accuracy, only: wp
   use xtb_mctc_convert
   implicit none
