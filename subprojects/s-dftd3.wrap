@@ -1,2 +1,4 @@
-[wrap-redirect]
-filename = tblite/subprojects/s-dftd3.wrap
+[wrap-git]
+directory = s-dftd3
+url = https://github.com/awvwgk/simple-dftd3
+revision = head
