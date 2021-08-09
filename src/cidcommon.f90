@@ -22,5 +22,13 @@ module cidcommon
   type(cell_settings) :: cell
   type(gas_parameters) :: gas
 
+
+  ! run-typ logicals
+  logical  :: CollAuto
+  logical  :: FullAuto
+  logical  :: Manual
+  logical  :: TempRun
+
+
 end module cidcommon
 

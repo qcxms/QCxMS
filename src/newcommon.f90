@@ -8,7 +8,6 @@ module newcommon
   character(len=80) :: xtbhome
   character(len=20) :: solvent
 
-  logical  :: TempRun
   logical  :: Verbose
 
 end module newcommon

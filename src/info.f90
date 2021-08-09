@@ -15,7 +15,7 @@ module qcxms_info
 
   subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, FullAuto, eTempin, maxsec, betemp, nfragexit, iseed, iprog)
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog)
       
   integer  :: ntraj,iseed(1)
   integer  :: MaxColl
@@ -37,8 +37,6 @@ module qcxms_info
   real(wp) :: fimp
   real(wp) :: Eimpact
   real(wp) :: ESI,tempESI
-
-  logical :: FullAuto
 
   character(len=20) :: line
   character(len=20) :: line2
@@ -163,14 +161,14 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
 
     ! Forced -> only M+ Gas coll.
     if ( MaxColl > 0 ) then
-       write(*,'('' Run - Type            : '',(a) )') 'Forced'
+       write(*,'('' Run - Type            : '',(a) )') 'Manual'
        if( verbose ) write(*,*) ' Collisions between M+ and Gas '
        write(*,'('' Maximum collisions    : '', i2)') MaxColl
     endif
 
     ! Forced -> collisions for runs (1,2,3) set (see main.f90)
     if ( CollNo(1) > 0 ) then
-       write(*,'('' Run - Type            : '',(a) )') 'Forced'
+       write(*,'('' Run - Type            : '',(a) )') 'Manual (FGC)'
        if( verbose ) write(*,*) ' ALL Collisions (incl. fgc) '
        write(*,'('' Total collisions 1    : '', i2)') CollNo(1)
     endif
@@ -232,11 +230,11 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   end subroutine info_main
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!! Sum up information after run is concluded (main.f90)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine info_sumup(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, eimpact, ESI, tempESI, FullAuto,  & 
+      & ieeatm, iee_a, iee_b, eimpact, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
   integer  :: ntraj
@@ -254,8 +252,6 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   real(wp) :: ESI,tempESI
   real(wp), intent(in)  :: velo(3,nuc),mass(nuc)
   real(wp) :: Ekin,Temp, E_int
-
-  logical :: FullAuto
 
   character(len=20) :: line
   character(len=20) :: line2
@@ -358,6 +354,81 @@ info: if ( method /= 3 .and. method /= 4 )then
   !endif
 
   end subroutine info_sumup
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Check if CID inputs are good
+  ! Fancy output, better for users to understand whats wrong
+  ! Also, QCxMS run #1 is not influenced
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Check if input makes sense before ESI calc. starts
+  subroutine cidcheck(MaxColl, CollNo, CollSec)
+
+  integer  :: MaxColl
+  integer  :: CollNo(3)
+  integer  :: CollSec(3)
+  integer  :: i
+
+  logical  :: errorCIDinfo
+  logical  :: logical_CollNo 
+  logical  :: logical_CollSec
+
+  errorCIDinfo = .false.
+  logical_CollNo = .false. 
+  logical_CollSec = .false. 
+
+  ! Check manual settings
+  do i = 1, 3
+    if ( CollNo(i)  > 0 ) logical_CollNo = .true.
+    if ( CollSec(i) > 0 ) logical_CollSec = .true.
+  enddo
+
+  ! Check if both CollNo and CollSec are set
+  if ( logical_CollNo .and. logical_CollSec ) then
+    errorCIDinfo = .true. 
+    write(*,*) 'S T O P - CollNo and CollSec are mutually exclusive!'
+  endif
+
+  ! Check CollNo or CollSet NOT with MaxColl
+  if ( (logical_CollNo .or. logical_CollSec) .and. Maxcoll /= 0 ) then 
+    errorCIDinfo = .true. 
+    write(*,*) 'S T O P - Maxcoll and CollNo/CollSec are mutually exclusive!'
+  endif
+
+  ! Check if run-types are simulatniousely set  
+  if ( CollAuto .and. FullAuto ) then
+    errorCIDinfo = .true. 
+    write(*,*) 'S T O P - Cannot set CollAuto and FullAuto !'
+    write(*,*) ' Choose one of the two automatic procedures!'
+  endif
+
+  if ( (CollAuto .or. FullAuto) .and. TempRun ) then
+    errorCIDinfo = .true. 
+    write(*,*) 'S T O P - Cannot set Auto and TempRun!'
+    write(*,*) ' Choose one of the automatic procedures!'
+  endif
+
+  ! Check Collauto settings
+  if ( Collauto .and.( Maxcoll /= 0 .or. logical_CollNo .or. logical_CollSec ))then
+    errorCIDinfo = .true. 
+    write(*,*) 'S T O P - CollAuto is an automatic procedure!'
+    write(*,*) 'Change the number of collisions in CollAuto with &
+      &SetColl instead !'
+  endif
+
+  ! Check Fullauto settings
+  if ( FullAuto .and. (Maxcoll /= 0 .or. logical_CollNo .or. logical_CollSec ))then
+    errorCIDinfo = .true. 
+    write(*,*) 'S T O P - FullAuto is an automatic procedure!'
+    write(*,*) 'The number of collisions is dependend on the collision &
+      &cell settings (PGas, TGas, lchamb) !'
+  endif
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Stop the program and print out exiting the program
+  if (errorCIDinfo)  stop  '   - - - E  X  I  T - - -  '
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  end subroutine cidcheck
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

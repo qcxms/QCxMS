@@ -24,14 +24,13 @@ program QCxMS
   use common1
   use newcommon
   use get_version
-  use qcxms_analyse, only: analyse
   use qcxms_boxmuller, only: vary_collisions, vary_energies
   use qcxms_mo_spec, only: getspec
   use qcxms_fragments
   use qcxms_impact, only: calctrelax
   use qcxms_iniqm, only: iniqm
   use qcxms_mdinit, only: mdinitu, ekinet
-  use qcxms_info, only: info_main, info_sumup
+  use qcxms_info, only: info_main, info_sumup, cidcheck
   use qcxms_read_coordinates
   use qcxms_use_orca, only: copyorc
   use qcxms_use_turbomole, only: copytm, copytm_ip
@@ -132,7 +131,7 @@ program QCxMS
   logical :: ECP !switch on ECP for orca calculations
   logical :: stopcid !if error comes up in CID module - code is killed
   logical :: noecp,nometal !forbid checking of ECP and METAL
-  logical :: CollAuto,ConstVelo,eExact,FullAuto
+  logical :: ConstVelo,eExact
   logical :: small,littlemass
   logical :: No_ESI,NoScale
   logical :: starting_md
@@ -271,9 +270,9 @@ program QCxMS
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
   &          scani,lowerbound,upperbound,metal3d,                    &
   &          Eimpact,eExact,ECP,unity,noecp,nometal,   &
-  &          vScale,CollNo,CollSec,CollAuto,ConstVelo,   &
+  &          vScale,CollNo,CollSec,ConstVelo,   &
   &          minmass,simMD,convetemp,set_coll,MaxColl,          &
-  &          FullAuto,MinPot,ESI,tempESI,No_ESI,NoScale)
+  &          MinPot,ESI,tempESI,No_ESI,NoScale)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   ! Choose the MS method
@@ -372,7 +371,7 @@ program QCxMS
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, FullAuto, eTempin, maxsec, betemp, nfragexit, iseed, iprog)
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog)
 
 
   ! # MD steps in a frag run
@@ -605,11 +604,20 @@ GS: if(.not.ex)then
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !
     ! START QCxMS set-up call (2) 
     !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     else ! if qcxms.gs is NOT yet created
+
+      ! Check if CID input makes sense before creating the dirs.
+      if ( method == 3 .or. method == 4 ) then
+        call cidcheck(MaxColl, CollNo, CollSec )
+      endif
 
       write(*,*) 'reading qcxms.gs ...'
 
@@ -950,10 +958,15 @@ GS: if(.not.ex)then
        stop 'nrun <> ntraj'
     endif
 
-    if(check) stop 'normal termination of QCxMS'
+    if ( check ) stop 'normal termination of QCxMS'
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !  !create the directories
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !  create the directories (but do checks first)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    !  create the directories 
     call system('rm -rf TMPQCXMS')
     call system('mkdir  TMPQCXMS')
 
@@ -979,7 +992,7 @@ GS: if(.not.ex)then
 
     ! sum up the information at the end of creating tmp directories (call #2)
     call info_sumup(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, eimpact, ESI, tempESI, FullAuto,  & 
+      & ieeatm, iee_a, iee_b, eimpact, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
 
@@ -1108,14 +1121,12 @@ mCID:if ( method == 3 .or. method == 4 ) then
 
       edum = 0
 
-      !cccccccccccccccccccccccccccccccccccccccccccccccccc
-      ! Do ESI MD if ESI larger than 0
-      !cccccccccccccccccccccccccccccccccccccccccccccccccc
-      ! re-initialize the GBSA module
-      ! if (lgbsa == .true.)then
-      !   call init_gbsa(nuc,iat,solvent,gsolvstate,tinit)
-      ! endif
+      ! Check if input (qcxms.in) makes sense
+      call cidcheck(MaxColl, CollNo, CollSec)
 
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Do ESI MD if ESI larger than 0
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 noESI: if (.not. No_ESI )then
 
         write(*,*) ''
@@ -1413,10 +1424,11 @@ ESI_loop: do
       endif noESI ! ENDIF No_ESI
 
 
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! Caclulate number of collisions 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !! Initial caclulation of number of collisions 
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 cnt:  if (.not. TempRun .and. .not. small .and. isec < 3) then
 
         starting_md = .false.
@@ -1424,7 +1436,7 @@ cnt:  if (.not. TempRun .and. .not. small .and. isec < 3) then
         new_counter = 0
 
         ! Full Auto = Total Program control depending on mol. size, pressure cham. length etc.
-auto:   if ( FullAuto .and. Collauto )then
+auto:   if ( FullAuto )then
 
           write(*,*) 'Collisions set to automatic'
 
@@ -1437,12 +1449,12 @@ auto:   if ( FullAuto .and. Collauto )then
           !write(*,'(/,80(''-''))')
 
         ! Coll Auto = Other run modes
-        elseif ( CollAuto .and. .not. FullAuto) then
+        elseif ( CollAuto ) then
           collisions = set_coll ! starting coll are user set (default = 10)
           !write(*,'(/,80(''-''))')
           !write(*,*) 'Max. No of collisions : ', collisions
 
-        elseif ( .not. CollAuto .and. .not. FullAuto ) then
+        elseif ( Manual ) then
 
           ! Users choose the fragmentation amount for all mod(itrj,x) runs
           ! The entire spectrum is pieced together from 3 different amount of fragmentations
@@ -1450,15 +1462,17 @@ noauto:   if ( CollSec(1) /= 0 ) then
             write(*,'(/,80(''-''))')
             write(*,*) '!!! Number of fragmentations are user set !!!'
             if (mod(itrj,20)  ==  0)then !all 20 runs are stopped after CollSec(3) fragmentations
-               collisions = 10
+               collisions = set_coll
                new_counter = CollSec(3)
+               write(*,*) ' - Fragmentations this run: ', new_counter
             elseif (mod(itrj,3)  ==  0)then !all 3 runs are stopped after CollSec(3) fragmentations
-               collisions = 10
+               collisions = set_coll
                new_counter = CollSec(2)
+               write(*,*) ' - Fragmentations this run: ', new_counter
             else
-               collisions = 10
+               collisions = set_coll
                new_counter = CollSec(1) ! The rest is stopped after CollSec(1) fragmentation
-               write(*,*) 'Amount of Fragmentaions set', new_counter
+               write(*,*) ' - Fragmentations this run: ', new_counter
             endif
 
         ! Users chose the amount of collisions for different amount (percent) of runs
@@ -1488,9 +1502,6 @@ noauto:   if ( CollSec(1) /= 0 ) then
 
           endif noauto
 
-        else
-          write(*,*) 'Number of fragmentations (CollSec) and Number of collisions (CollNo) cant be set both!'
-          stop
         endif auto
 
 
@@ -1540,11 +1551,11 @@ cidlp:  do
           call cid(nuc,iat,mass,xyz,velo,tstep,mchrg,eTempin,               &
           &  stopcid,Eimpact,axyz,ttime,eExact,ECP,           &
           &  vScale,MinPot,ConstVelo,cross,                   &
-          &  mfpath,rtot,chrg,icoll,collisions,direc,new_velo,avgT,         &
+          &  mfpath,rtot,chrg,icoll,collisions,direc,new_velo,aTlast,         &
           &  calc_collisions,imass)
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-          new_temp = avgT
+          new_temp = aTlast
 
           ! Grad failure (too big steps)
           if ( stopcid ) write(*,*) 'Error occured in the CID module'
@@ -1593,7 +1604,6 @@ cidlp:  do
             ! count number of fragmentations
             coll_counter = coll_counter + 1
             write(*,*) 'Number of frag Processes',coll_counter
-            write(*,*) 'Fragmentation in ESI MD'
 
           elseif (tcont == 0) then
             do i = 1, nuc
@@ -1784,7 +1794,6 @@ MFPloop:  do
               ! count number of fragmentations
               coll_counter = coll_counter + 1
               write(*,*) 'Number of frag Processes',coll_counter
-              write(*,*) 'Fragmentation in ESI MD'
 
             elseif ( tcont == 0 ) then
               do i = 1, nuc
@@ -1887,9 +1896,10 @@ MFPloop:  do
             exit
           endif
 
+          !--------------------------------------------------------------
           ! 3.1.) If the number of fragmentaion steps are exceeded
           !Collauto  == false
-          if ( .not. CollAuto .and. new_counter > 0 ) then
+          if ( Manual .and. new_counter > 0 ) then
             if ( coll_counter >= new_counter ) then
               if ( index(asave,'NOT USED') == 0) then
                 write(io_res,'(a)')asave
@@ -1901,38 +1911,56 @@ MFPloop:  do
             endif
           endif
 
+          !--------------------------------------------------------------
           ! 3.2.) If fragmentation occured, check the rest of the collisions
-          !Collauto  == true
-          if (CollAuto .and. coll_counter > frag_counter)then
+          !       Fullauto run-type!
+Full:     if (FullAuto .and. coll_counter > frag_counter) then
+
             frag_counter = coll_counter
 
             ! Set-up collision number and vary the amount (cid.f90)
             call collision_setup(nuc,iat,xyz,mass,rtot,cross,mfpath, &
             &    calc_collisions)
 
+            ! set varied number of collisions by BoxMuller distr.
             collisions = vary_collisions(calc_collisions)
 
+            ! Check if molecule is not too small to make collisions
+            if ( collisions == 0 .and. icoll /= 1 ) then
+              write(*,*) 'Molecule too small for further collisions'
+
+              if(index(asave,'NOT USED') == 0)then
+                write(io_res,'(a)')asave
+              endif
+
+              exit ! Finished 
+
+            endif
+
             !write(*,*) ' Radius Ion (m)               : ', rtot
-            !write(*,*) ' Radius Gas Atom (m)          : ', (rIatom/aatoau) * 1E-10 ! m 
+            !write(*,*) ' Radius Gas Atom (m)          : ', (rIatom/aatoau) * 1E-10 
             write(*,*) ' Cross-section (M+) (m²)      : ', cross
             write(*,*) ' Mean free path (m)           : ', mfpath
             write(*,*) ' chamber length (m)           : ', cell%lchamb
             !write(*,*) ' Number of collisions varied  : ', collisions
 
+          endif Full
 
-            ! Vary the amount of collisions depending on the amount of atoms
-            if (collisions > 0 .and. .not. FullAuto)then
+          !--------------------------------------------------------------
+          ! 3.3) For Collauto (NOT Fullauto)
+          ! Vary the amount of collisions depending on the number of atoms
+Coll:     if (CollAuto .and. coll_counter > frag_counter) then
+
+            ! Set-up collision number and vary the amount (cid.f90)
+            call collision_setup(nuc,iat,xyz,mass,rtot,cross,mfpath, &
+            &    calc_collisions)
+
+            if ( collisions > 0 )then
                call random_seed(numb)
                call random_number(a)
 
                b = nuc / 10.0
                dep = nint(b)
-
-            !  rand_int = (FLOOR((3+dep)*a)) ! Create a number between 0 and 2 + nuc/10
-            !  if (nuc/10 == 1) rand_int = FLOOR(2*a) ! 0-3
-            !  if (nuc/10 > 1) rand_int = FLOOR(5*a) ! 0-3
-            !  if (nuc/10 > 3) rand_int = FLOOR(6*a) ! 0-3
-
 
                rand_int =  FLOOR((dep+1)*a) ! 0-dep
                write(*,'('' Random integer        : '',I2)') rand_int
@@ -1940,17 +1968,18 @@ MFPloop:  do
                collisions = icoll + rand_int !+ dep
                numb=numb+1
                write(*,'('' Total no. collisions  : '',i2)') collisions
-            endif
 
+            elseif( collisions == 0 .and. icoll /= 1)then
+              write(*,*) 'Molecule too small for further collisions'
 
-            if (collisions == 0.and.icoll /= 1)then
-              write(*,*) 'Molecule to small for further collisions'
               if(index(asave,'NOT USED') == 0)then
                 write(io_res,'(a)')asave
               endif
-              exit
+
+              exit ! Finished 
+
             endif
-          endif
+          endif Coll
 
           ! 4.) If the max number of collisions is reached
           if ( icoll >= collisions ) then

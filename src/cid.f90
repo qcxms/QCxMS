@@ -1,7 +1,7 @@
 subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
     stopcid,Eimpact,axyz,ttime,eExact,ECP,   &
     vScale,MinPot,ConstVelo,cross,    &
-    mfpath,r_mol,achrg,icoll,collisions,direc,velo_cm,avgT,          &
+    mfpath,r_mol,achrg,icoll,collisions,direc,velo_cm,aTlast,          &
     calc_collisions,imass)
 
   use common1 
@@ -23,8 +23,8 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   
   integer  :: nuc,mchrg,spin,iat(nuc)
   integer  :: nstp
-  integer  :: dumpxyz,dumpscreen,dumpcoord,dumpdist
-  integer  :: xyzavg_dump,screen_dump,coord_dump,distance_dump
+  integer  :: dumpavg,dumpxyz,dumpscreen,dumpcoord,dumpdist
+  integer  :: average_dump,xyzavg_dump,screen_dump,coord_dump,distance_dump
   integer  :: i,j,ind,m
   integer  :: tstp_count
   integer  :: icoll
@@ -36,6 +36,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   integer  :: list(nuc),nfrag
   integer  :: fragat(200,10)  
   integer  :: imass(nuc)
+  integer  :: istep
 
   real(wp) :: calc_collisions
   real(wp) :: etemp,E,ke
@@ -71,6 +72,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   real(wp) :: E_int(10)
   real(wp) :: fragT(10)     
   real(wp) :: E_Distr
+  real(wp) :: aTlast
   
   !Rotation parameters
 !  real(wp) :: a,b,c
@@ -158,6 +160,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   dumpcoord  = 4     !interval for coordinate dumping
   dumpdist   = 10    !interval for distance dumping
   dumpxyz    = 50
+  dumpavg    = 50
   ntot       = 15000 !maximum number of steps 
   
   new_velo   = 0.0d0
@@ -598,6 +601,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   coord_dump = 0
   distance_dump = 0
   xyzavg_dump = 0 
+  average_dump = 0 
   nstp  = 0
   Tav   = 0.0d0
   m     = 0
@@ -617,13 +621,14 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   lowestCOM = new_dist
   distcrit = 1.05d0 * lowestCOM  !say at which point the sim ends (by distance)
   
-  do i=1,ntot
+  do istep = 1, ntot
      ! increase the step coutners
      ttime = ttime + tstp/fstoau
      screen_dump   = screen_dump   + 1 ! counter for screen dump
      coord_dump    = coord_dump    + 1 ! counter for coord dump
      distance_dump = distance_dump + 1 ! counter for distance criterion
      xyzavg_dump   = xyzavg_dump   + 1 ! counter for average xyz structure
+     average_dump   = average_dump   + 1 ! counter for average 
  
      ! Do the leap frog step 
      call leapfrog(nuc0,grad0,mass0,tstp,xyz0,velo0,ke,nstp)
@@ -644,7 +649,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
      old_cm(:) = cm(:)
   
      ! compute new velocity and convert to m/s
-     if (i /= 1)then
+     if (istep /= 1)then
        new_velo = (cm_out / tstp ) / mstoau 
      else !i.e. in the first step: 
        new_velo = 0
@@ -658,7 +663,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
      E_kin_diff = Ekin - E_kin
   
      new_temp = (2*E_kin_diff) / (3 * kB * nuc)
-     if (i == 1) new_temp = tinit
+     if (istep == 1) new_temp = tinit
      Tav = Tav + new_temp
   
      m    = m + 1
@@ -682,7 +687,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !DUMP coordinates to CID.xyz and DUMP text to screen                  
     
-    if (coord_dump == dumpcoord .or. i == 1)then
+    if (coord_dump == dumpcoord .or. istep == 1)then
        coord_dump = 0
        write(724,*) nuc0
        write(724,*) 'E=',ke+E
@@ -692,7 +697,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
                ,' ',xyz0(2,ind) * autoaa     &
                ,' ',xyz0(3,ind) * autoaa 
        end do        
-       if (i == 1)coord_dump=1
+       if (istep == 1)coord_dump=1
     end if
     
     ! Screen dump
@@ -703,10 +708,18 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
          &      nstp,ttime,E/evtoau,ke/evtoau,E+ke/evtoau,etemp,avgT
     end if
 
+    if (average_dump == dumpavg)then
+      average_dump = 0
+      aTlast = 0
+    end if
+
+    aTlast = avgT    
+
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! WORK IN PROGRESS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if (xyzavg_dump == dumpxyz) then
+    if (xyzavg_dump == dumpavg) then
        xyzavg_dump = 0
        avxyz =0
        ! hier muss ich die average xyz coords rausfinden 
@@ -790,7 +803,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   
   
   !2.Stop simulation because the max nsteps are reached. 
-     if (i == ntot)then
+     if (istep == ntot)then
         write(*,*) 'Attention:'
         write(*,*) '-----------------------------------------------'
         write(*,*) 'Maximum number of steps has been reached, but  '

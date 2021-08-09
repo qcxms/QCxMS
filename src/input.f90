@@ -2,8 +2,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
         iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
         edistri,btf,ieeatm,                                                       &
         scanI,lowerbound,upperbound,metal3d,ELAB,eExact,ECP,unity,noecp,nometal,  &
-        vScale,CollNo,CollSec,CollAuto,ConstVelo,     &
-        minmass,simMD,convetemp,set_coll,MaxColl,FullAuto,       & 
+        vScale,CollNo,CollSec,ConstVelo,     &
+        minmass,simMD,convetemp,set_coll,MaxColl,       & 
         MinPot,ESI,tempESI,No_ESI,NoScale)
 !  use gbobc, only: lgbsa
   use readcommon
@@ -61,20 +61,18 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
   !-----------------------------------
   !----- CID related parameters ------
   
+  integer  :: MaxColl
   integer  :: CollNo(3)
   integer  :: CollSec(3)
   integer  :: minmass
   integer  :: simMD
   integer  :: convetemp
   integer  :: set_coll
-  integer  :: MaxColl
   
   real(wp) :: ELAB,vScale,ESI,tempESI
   real(wp) :: PGas,TGas,lchamb
   real(wp) :: MinPot
   
-  logical  :: CollAuto
-  logical  :: FullAuto
   logical  :: ConstVelo
   logical  :: No_ESI
   logical  :: NoScale
@@ -227,7 +225,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
 
   !----------------------------------------------------------------------!
   ! More control / different run-types 
-  ! NO CollAuto or FullAuto or Temprun
+  ! Manual run-types
+  Manual = .false.
   MaxColl    = 0        ! Max coll.          -> only M+ + Gas (no fgc)
 
   ! Max overall coll.  -> all coll. (fgc) 
@@ -453,10 +452,15 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          !! CID Logicals 
-          if ( line == 'COLLAUTO')    CollAuto = .True.  ! 'forced activation' mode
-          if ( line == 'FULLAUTO') then                  ! 'general activation' mode
-             FullAuto = .True.
-             CollAuto = .True.
+          if ( line == 'COLLAUTO' ) then              ! 'forced activation' mode
+            CollAuto = .True.                          
+          endif
+          if ( line == 'FULLAUTO' ) then              ! 'general activation' mode
+            FullAuto = .True.
+          endif
+          if ( line == 'TEMPRUN' ) then               !'Thermal activation' mode
+             TempRun=.true.
+             gas%Iatom = 0
           endif
           if ( line == 'EEXACT')      eExact = .True.   ! switch off CE distribution
           if ( line == 'CONSTVELO')   ConstVelo = .True.! constant velo after collision 
@@ -675,31 +679,35 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
           ! This is for the CollAuto run, i.e. collision until
           ! fragmentation with maximum of 'SetColl' collisions
           if(index(line,'SETCOLL') /= 0)then           
-             CollAuto = .True.
              call readl(line,xx,nn)
              Set_Coll=xx(1)
           endif
           !  Vary the different collision number parameters
           if(index(line,'COLLNO') /= 0)then           
-             CollAuto = .False.
-             call readl(line,xx,nn)
-             CollNo(1)=xx(1)
-             CollNo(2)=xx(2)
-             CollNo(3)=xx(3)
+            Manual = .True.
+            call readl(line,xx,nn)
+            CollNo(1)=xx(1)
+            CollNo(2)=xx(2)
+            CollNo(3)=xx(3)
           endif
           ! collisions until CollSec fragmentations       
           if(index(line,'COLLSEC') /= 0)then           
-             CollAuto = .False.
-             call readl(line,xx,nn)
-             CollSec(1)=xx(1)
-             CollSec(2)=xx(2)
-             CollSec(3)=xx(3)
+            Manual = .True.
+            call readl(line,xx,nn)
+            CollSec(1)=xx(1)
+            CollSec(2)=xx(2)
+            CollSec(3)=xx(3)
+           
+            ! Always enable one fragmentation
+            if (CollSec (1) == 0) CollSec(1) = 1
+            if (CollSec (2) == 0) CollSec(2) = 1
+            if (CollSec (3) == 0) CollSec(3) = 1
           endif
           ! maximum number of Collisions (in FullColl)
           if(index(line,'MAXCOLL') /= 0)then            
              call readl(line,xx,nn)
              MaxColl=xx(1)
-             CollAuto = .False.
+             Manual = .True.
           endif
           ! Minimum e-field potential for re-acceleration 
           if(index(line,'MINPOT') /= 0)then            
@@ -721,12 +729,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
           if(index(line,'TSCALE') /= 0)then            
              call readl(line,xx,nn)
              tempESI=xx(1)
-          endif
-          ! do only ESI run, no collisions ('themal activation')
-          if(index(line,'TEMPRUN') /= 0)then            
-             call readl(line,xx,nn)
-             TempRun=.true.
-             gas%Iatom = 0
           endif
   
           ! CollGas Pressure
@@ -762,8 +764,13 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
         endif ! end if CHECK
   
      enddo ! end read loop 
-     close(1)
+     close(io_in)
    endif  ! End read input (qcxms.in)
+
+   ! Set CID to FullAuto if nothing else was specified
+  if (.not. Manual .and. .not. CollAuto .and. .not. TempRun) then
+    FullAuto = .true.
+  endif
   
   !-----------------------------------------------------------------
   !-----------------------------------------------------------------
