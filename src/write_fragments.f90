@@ -1,6 +1,6 @@
 module qcxms_write_fragments
   use common1
-  use newcommon
+  use cidcommon
   use qcxms_analyse, only: analyse
   use qcxms_fragments
   use qcxms_utility
