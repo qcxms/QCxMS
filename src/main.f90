@@ -27,6 +27,7 @@ program QCxMS
   use qcxms_boxmuller, only: vary_collisions, vary_energies
   use qcxms_mo_spec, only: getspec
   use qcxms_fragments
+  use qcxms_iee
   use qcxms_impact, only: calctrelax
   use qcxms_iniqm, only: iniqm
   use qcxms_mdinit, only: mdinitu, ekinet
