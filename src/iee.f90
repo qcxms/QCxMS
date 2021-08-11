@@ -12,7 +12,7 @@ module qcxms_iee
   
      integer  :: ityp,nbnd,k
   
-     real(wp) :: iee_a,iee_b,ieeel,pmax,ieemax,exc,eav,st,ieebond
+     real(wp) :: iee_a,iee_b,ieeel,pmax,ieemax,exc,E_avg,st,ieebond
   
      st = 0.005_wp
      iee_a = 0.0_wp
@@ -26,26 +26,28 @@ module qcxms_iee
        iee_a = min(iee_a,0.3)
        iee_b = iee_b + st * 7
 
-       call getmaxiee(iee_a,iee_b,ieeel,ityp,exc,ieemax,pmax,eav)
+       call getmaxiee(iee_a,iee_b,ieeel,ityp,exc,ieemax,pmax,E_avg)
 
        if (k > 10000) stop 'internal error inside getieeab'
-       if (eav / nbnd >= ieebond) exit 
+       if (E_avg / nbnd >= ieebond) exit 
 
      enddo
   
   end subroutine getieeab
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! get maximum value (vmax) at which energy (ieemax) and
+  ! get maximum value (pmax) at which energy (ieemax) and
   ! average energy E_avg for given parameters in the P(E)
   ! distribution function
-  subroutine getmaxiee(iee_a,iee_b,ieeel,ityp,exc,ieemax,vmax,E_avg)
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!! in fact, only getting pmax here is the important part
+  subroutine getmaxiee(iee_a,iee_b,ieeel,ityp,exc,ieemax,pmax,E_avg)
   
      integer  :: ityp
-     real(wp) :: iee_a,iee_b,ieeel,val,x,vmax,ieemax,exc,E_avg,m
+     real(wp) :: iee_a,iee_b,ieeel,val,x,pmax,ieemax,exc,E_avg,m
   
      x = 0.001_wp
-     vmax = -1.0_wp
+     pmax = -1.0_wp
      ieemax = 0.0_wp
      E_avg = 0.0_wp
      m = 0.0_wp
@@ -54,8 +56,8 @@ module qcxms_iee
         if ( ityp == 0 ) call gauss0(iee_a,iee_b,ieeel,x,val)
         if ( ityp == 1 ) call poiss0(iee_a,iee_b,ieeel,x,val)
 
-        if ( val > vmax ) then
-           vmax   = val
+        if ( val > pmax ) then
+           pmax   = val
            ieemax = x
         endif
 
