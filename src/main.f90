@@ -372,7 +372,7 @@ program QCxMS
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog)
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri)
 
 
   ! # MD steps in a frag run

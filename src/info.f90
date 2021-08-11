@@ -15,7 +15,7 @@ module qcxms_info
 
   subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog)
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri)
       
   integer  :: ntraj,iseed(1)
   integer  :: MaxColl

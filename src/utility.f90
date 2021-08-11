@@ -25,7 +25,7 @@ module qcxms_utility
       k =0
       i1=0
       i2=0
-      dmin=1.d+42
+      dmin=huge(0.0_wp) !1.d+42
    
       do
         mo1=irand(nao)
