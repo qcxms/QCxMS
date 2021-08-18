@@ -710,6 +710,7 @@ GS: if(.not.ex)then
 
     ! determine which structures are taken, randomly on the GS trj
     ! do not take structures equidistant steps to avoid correlations
+    ! irand -> function: (0 - ndumpGS) numbers (utilitly.f90)
     do while (k <= ntraj)
       j = irand(ndumpGS)
       if ( icalc(j) == 0) then
