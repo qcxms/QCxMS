@@ -747,6 +747,7 @@ iee0: if (method /= 3 .and. method /= 4)then ! Not important for CID
       endif
 
       exc   = (eimp0 - ehomo) * autoev
+      !exc   = (eimp0 - ehomo) * autoev TEST
       ieeel = dble (ihomo + nb)
 
       ! user input
