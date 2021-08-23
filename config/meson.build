@@ -3,6 +3,7 @@
 os = host_machine.system()
 fc = meson.get_compiler('fortran')
 fc_id = fc.get_id()
+static = get_option('default_library') == 'static' and get_option('fortran_link_args').contains('-static')
 
 if fc_id == 'gcc'
   add_project_arguments(
@@ -94,7 +95,31 @@ else
   exe_deps += blas_dep
 endif
 
-if get_option('tblite')
+# Look for tool-chain library as external dependency
+mctc_dep = dependency('mctc-lib', required: false, static: static)
+if not mctc_dep.found()
+  # Create the tool chain library as subproject
+  mctc_prj = subproject(
+    'mctc-lib',
+    version: '>=0.2',
+    default_options: [
+      'default_library=static',
+    ],
+  )
+  mctc_dep = mctc_prj.get_variable('mctc_dep')
+
+  if install
+    install_data(
+      mctc_prj.get_variable('mctc_lic'),
+      install_dir: get_option('datadir')/'licenses'/meson.project_name()/'mctc-lib'
+    )
+  endif
+endif
+exe_deps += mctc_dep
+
+# Look tight-binding framework as external dependency
+tblite_dep = dependency('tblite', required: false, static: static)
+if not tblite_dep.found()
   # Create the tight-binding framework as subproject
   tblite_prj = subproject(
     'tblite',
@@ -104,10 +129,6 @@ if get_option('tblite')
     ],
   )
   tblite_dep = tblite_prj.get_variable('tblite_dep')
-  exe_deps += tblite_dep
-  exe_deps += declare_dependency(
-    compile_args: '-DWITH_TBLITE=1',
-  )
 
   if install
     install_data(
@@ -116,3 +137,4 @@ if get_option('tblite')
     )
   endif
 endif
+exe_deps += tblite_dep

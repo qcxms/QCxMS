@@ -16,10 +16,3 @@ option(
   yield: true,
   description: 'use OpenMP parallelisation',
 )
-
-option(
-  'tblite',
-  type: 'boolean',
-  value: true,
-  description: 'Use tblite as xTB implementation',
-)
