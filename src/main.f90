@@ -27,6 +27,7 @@ program QCxMS
   use qcxms_boxmuller, only: vary_collisions, vary_energies
   use qcxms_mo_spec, only: getspec
   use qcxms_fragments
+  use qcxms_iee
   use qcxms_impact, only: calctrelax
   use qcxms_iniqm, only: iniqm
   use qcxms_mdinit, only: mdinitu, ekinet
@@ -371,7 +372,7 @@ program QCxMS
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog)
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri)
 
 
   ! # MD steps in a frag run

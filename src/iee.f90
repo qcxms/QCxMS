@@ -1,100 +1,103 @@
+module qcxms_iee
+  use xtb_mctc_accuracy, only: wp
+  implicit none
+
+  contains
 
 ! determine automatically the two parameters in the P(E)
 ! function for given energy range exc, the number of bonds
 ! nbnd and the input parameter ieebond (av energy/per bond in eV,
 ! normally 0.5 eV/bond)
-subroutine getieeab(a,b,n,ityp,exc,nbnd,ieebond)
-   use xtb_mctc_accuracy, only: wp
-   implicit none
+  subroutine getieeab(iee_a,iee_b,ieeel,ityp,exc,nbnd,ieebond)
+  
+     integer  :: ityp,nbnd,k
+  
+     real(wp) :: iee_a,iee_b,ieeel,pmax,ieemax,exc,E_avg,st,ieebond
+  
+     st = 0.005_wp
+     iee_a = 0.0_wp
+     iee_b = 0.0_wp
+     k = 0
+  
+     do
+       k = k + 1
 
-   integer  :: ityp,nbnd,k
+       iee_a = iee_a + st
+       iee_a = min(iee_a,0.3)
+       iee_b = iee_b + st * 7
 
-   real(wp) :: a,b,n,pmax,ieemax,exc,eav,st,ieebond
+       call getmaxiee(iee_a,iee_b,ieeel,ityp,exc,ieemax,pmax,E_avg)
 
-   st=0.005
-   a=0.0
-   b=0.0
-   k=0
+       if (k > 10000) stop 'internal error inside getieeab'
+       if (E_avg / nbnd >= ieebond) exit 
 
-   do
-!10 a=a+st
-     a=a+st
-     b=b+st*7
-     a=min(a,0.3)
-     k=k+1
-     call getmaxiee(a,b,n,ityp,exc,ieemax,pmax,eav)
-     if(k.gt.10000) stop 'internal error inside getieeab'
-     !if(eav/nbnd.lt.ieebond) goto 10
-     if(eav/nbnd.ge.ieebond) exit 
-   enddo
+     enddo
+  
+  end subroutine getieeab
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! get maximum value (pmax) at which energy (ieemax) and
+  ! average energy E_avg for given parameters in the P(E)
+  ! distribution function
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!! in fact, only getting pmax here is the important part
+  subroutine getmaxiee(iee_a,iee_b,ieeel,ityp,exc,ieemax,pmax,E_avg)
+  
+     integer  :: ityp
+     real(wp) :: iee_a,iee_b,ieeel,val,x,pmax,ieemax,exc,E_avg,m
+  
+     x = 0.001_wp
+     pmax = -1.0_wp
+     ieemax = 0.0_wp
+     E_avg = 0.0_wp
+     m = 0.0_wp
+  
+     do
+        if ( ityp == 0 ) call gauss0(iee_a,iee_b,ieeel,x,val)
+        if ( ityp == 1 ) call poiss0(iee_a,iee_b,ieeel,x,val)
 
-end
+        if ( val > pmax ) then
+           pmax   = val
+           ieemax = x
+        endif
 
-! get maximum value (vmax) at which energy (ieemax) and
-! average energy s for given parameters in the P(E)
-! distribution function
-subroutine getmaxiee(a,b,n,ityp,exc,ieemax,vmax,s)
-   use xtb_mctc_accuracy, only: wp
-   implicit none
+        x = x + 0.01_wp
+        E_avg = E_avg + val * x
+        m = m + val
 
-   integer  :: ityp
-   real(wp) :: a,b,n,val,x,vmax,ieemax,exc,s,m
+        if ( x >= exc ) exit
+     enddo
+  
+     E_avg = E_avg / m
+  
+  end subroutine getmaxiee
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Gaussian energy distribution, ieeel= # val el, iee_a and iee_b are parameters
+  subroutine gauss0(iee_a,iee_b,ieeel,x,p)
+  
+     real(wp) :: iee_a,iee_b,ieeel,x,p
+  
+     p = exp( -iee_a * (x - ieeel * iee_b)**2 / ieeel )
+  
+  end subroutine gauss0
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Poisson energy distribution, ieeel= # val el, iee_a and iee_b are parameters
+  subroutine poiss0(iee_a,iee_b,ieeel,x,t18)
+  
+     real(wp) :: iee_a,iee_b
+     real(wp) :: k,z,ieeel,x,t18
+     real(wp) :: t2,t8,t14,t17
+     
+     z = iee_b
+     k = 1.0_wp / iee_a
+     t2 = k / ieeel
+     t8 = dlog(z / k * ieeel / x)
+     t14 = dexp(t2 * x * (0.1D1 + t8) - 1.D0 * z)
+     t17 = (t2 * x + 0.1D1)**(-0.5_wp)
+     t18 = t14 * t17
 
-   x=0.001
-   vmax=-1
-   ieemax=0
-   s=0
-   m=0
+  end subroutine poiss0
 
-   do
-!10 if(ityp.eq.0) call gauss0(a,b,n,x,val)
-      if(ityp.eq.0) call gauss0(a,b,n,x,val)
-      if(ityp.eq.1) call poiss0(a,b,n,x,val)
-      if(val.gt.vmax)then
-         vmax=val
-         ieemax=x
-      endif
-      x=x+0.01
-      s=s+val*x
-      m=m+val
-      !if(x.lt.exc) goto 10
-      if(x.ge.exc) exit
-   enddo
-
-   s=s/m
-
-end
-
-
-! Gaussian energy distribution, n= # val el, a an b are parameters
-
-subroutine gauss0(a,b,n,x,p)
-   use xtb_mctc_accuracy, only: wp
-   implicit none
-
-   real(wp) :: a,b,n,x,p
-
-   p = exp( -a * (x-n*b)**2/n )
-
-end
-
-
-! Poisson energy distribution, n= # val el, a an b are parameters
-
-subroutine poiss0(a,b,n,x,t18)
-   use xtb_mctc_accuracy, only: wp
-   implicit none
-
-   real(wp) :: a,b
-   real(wp) :: k,z,n,x,t18
-   real(wp) :: t2,t8,t14,t17
-   
-   z=b
-   k=1./a
-   t2 = k/N
-   t8 = dlog(z/k*N/x)
-   t14 = dexp(t2*x*(0.1D1+t8)-1.D0*z)
-   t17 = (t2*x+0.1D1)**(-0.5D0)
-   t18 = t14*t17
-end
-
+end module qcxms_iee
