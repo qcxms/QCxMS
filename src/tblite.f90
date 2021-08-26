@@ -2,6 +2,20 @@
 
 !> This module defines the bridge between QCxMS and the tblite library.
 module qcxms_tblite
+   use mctc_env, only : error_type
+   use mctc_io, only : structure_type, new
+   use tblite_context_type, only : context_type
+   use tblite_wavefunction_type, only : wavefunction_type, new_wavefunction
+   use tblite_xtb_calculator, only : xtb_calculator
+   use tblite_xtb_gfn2, only : new_gfn2_calculator
+   use tblite_xtb_gfn1, only : new_gfn1_calculator
+   use tblite_xtb_ipea1, only : new_ipea1_calculator
+   use tblite_xtb_singlepoint, only : xtb_singlepoint
+   use tblite_integral_overlap !, only : get_overlap_lat
+   use tblite_cutoff !, only : get_lattice_points
+   use tblite_basis_type, only : get_cutoff
+   use qcxms_mo_energy, only: write_qmo 
+   use xtb_mctc_convert
    implicit none
    private
 
@@ -24,64 +38,6 @@ module qcxms_tblite
 
    !> Selector for IPEA1-xTB Hamiltonian
    type(method_selector), parameter :: ipea1_xtb = method_selector(11)
-
-
-   interface
-      !> Entry point for QCxMS to request calculations from the tblite library
-      module subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
-            & output_file, qat, energy, gradient, stat, spec_calc)
-         !> Atomic numbers for each atom
-         integer, intent(in) :: num(:)
-         !> Cartesian coordinates for each atom in Bohr
-         real(wp), intent(in) :: xyz(:, :)
-         !> Total atomic charge of the system
-         integer, intent(in) :: charge
-         !> Total multiplicity of the system
-         integer, intent(in) :: multiplicity
-         !> Selected method
-         type(method_selector), intent(in) :: method
-         !> Electronic temperature
-         real(wp), intent(in) :: etemp
-         !> Name of the output file to write to
-         character(len=*), intent(in) :: output_file
-         !> Atomic partial charges
-         real(wp), intent(out) :: qat(:)
-         !> Total energy
-         real(wp), intent(out) :: energy
-         !> Molecular gradient
-         real(wp), intent(out) :: gradient(:, :)
-         !> Error status
-         integer, intent(out) :: stat
-         !> HOMO
-         integer :: ihomo
-         real    :: ehomo
-         !> Calculate MO ?
-         logical  :: spec_calc
-      end subroutine get_xtb_egrad
-   end interface
-
-
-end module qcxms_tblite
-
-
-
-!> Actual implementation of the tblite interface
-submodule(qcxms_tblite) qcxms_tblite_impl
-   use mctc_env, only : error_type
-   use mctc_io, only : structure_type, new
-   use tblite_context_type, only : context_type
-   use tblite_wavefunction_type, only : wavefunction_type, new_wavefunction
-   use tblite_xtb_calculator, only : xtb_calculator
-   use tblite_xtb_gfn2, only : new_gfn2_calculator
-   use tblite_xtb_gfn1, only : new_gfn1_calculator
-   use tblite_xtb_ipea1, only : new_ipea1_calculator
-   use tblite_xtb_singlepoint, only : xtb_singlepoint
-   use tblite_integral_overlap !, only : get_overlap_lat
-   use tblite_cutoff !, only : get_lattice_points
-   use tblite_basis_type, only : get_cutoff
-   use qcxms_mo_energy, only: write_qmo 
-   use xtb_mctc_convert
-   implicit none
 
    !> Conversion factor from Kelvin to Hartree
    real(wp), parameter :: ktoau = 3.166808578545117e-06_wp
@@ -106,7 +62,7 @@ contains
 
 
 !> Entry point for QCxMS to request calculations from the tblite library
-module subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
+subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
       & output_file, qat, energy, gradient, stat, spec_calc)
    !> Atomic numbers for each atom
    integer, intent(in) :: num(:)
@@ -217,4 +173,4 @@ module subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
 
 end subroutine get_xtb_egrad
 
-end submodule qcxms_tblite_impl
+end module qcxms_tblite

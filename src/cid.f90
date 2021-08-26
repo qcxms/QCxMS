@@ -1,4 +1,4 @@
-subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
+subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
     stopcid,Eimpact,axyz,ttime,eExact,ECP,   &
     vScale,MinPot,ConstVelo,cross,    &
     mfpath,r_mol,achrg,icoll,collisions,direc,velo_cm,aTlast,          &
@@ -26,7 +26,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   integer  :: dumpavg,dumpxyz,dumpscreen,dumpcoord,dumpdist
   integer  :: average_dump,xyzavg_dump,screen_dump,coord_dump,distance_dump
   integer  :: i,j,ind,m
-  integer  :: tstp_count
+  integer  :: time_step_count
   integer  :: icoll
   integer  :: collisions
   integer  :: step_counter
@@ -46,7 +46,8 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   real(wp) :: mass(nuc)
   real(wp) :: new_velo,velo_diff,velo_cm
   real(wp) :: achrg(nuc) 
-  real(wp) :: tstp,Edum
+  real(wp) :: time_step
+  real(wp) :: Edum
   real(wp) :: cm(3)
   real(wp) :: highestCOM,lowestCOM
   real(wp) :: old_cm(3)
@@ -166,7 +167,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   new_velo   = 0.0d0
   Tinit      = 0.0d0
   
-  tstp_count = 0
+  time_step_count = 0
   step_counter = 0
   
   avxyz =0
@@ -212,7 +213,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
       ! Do Euler Rotation
       call euler_rotation(nuc, iat, xyz, velo)
   
-      !  Give angular starting speed                      !!!!!!!
+      ! Give angular momentums 
       call rotation_velo(xyz, nuc, mass, velo, velo_rot, E_rot)
   
      ! Calc. ratio of energies (not important)
@@ -246,7 +247,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
     E_kin = E_Scale * evtoau
   else
     ! set this, because it is set in main to au units !fasti / mstoau
-    E_kin = 0.5 * summass * ((velo_cm*mstoau)**2) 
+    E_kin = 0.5_wp * summass * ((velo_cm * mstoau)**2) 
   endif
 
   ! thermal energy molecule 
@@ -256,9 +257,9 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !Stuff for scaling velos
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  beta = gas%mIatom/(gas%mIatom + summass)
-  ny = 2 
-  yamma= ((2*summass) + (ny*gas%mIatom)) / (summass + gas%mIatom)
+  beta  = gas%mIatom/(gas%mIatom + summass)
+  ny    = 2 
+  yamma = ((2 * summass) + (ny * gas%mIatom)) / (summass + gas%mIatom)
   
   E_COM = beta * E_kin 
   
@@ -274,15 +275,15 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   if (icoll == 1)then
      !set Energy and velocity         
      ! Save kinetic energy
-     fasti = sqrt(2*E_kin/summass)
+     fasti = sqrt(2 * E_kin / summass)
 
      write(*,*) ' '
      write(*,'(80(''=''))')
      write(*,*) '    CID settings:   '
   
-     if(mchrg == 1)then
+     if ( mchrg == 1) then
        write(*,*) '    + Positive Ion mode +   '
-     elseif(mchrg == -1)then
+     elseif ( mchrg == -1 ) then
        write(*,*) '    - Negative Ion mode -   '
      else 
        write(*,*) 'Something is wrong in CID - E X I T'
@@ -368,7 +369,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   
   if (ConstVelo .and. icoll  >  1)then
      W = sqrt(2*E_Scale/summass) !take the FIRST energy
-     W = W - (velo_cm*mstoau)
+     W = W - (velo_cm * mstoau)
      write(*,*) 'W scale m/s',velo_cm+ W/mstoau
 
      if (W  >  0)then
@@ -439,19 +440,19 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   !   write(*,*) 'Z-Axis'
 
   !Vary the collision angle depending on the maximum radius of the molecule
-     lowestx = huge(0.0d0)
-     lowesty = huge(0.0d0)
-     highestx = -huge(0.0d0)
-     highesty = -huge(0.0d0)
+     lowestx  =  huge(0.0_wp)
+     lowesty  =  huge(0.0_wp)
+     highestx = -huge(0.0_wp)
+     highesty = -huge(0.0_wp)
      do i=1,nuc
-     lowx = xyz(1,i)
-     lowy = xyz(2,i)
+     lowx  = xyz(1,i)
+     lowy  = xyz(2,i)
      highx = xyz(1,i)
      highy = xyz(2,i)
-     if(lowx < lowestx)lowestx=lowx
-     if(highx > highestx)highestx=highx
-     if(lowy < lowesty)lowesty=lowy
-     if(highy > highesty)highesty=highy
+     if (lowx  < lowestx)  lowestx  = lowx
+     if (highx > highestx) highestx = highx
+     if (lowy  < lowesty)  lowesty  = lowy
+     if (highy > highesty) highesty = highy
      enddo
   
   
@@ -466,8 +467,8 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
        diff2 = highestx * g 
      endif
   
-     if (g > 0.85)f = f*0.5 !reduce the amount of x-axis if y is very large
-     if (f > 0.85)g = g*0.5
+     if (g > 0.85) f = f*0.5 !reduce the amount of x-axis if y is very large
+     if (f > 0.85) g = g*0.5
   !endif
  
 
@@ -482,7 +483,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   
      !change direc to unity vector
      do i = 1,3
-        direc(i) = (direc(i)/(sqrt(direc(1)**2+direc(2)**2+direc(3)**2)))
+        direc(i) = direc(i) / (sqrt(direc(1)**2 + direc(2)**2 + direc(3)**2))
      end do
   
   
@@ -500,16 +501,17 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   
   else
   ! Make collision distance dependend on mol. velo.
-!      start_dist = velo_cm * mstoau  
+      start_dist = ( velo_cm * mstoau ) * (2 * time_step) ! in au
+
 
   ! Re-initialize the coordinates
-      xyz(1,:) = xyz(1,:)-cm(1)
-      xyz(2,:) = xyz(2,:)-cm(2)
-      xyz(3,:) = xyz(3,:)-cm(3)
+      xyz(1,:) = xyz(1,:) - cm(1)
+      xyz(2,:) = xyz(2,:) - cm(2)
+      xyz(3,:) = xyz(3,:) - cm(3)
      ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
-     xyzAr(1) = cm(1) + (direc(1)*start_dist) +diff2 *0.7 !(g * rtot)*0.90 
-     xyzAr(2) = cm(2) + (direc(2)*start_dist) +diff1 *0.7 !(f * rtot)*0.90 
-     xyzAr(3) = cm(3) + (direc(3)*start_dist) !+ (d * rtot)*0.90 
+     xyzAr(1) = cm(1) + (direc(1) * start_dist) + diff2 * 0.7 !(g * rtot)*0.90 
+     xyzAr(2) = cm(2) + (direc(2) * start_dist) + diff1 * 0.7 !(f * rtot)*0.90 
+     xyzAr(3) = cm(3) + (direc(3) * start_dist) !+ (d * rtot)*0.90 
   !   xyzAr(:) = cm(:) + direc * start_dist 
      scale_velo = 0
   endif
@@ -541,24 +543,24 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   enddo
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  xyz0(1:3,1:nuc) = xyz(1:3,1:nuc)
-  grad0(1:3,1:nuc) = grad(1:3,1:nuc)
-  mass0(1:nuc) = mass(1:nuc)
-  iat0(1:nuc) = iat(1:nuc)
+  xyz0(1:3,1:nuc)   = xyz(1:3,1:nuc)
+  grad0(1:3,1:nuc)  = grad(1:3,1:nuc)
+  mass0(1:nuc)      = mass(1:nuc)
+  iat0(1:nuc)       = iat(1:nuc)
   
-  xyz0(1:3,nuc0) = xyzAr(1:3) 
-  velo0(1:3,nuc0) = 0.0d0 
-  grad0(1:3,nuc0) = 0.0d0
-  mass0(nuc0) = gas%mIatom
-  iat0(nuc0) = gas%IndAtom
+  xyz0(1:3,nuc0)    = xyzAr(1:3) 
+  velo0(1:3,nuc0)   = 0.0d0 
+  grad0(1:3,nuc0)   = 0.0d0
+  mass0(nuc0)       = gas%mIatom
+  iat0(nuc0)        = gas%IndAtom
 
   if ( gas%Iatom ==  6 ) then !N2 collision gas
-     xyz0(1:2,nuc0-1) = xyzAr(1:2)
-     xyz0(3,nuc0-1) = xyzAr(3)+ 1.09 * aatoau
-     velo0(1:3,nuc0-1) = 0.0d0 
-     grad0(1:3,nuc0-1) = 0.0d0
-     mass0(nuc0-1) = gas%mIatom
-     iat0(nuc0-1) = gas%IndAtom
+     xyz0(1:2,nuc0-1)   = xyzAr(1:2)
+     xyz0(3,nuc0-1)     = xyzAr(3)+ 1.09 * aatoau
+     velo0(1:3,nuc0-1)  = 0.0d0 
+     grad0(1:3,nuc0-1)  = 0.0d0
+     mass0(nuc0-1)      = gas%mIatom
+     iat0(nuc0-1)       = gas%IndAtom
   endif
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -623,7 +625,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   
   do istep = 1, ntot
      ! increase the step coutners
-     ttime = ttime + tstp/fstoau
+     ttime = ttime + time_step * autofs 
      screen_dump   = screen_dump   + 1 ! counter for screen dump
      coord_dump    = coord_dump    + 1 ! counter for coord dump
      distance_dump = distance_dump + 1 ! counter for distance criterion
@@ -631,7 +633,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
      average_dump   = average_dump   + 1 ! counter for average 
  
      ! Do the leap frog step 
-     call leapfrog(nuc0,grad0,mass0,tstp,xyz0,velo0,ke,nstp)
+     call leapfrog(nuc0,grad0,mass0,time_step,xyz0,velo0,ke,nstp)
 
     ! Calculate Grad for entire system
      call egrad(.False.,nuc0,xyz0,iat0,mchrg,spin,etemp,E,grad0,achrg0,aspin0,ECP,gradfail)
@@ -650,7 +652,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   
      ! compute new velocity and convert to m/s
      if (istep /= 1)then
-       new_velo = (cm_out / tstp ) / mstoau 
+       new_velo = (cm_out / time_step ) / mstoau 
      else !i.e. in the first step: 
        new_velo = 0
      endif
@@ -758,9 +760,9 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
           write(*,*)
           write(*,'(''COLLISION after '',i6,a6)') nstp,' steps'
   
-          tstp_count = nstp + nint(800.0_wp *  (0.5_wp / (tstp/fstoau)))
+          time_step_count = nstp + nint(800.0_wp * (2 * time_step * autofs)) 
 
-          write(*,'(''STOP      after '',i6,a6)') tstp_count,' steps'
+          write(*,'(''STOP      after '',i6,a6)') time_step_count,' steps'
           write(*,*) 
           Tav = 0  !Start counting again to ensure only the
           m   = 0  !temp after the coll. is taken
@@ -781,12 +783,12 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
   !        write(*,*) ''
   !        write(*,*) 'The LAB velocity:',  new_velo, 'm/s'
           velo_diff = velo_cm - new_velo
-          tstp_count = 0
+          time_step_count = 0
           exit
        endif
 
      ! ...or the step-criterion is fullfilled
-       if (nstp == tstp_count+xtra)then  ! 800 Steps + xtra Steps
+       if (nstp == time_step_count+xtra)then  ! 800 Steps + xtra Steps
           stopcid = .False.
           write(*,*) 'Collision MD finished due to STEPS!'
           write(*,*) ''
@@ -796,7 +798,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,tstp,mchrg,etemp, &
           !write(*,*) 'Velo Difference' , velo_diff
           !write(*,*) 'Velocity now  :',  new_velo, 'm/s'
           !write(*,*) ''
-          tstp_count = 0
+          time_step_count = 0
           exit
        endif
     endif

@@ -622,6 +622,7 @@ GS: if(.not.ex)then
 
       write(*,*) 'reading qcxms.gs ...'
 
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! ignored if not used (default)
       ! do MD using previous GS traject
       if ( noeq ) then
@@ -654,51 +655,14 @@ GS: if(.not.ex)then
          call version(2)
          stop 'normal termination of QCxMS'
       endif
+      ! ignored if not used (default)
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     endif GS
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
-    ! Calculate or set IEE distribution  
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    if (method /= 3 .and. method /= 4)then ! Not important for CID
-      emo = 0
-      !call getspec(.true.,nuc,iat,xyz,mchrg,eps,ehomo,mopop,ihomo,nb,ECP) !eps has to be changed in geteps 
-      call getspec(.true.,nuc,iat,xyz,mchrg,emo,ehomo,mopop,ihomo,nb,ECP)
-
-      ! adjust IEE distr. if necessary (max in intervall)
-      if (scani  ==  0 ) then
-         write(*,'(/,'' preparing the IEE distribution ...'')')
-      elseif (scani  ==  1) then
-         write(*,'(/,'' IEE scanning feature  ...'')')
-      endif
-      exc   = (eimp0 - ehomo) * autoev
-      ieeel = dble (ihomo + nb)
-
-      ! user input
-      if(iee_a > 0.and.iee_b > 0)then
-        call getmaxiee(iee_a,iee_b,ieeel,edistri,exc,dum,pmax,dums)
-
-      ! automatic
-      else
-         call getieeab (iee_a,iee_b,ieeel,edistri,exc,nuc,ieeatm)
-         call getmaxiee(iee_a,iee_b,ieeel,edistri,exc,dum,pmax,dums)
-         if (scani  ==  0) then
-            write(*,'('' iee_a, iee_b                   : '',2f8.3)')iee_a,iee_b
-         endif
-      endif
-
-      if (scani  ==  0) then
-         write(*,'('' maximum IEE (eV)               : '',f8.2)')exc
-         write(*,'('' maximum of P(E) at (eV)        : '',f8.2)')dum
-         write(*,'('' average E for P(E) (eV)        : '',f8.2)')dums
-      elseif (scani  ==  1) then
-         write(*,'('' minimum IEE (eV)               : '',f8.2)')lowerbound
-         write(*,'('' maximum IEE (eV)               : '',f8.2)')upperbound
-      endif
-    endif !Method lt 3
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Test SP energy calc. of the used QM method on the input geom with charges (+1,-1)
     ! (It is important to do for calcs with TM and ORCA)
     call timing(t1,w1)
@@ -707,9 +671,17 @@ GS: if(.not.ex)then
     elseif (method  ==  2 .or. method == 4) then ! anions
       mchrg = -1
     endif
+
+    write(*,'(''--- Checking QC method for ions ---'')')
     call iniqm(nuc,xyz,iat,mchrg,mspin,betemp,edum,iniok,ECP)
-    if(.not.iniok) stop 'fatal QC error. Must stop!'
+    if (iniok) then 
+      write(*,'(''--- QC method okay ---'')')
+    else
+      stop '>>> fatal QC error. Must stop! <<<'
+    endif
+
     call timing(t2,w2)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
     !generate the starting points for production run
@@ -718,7 +690,8 @@ GS: if(.not.ex)then
     write(*,*)'      generating randomized ensemble '
     write(*,*)'*******************************************'
     write(*,*)'reading inital coord/velo from qcxms.gs ...'
-    open(file='qcxms.gs',newunit=io_gs, status='old')
+
+    open (file='qcxms.gs',newunit=io_gs, status='old')
     read(io_gs,*) ndumpGS
 
     ! allocating needed variables
@@ -728,50 +701,93 @@ GS: if(.not.ex)then
     &        eimpr(ntraj),taddr(ntraj), &
     &        icalc(ndumpGS))
 
+
+    ! check if GS was sampled long enough
+    if ( ndumpGS <= 2*ntraj ) stop 'Error: compute longer GS trajectory'
+
+    icalc(1:ndumpGS) = 0
+    k = 0
+
     ! determine which structures are taken, randomly on the GS trj
-    ! do not take it in equidistant steps to avoid correlations
-    if(ndumpGS <= 2*ntraj) stop 'Error: compute longer GS trajectory'
-
-    icalc(1:ndumpGS)=0
-    k=0
-
-    do
-      j=irand(ndumpGS)
-      if(icalc(j) == 0) then
-         k=k+1
-         icalc(j)=1
-         if(k == ntraj) exit 
-       endif
+    ! do not take structures equidistant steps to avoid correlations
+    ! irand -> function: (0 - ndumpGS) numbers (utilitly.f90)
+    do while (k <= ntraj)
+      j = irand(ndumpGS)
+      if ( icalc(j) == 0) then
+        k = k + 1
+        icalc(j) = 1
+      endif
     enddo
 
-    gaus=0
-    list=0
-    nrun=0
-    Tav =0
-    tta =0
+    gaus = 0
+    list = 0
+    nrun = 0
+    Tav  = 0
+    tta  = 0
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !   important code: generate the IEE
-    !   snorm returns a normal distributed random number
-    !   NOT for CID, no need for IEE
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    iee: if ( method /= 3 .and. method /= 4 ) then
-      do i=1,ndumpGS
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
+    ! Calculate or set IEE distribution for EI calculations 
+    ! This is only important for the "standard values"
+    ! Only pmax is used further as the maximum prob. for a given IEE energy (see below)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
+    ! NOT needed for CID, no need for IEE
+iee0: if (method /= 3 .and. method /= 4)then ! Not important for CID
+
+      emo = 0
+
+      ! mchrg = 0 to get the values for ground-state
+      !call getspec(.true.,nuc,iat,xyz,0,eps,ehomo,mopop,ihomo,nb,ECP) !eps has to be changed in geteps 
+      call getspec(.true.,nuc,iat,xyz,0,emo,ehomo,mopop,ihomo,nb,ECP)
+
+      ! adjust IEE distr. if necessary (max in intervall)
+      if (scani  ==  0 ) then
+         write(*,'(/,'' preparing the IEE distribution ...'')')
+      elseif (scani  ==  1) then
+         write(*,'(/,'' IEE scanning feature  ...'')')
+      endif
+
+      exc   = (eimp0 - ehomo) * autoev
+      !exc   = (eimp0 - ehomo) * autoev TEST
+      ieeel = dble (ihomo + nb)
+
+      ! user input
+iee1: if ( iee_a > 0 .and. iee_b > 0 ) then
+        call getmaxiee(iee_a,iee_b,ieeel,edistri,exc,dum,pmax,dums)
+        write(*,'('' IEE a (eV) [set]               : '',f8.2)')iee_a
+        write(*,'('' IEE b (eV) [set]               : '',f8.2)')iee_b
+
+      ! automatic
+      else
+         call getieeab (iee_a,iee_b,ieeel,edistri,exc,nuc,ieeatm)
+         call getmaxiee(iee_a,iee_b,ieeel,edistri,exc,dum,pmax,dums)
+         write(*,'('' IEE a (eV) [determined]        : '',f8.2)')iee_a
+         write(*,'('' IEE b (eV) [determined]        : '',f8.2)')iee_b
+
+      endif iee1 ! EI
+
+      if (scani  ==  0) then
+         write(*,'('' maximum IEE (eV)               : '',f8.2)')exc
+         write(*,'('' maximum of P(E) at (eV)        : '',f8.2)')dum
+         write(*,'('' average E for P(E) (eV)        : '',f8.2)')dums
+      elseif (scani  ==  1) then
+         write(*,'('' minimum IEE (eV)               : '',f8.2)')lowerbound
+         write(*,'('' maximum IEE (eV)               : '',f8.2)')upperbound
+      endif
+      write(*,*)
+
+      ! For the different structures, use the above settings
+iee2:  do i = 1, ndumpGS
         ! read structure and velo from previous GS MD
-        do k=1,nuc
+        do k = 1, nuc
           read(io_gs,*)(xyz(j,k),j=1,3),(velo(j,k),j=1,3)
         enddo
 
-        if(icalc(i) == 0) cycle
-        if(nrun == ntraj) exit
+        if (icalc(i) == 0) cycle
+        if (nrun == ntraj) exit
 
-        ! get spectrum and pops for this geometry (otherwise the one from the eq
-        ! structure is used)  
-        !call getspec(.false.,nuc,iat,xyz,mchrg,emo,ehomo,mopop,ihomo,nb,ECP)
-
-
-        ! 1. generate an e- that can ionize any MO
+        ! 1. generate an e- that can ionize any MO and vary it by boxuller
         do 
+          ! vary by normal distributed boxmuller random number
           Edum = vary_energies(eimp0,eimpw)
           if ( Edum >= ehomo ) exit
         enddo
@@ -796,8 +812,9 @@ GS: if(.not.ex)then
           if(dum >= randx)exit
         enddo
 
-        ! this is the energy used!
-        ! fimp is a scaling factor, it has the prob given by gauss0
+        ! this is the IEE energy used -> Edum = exc
+        ! fimp is a scaling factor (default = 1.0)
+        ! exc is now randomly chosen, but at least larger than ehomo
         if (scani  ==  0) then
           edum = fimp * exc / autoev
         elseif (scani  ==  1) then
@@ -816,65 +833,68 @@ GS: if(.not.ex)then
 
         ! heating scale factors from MO populations 
         modum(1:nuc) = mopop(mo1,1:nuc)
-        if(mo2 > 0)modum(1:nuc) = modum(1:nuc) + mopop(mo2,1:nuc)
+        if (mo2 > 0) modum(1:nuc) = modum(1:nuc) + mopop(mo2,1:nuc)
 
         ! more H move
-        do m=1,nuc
-           if(iat(m) == 1)modum(m) = modum(m) * hacc
+        do m = 1, nuc
+           if (iat(m) == 1) modum(m) = modum(m) * hacc
         enddo
 
         ! normalize max to unity, actual v-scaling determined in impactscale
-        dum=0
-        do m=1,nuc
-           if(modum(m) > dum) dum = modum(m)
+        dum = 0
+        do m = 1, nuc
+           if (modum(m) > dum) dum = modum(m)
         enddo
         !velof(1:nuc)=modum(1:nuc)/dum !some atoms becomes artificially slow based on MO
-        velof(1:nuc)=1+modum(1:nuc)/dum !some atoms become artificially fast based on MO
+        velof(1:nuc) = 1 + modum(1:nuc) / dum !some atoms become artificially fast based on MO
 
         ! for 'big' systems scale velocities uniformly (unity) or if specified as command line argument
-        if(nuc > 35) then !if# atoms is greater than 35 - uniform velocity scaling is employed by default
+        if (nuc > 35) then !if# atoms is greater than 35 - uniform velocity scaling is employed by default
           velof(1:nuc) = 1.0_wp
-        elseif(unity) then
+        elseif (unity) then
           velof(1:nuc) = 1.0_wp
         else
-          velof(1:nuc) = modum(1:nuc)/dum
+          velof(1:nuc) = modum(1:nuc) / dum
         endif
 
         ! ad hoc parameter trelax to relate impact energy to relaxation time, randomly broadened by 10 %
         call calctrelax(nuc,emo,ihomo,mo1,trelax,tadd)
-        dum=tadd
+        dum = tadd
         if(mo2 > 0)then
           call calctrelax(nuc,emo,ihomo,mo2,trelax,tadd)
-          dum=dum+tadd
+          dum = dum+tadd
         endif
 
-        dum=dum/(ihomo+nb)
+        dum = dum / (ihomo + nb)
         ! not less than
-        dum=max(dum,trelax/10.)
+        dum = max(dum, trelax / 10.0_wp)
 
-        nrun=nrun+1
+        nrun = nrun + 1
 
-        if(.not.check)then
+        if (.not.check) then
            call setetemp(1,Edum,etemp)
            write(*,'('' Run: '',i4,'', step on M trj: '',i5,'' MOs '',2i3,'' IEE (eV)  = '',F6.1,    &
              & '' heating time ='',F6.0,'' eTemp ='',F6.0)')nrun,i,mo1,mo2,Edum*autoev,dum,etemp
         endif
-        Tav=Tav+Tsoll
-        tta=tta+dum
+        Tav = Tav + Tsoll
+        tta = tta + dum
 
-        xyzr (1:3,1:nuc,nrun)=xyz (1:3,1:nuc)
-        velor(1:3,1:nuc,nrun)=velo(1:3,1:nuc)
-        velofr(   1:nuc,nrun)=velof(   1:nuc)
-        eimpr (         nrun)=Edum
-        taddr (         nrun)=dum*fstoau
-      enddo
+        xyzr (1:3,1:nuc,nrun) = xyz (1:3,1:nuc)
+        velor(1:3,1:nuc,nrun) = velo(1:3,1:nuc)
+        velofr(   1:nuc,nrun) = velof(   1:nuc)
+        eimpr (         nrun) = Edum
+        taddr (         nrun) = dum*fstoau
+
+      enddo iee2
+
       close(io_gs)
       !----
 
       dum  = 0
       dums = Tav * 0.5 * 3 * nuc * kB / dble(nrun)
-      do i=1,nrun
-         dum=dum+(eimpr(i)-dums)**2
+
+      do i = 1, nrun
+         dum = dum + (eimpr(i) - dums)**2
       enddo
 
       write(*,*)
@@ -886,7 +906,7 @@ GS: if(.not.ex)then
       ! output
       !open(file='qcxms.log',newunit=io_log, status='replace')
       write(*,*)
-      write(*,'('' average IEE (eV) +/-  '',2F9.2)')edum*autoev,autoev*sqrt(dum/float(nrun-1))
+      write(*,'('' average IEE (eV) +/-  '',2F9.2)')edum*autoev,sqrt(dum/float(nrun-1))*autoev
       write(*,'('' average T (K)          '',F9.1)')Tav/dble(nrun)
       write(*,'('' average heating t (fs) '',F9.1)')tta/dble(nrun)
       write(*,'('' tmax  ps               '',f9.1)')tmax/1000.
@@ -914,7 +934,7 @@ GS: if(.not.ex)then
 
       !---- CID part --- 
       !no need for EIMP or TADD
-      elseif ( method == 3 .or. method == 4 )then ! iee
+      elseif ( method == 3 .or. method == 4 )then ! iee0
 
         do i = 1, ndumpGS
 
@@ -944,8 +964,9 @@ GS: if(.not.ex)then
         taddr = 0.0d0
         eimpr = 0.0d0
 
-    endif iee !CID
+    endif iee0 !CID
     !----
+
 
 
     ! assume 5000 steps per trj
