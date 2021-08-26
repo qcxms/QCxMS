@@ -8,11 +8,13 @@ module qcxms_iee
 ! function for given energy range exc, the number of bonds
 ! nbnd and the input parameter ieeatm (av energy/per bond in eV,
 ! normally 0.5 eV/bond)
+
   subroutine getieeab(iee_a,iee_b,ieeel,ityp,exc,nbnd,ieeatm)
   
      integer  :: ityp,nbnd,k
   
      real(wp) :: iee_a,iee_b,ieeel,pmax,ieemax,exc,E_avg,st,ieeatm
+
   
      st = 0.005_wp
      iee_a = 0.0_wp
@@ -30,6 +32,7 @@ module qcxms_iee
 
        if (k > 10000) stop 'internal error inside getieeab'
        if (E_avg / nbnd >= ieeatm) exit 
+
 
      enddo
   
