@@ -3,7 +3,7 @@
 project(
   'qcxms',
   'fortran',
-  version: '5.1.1',
+  version: '5.1.2',
   license: 'LGPL-3.0-or-later',
   meson_version: '>=0.55',
   default_options: [

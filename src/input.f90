@@ -1,4 +1,4 @@
-subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                              &
+subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                        &
         iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
         edistri,btf,ieeatm,                                                       &
         scanI,lowerbound,upperbound,metal3d,ELAB,eExact,ECP,unity,noecp,nometal,  &
@@ -25,6 +25,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,                            
   integer  :: nn,i,j
   integer  :: io_in
   integer  :: error
+  integer  :: mchrg
   
   real(wp) :: tstep
   real(wp) :: tmax 
