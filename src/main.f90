@@ -138,7 +138,8 @@ program QCxMS
   logical :: starting_md
   !logical gbsa ! set solvation model
 
-  external system
+  intrinsic :: get_command_argument
+  external  :: system
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Start the program
@@ -266,13 +267,13 @@ program QCxMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Read the INPUT file
   ! input, all defaults are set here
-  call input(tstep,tmax,ntraj,iseed(1),etempin,Tinit, &
+  call input(tstep,tmax,ntraj,iseed(1),etempin,Tinit,mchrg,                 &
   &          iee_a,iee_b,eimp0,eimpw,fimp,iprog,                            &
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
-  &          scani,lowerbound,upperbound,metal3d,                    &
-  &          Eimpact,eExact,ECP,unity,noecp,nometal,   &
-  &          vScale,CollNo,CollSec,ConstVelo,   &
-  &          minmass,simMD,convetemp,set_coll,MaxColl,          &
+  &          scani,lowerbound,upperbound,metal3d,                           &
+  &          Eimpact,eExact,ECP,unity,noecp,nometal,                        &
+  &          vScale,CollNo,CollSec,ConstVelo,                               &
+  &          minmass,simMD,convetemp,set_coll,MaxColl,                      &
   &          MinPot,ESI,tempESI,No_ESI,NoScale)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
@@ -335,20 +336,23 @@ program QCxMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! READ command line options
   do i=1,10
-     call getarg(i,arg(i))
+     call get_command_argument(i,arg(i))
   enddo
+
   do i=1,10
-     if(index(arg(i),'-check') /= 0)check  =.true. !Check IEE settings
-     if(index(arg(i),'-c'    ) /= 0)check  =.true. !Check IEE settings
-     if(index(arg(i),'-prod' ) /= 0)prod   =.true. !Do production run
-     if(index(arg(i),'-p'    ) /= 0)prod   =.true. !Do production run
-     if(index(arg(i),'-noeq' ) /= 0)noeq   =.true. !Skip equilibration MD
-     if(index(arg(i),'-e0'   ) /= 0)eonly0 =.true. !Only calc. energy chrg = 0
-     if(index(arg(i),'-e1'   ) /= 0)eonly1 =.true. !Only calc. energy chrg = 1
-     if(index(arg(i),'-eonly') /= 0)eonly  =.true. !Only calc. energy chrg = .CHRG file
-     if(index(arg(i),'-v'    ) /= 0)verbose  =.true.   ! more infos 
-     if(index(arg(i),'-unity') /= 0)unity  =.true. !Set velocity scaling to unity
-     if(index(arg(i),'-qcp'  ) /= 0)path=arg(i+1)  !Use GCP model (not implemented)
+     if(index(arg(i),'-check' ) /= 0)check  =.true. !Check IEE settings
+     if(index(arg(i),'-c'     ) /= 0)check  =.true. !Check IEE settings
+     if(index(arg(i),'-prod'  ) /= 0)prod   =.true. !Do production run
+     if(index(arg(i),'-p'     ) /= 0)prod   =.true. !Do production run
+     if(index(arg(i),'-noeq'  ) /= 0)noeq   =.true. !Skip equilibration MD
+     if(index(arg(i),'-e0'    ) /= 0)eonly0 =.true. !Only calc. energy chrg = 0
+     if(index(arg(i),'-e1'    ) /= 0)eonly1 =.true. !Only calc. energy chrg = 1
+     if(index(arg(i),'-eonly' ) /= 0)eonly  =.true. !Only calc. energy chrg = .CHRG file
+     if(index(arg(i),'-v'     ) /= 0)verbose  =.true.   ! more infos 
+     if(index(arg(i),'-unity' ) /= 0)unity  =.true. !Set velocity scaling to unity
+     if(index(arg(i),'-qcp'   ) /= 0)path=arg(i+1)  !Set QC path
+     if(index(arg(i),'-qcpath') /= 0)path=arg(i+1)  !Set QC path
+
      !if(index(arg(i),'-gbsa' )  /= 0)then
      !  lgbsa =.true.
      !  write(*,*)'Solvation activated'
