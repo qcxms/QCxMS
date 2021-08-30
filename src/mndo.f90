@@ -11,7 +11,7 @@ module qcxms_use_mndo
 ! read MNDO99 E and gradient
   subroutine mndograd(fname,nat,g,chrg,spin,edum)
   
-     integer  :: nat,i,j,k,nn,idum1,idum2
+     integer  :: nat,i,j,nn,idum1,idum2
      integer  :: io_mndo
      real(wp) :: g(3,nat),xx(20),edum,chrg(nat),spin(nat)
   
@@ -85,7 +85,7 @@ rd2: do
   subroutine mndoout(nat,xyz,ic,chrg,isp,etemp,iconv,idiis)
   
      integer  :: chrg,nat,ic(*),isp,iconv,idiis
-     integer  :: i,j,k,m,iuhf
+     integer  :: i,m,iuhf
      integer  :: io_input
   
      real(wp) :: xyz(3,nat),etemp

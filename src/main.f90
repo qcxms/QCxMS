@@ -340,18 +340,19 @@ program QCxMS
   enddo
 
   do i=1,10
-     if(index(arg(i),'-check' ) /= 0)check  =.true. !Check IEE settings
-     if(index(arg(i),'-c'     ) /= 0)check  =.true. !Check IEE settings
-     if(index(arg(i),'-prod'  ) /= 0)prod   =.true. !Do production run
-     if(index(arg(i),'-p'     ) /= 0)prod   =.true. !Do production run
-     if(index(arg(i),'-noeq'  ) /= 0)noeq   =.true. !Skip equilibration MD
-     if(index(arg(i),'-e0'    ) /= 0)eonly0 =.true. !Only calc. energy chrg = 0
-     if(index(arg(i),'-e1'    ) /= 0)eonly1 =.true. !Only calc. energy chrg = 1
-     if(index(arg(i),'-eonly' ) /= 0)eonly  =.true. !Only calc. energy chrg = .CHRG file
-     if(index(arg(i),'-v'     ) /= 0)verbose  =.true.   ! more infos 
-     if(index(arg(i),'-unity' ) /= 0)unity  =.true. !Set velocity scaling to unity
-     if(index(arg(i),'-qcp'   ) /= 0)path=arg(i+1)  !Set QC path
-     if(index(arg(i),'-qcpath') /= 0)path=arg(i+1)  !Set QC path
+     if(index(arg(i),'-check'   ) /= 0)check  =.true. !Check IEE settings
+     if(index(arg(i),'-c'       ) /= 0)check  =.true. !Check IEE settings
+     if(index(arg(i),'-prod'    ) /= 0)prod   =.true. !Do production run
+     if(index(arg(i),'-p'       ) /= 0)prod   =.true. !Do production run
+     if(index(arg(i),'-noeq'    ) /= 0)noeq   =.true. !Skip equilibration MD
+     if(index(arg(i),'-e0'      ) /= 0)eonly0 =.true. !Only calc. energy chrg = 0
+     if(index(arg(i),'-e1'      ) /= 0)eonly1 =.true. !Only calc. energy chrg = 1
+     if(index(arg(i),'-eonly'   ) /= 0)eonly  =.true. !Only calc. energy chrg = .CHRG file
+     if(index(arg(i),'-v'       ) /= 0)verbose  =.true.   ! more infos 
+     if(index(arg(i),'-verbose' ) /= 0)verbose  =.true.   ! more infos 
+     if(index(arg(i),'-unity'   ) /= 0)unity  =.true. !Set velocity scaling to unity
+     if(index(arg(i),'-qcp'     ) /= 0)path=arg(i+1)  !Set QC path
+     if(index(arg(i),'-qcpath'  ) /= 0)path=arg(i+1)  !Set QC path
 
      !if(index(arg(i),'-gbsa' )  /= 0)then
      !  lgbsa =.true.
