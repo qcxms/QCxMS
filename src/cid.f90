@@ -99,6 +99,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
   logical :: gradfail
   logical :: xstps
 
+
   ! initiate random numbers
   call random_seed()
   
@@ -501,7 +502,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
   
   else
   ! Make collision distance dependend on mol. velo.
-      start_dist = ( velo_cm * mstoau ) * (2 * time_step) ! in au
+  !    start_dist = ( velo_cm * mstoau ) * (2 * time_step) ! in au
 
 
   ! Re-initialize the coordinates
