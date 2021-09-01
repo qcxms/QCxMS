@@ -498,7 +498,8 @@ info: if ( method /= 3 .and. method /= 4 )then
   if (iprog == 2 ) line = 'TURBOMOLE'
 
   ! ORCA
-  if (iprog == 3 ) line = 'ORCA'
+  if (iprog == 3 .and. orca_version == 5 ) line = 'ORCA 5'
+  if (iprog == 3 .and. orca_version == 4 ) line = 'ORCA 4'
 
   ! DFT functionals and basis output 
   if ( iprog == 2 .or. iprog == 3 ) then

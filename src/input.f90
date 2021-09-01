@@ -134,7 +134,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   ! slowconv for convergence issues [in orca only]
   slowconv = .false.
   ! gridsize
-  grid = 2      
+  grid_orca = 2      
+  !grid_tmol = 4   
   ! DFTB3
   hhmod = .true. 
   tbcorr = .false.
@@ -329,11 +330,18 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
                                     iprog = 2
          endif
 
-         ! ORCA
-         if(line == 'ORCA')then
+         ! ORCA !!!!!
+         if(line == 'ORCA' .or. line == 'ORCA5')then
                                     prog  = 3
                                     iprog = 3
+                                    orca_version = 5
          endif
+         if(line == 'ORCA4')then
+                                    prog  = 3
+                                    iprog = 3
+                                    orca_version = 4
+         endif
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
          ! MSINDO
          if(line == 'MSINDO')       prog=4
@@ -600,6 +608,19 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
              call readl(line,xx,nn)
              convetemp=xx(1)
           endif
+
+          ! set grid for ORCA
+          if ( prog == 2 .and. index(line,'GRID') /= 0)then            
+               call readl(line,xx,nn)
+               grid_orca=xx(1)
+            endif
+          endif
+
+          ! set grid for TMOL (not yet implemnted)
+          !if ( prog == 3 .and. index(line,'GRID') /= 0 )then            
+          !     call readl(line,xx,nn)
+          !     grid_tmol=xx(1)
+          !endif
   
   !       SCAN FUNCTION 
           if(index(line,'SCANI' ) /= 0)scanI = 1   
