@@ -11,10 +11,11 @@ module qcxms_use_orca
 
      subroutine orcaout(nat,xyz,iat,chrg,spin,etemp,grad,ECP)
 
-        integer :: nat
-        integer :: chrg
-        integer :: iat(nat)
-        integer :: i,ich,j,spin,idum(100),specbas(4)
+        integer ::  nat
+        integer ::  chrg
+        integer ::  iat(nat)
+        integer ::  i,j,spin,idum(100),specbas(4)
+        integer ::  io_orca
 
         real(wp) :: xyz (3,nat)
         real(wp) :: etemp
@@ -35,182 +36,203 @@ module qcxms_use_orca
            idum(iat(i))=idum(iat(i))+1
         enddo
         do i=1,4
-           if(idum(specbas(i)).gt.0) wrb=.true.
+           if(idum(specbas(i)) > 0) wrb=.true.
         enddo
      
-        if(spin.eq.0) call getspin(nat,iat,chrg,spin)
+        if(spin == 0) call getspin(nat,iat,chrg,spin)
      
-        basis(1)='SV'
-        basis(2)='SV'
-        basis(3)='SV(P)'
-        basis(4)='SVP'
-        basis(5)='TZVP'
-        basis(6)='ma-def2-SVP'
-        basis(7)='ma-def2-TZVP'
-        basis(8)='ma-def2-TZVPP'
-        basis(9)='def2-SV(P)'
-        basis(10)='def2-SVP'
-        basis(11)='def2-TZVP'
-        basis(12)='def2-QZVP'
-        basis(13)='QZVP'
-        basis(14)='ma-def2-QZVP'
-        ich=87
-        open(unit=ich,file='ORCA.INPUT')
+        basis(1)  = 'SV'
+        basis(2)  = 'SV'
+        basis(3)  = 'SV(P)'
+        basis(4)  = 'SVP'
+        basis(5)  = 'TZVP'
+        basis(6)  = 'ma-def2-SVP'
+        basis(7)  = 'ma-def2-TZVP'
+        basis(8)  = 'ma-def2-TZVPP'
+        basis(9)  = 'def2-SV(P)'
+        basis(10) = 'def2-SVP'
+        basis(11) = 'def2-TZVP'
+        basis(12) = 'def2-QZVP'
+        basis(13) = 'QZVP'
+        basis(14) = 'ma-def2-QZVP'
+
+        ! open and write to ORCA input file
+        open(file='ORCA.INPUT', newunit=io_orca)
+
      ! hybrid vs other funcs.... nat is number of atoms
-        if(func.le.4.and.nat.lt.60.and.noconv.eq. .false.)then
-           write(ich,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
-        elseif (func .eq. 7.and.nat.lt.60.and.noconv.eq. .false.) then
-           write(ich,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
-        elseif (func .eq. 8.and.nat.lt.60.and. noconv .eq. .false.) then
-           write(ich,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
-        elseif (func .eq. 9.and.nat.lt.60 .and. noconv .eq. .false.) then
-           write(ich,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
-        elseif(func.le.4.and.noconv.eq. .True.)then
-           write(ich,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
-        elseif (func .eq. 7.and.noconv.eq. .True.) then
-           write(ich,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
-        elseif (func .eq. 8.and.noconv.eq. .True.) then
-           write(ich,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
-        elseif (func .eq. 9.and.noconv.eq. .True.) then
-           write(ich,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
+        if ( func <= 4 .and. nat < 60 .and. noconv ==  .false. ) then
+           write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
+
+        elseif ( func  ==  7 .and. nat < 60 .and. noconv ==  .false.) then
+           write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
+
+        elseif ( func  ==  8 .and. nat < 60 .and. noconv  ==  .false.) then
+           write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
+
+        elseif ( func  ==  9 .and. nat < 60 .and. noconv  ==  .false.) then
+           write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
+
+        elseif ( func <= 4 .and. noconv ==  .True.)then
+           write(io_orca,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
+
+        elseif ( func  ==  7 .and. noconv ==  .True.) then
+           write(io_orca,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
+
+        elseif ( func  ==  8 .and. noconv ==  .True.) then
+           write(io_orca,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
+
+        elseif ( func  ==  9 .and. noconv ==  .True.) then
+           write(io_orca,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
+
+        ! RI
         else
-     ! RI
-           write(ich,'(''!  DEF2/J SMALLPRINT NOSOSCF'')')
+           write(io_orca,'(''!  DEF2/J SMALLPRINT NOSOSCF'')')
         endif
      
-        write(ich,'(''! NOFINALGRID NOMAYER'')')
+        ! Set mayer and finalgrid
+        if ( orca_version == 4 ) write(io_orca,'(''! NOFINALGRID NOMAYER'')')
+        if ( orca_version == 5 ) write(io_orca,'(''! NOMAYER'')')
      
-        write(ich,'(''! UHF'')')
-     ! IF PBEH3C
-        if(func.ne.14) then
-           write(ich,'(''! '',a)')trim(basis(bas))
-        elseif(func.eq.14) then
-           write(ich,'(''! def2-mSVP'')')
+        write(io_orca,'(''! UHF'')')
+
+        ! IF PBEh-3c
+        if (func /= 14) then
+           write(io_orca,'(''! '',a)')trim(basis(bas))
+        elseif(func == 14) then
+           write(io_orca,'(''! def2-mSVP'')')
         endif
-     ! IF ECP true
-        if (ecp .eq. .true. .and. func.ne.14)then
-           write(ich,'(''! ecp('',a,'')'')')trim(basis(bas))
-        elseif(ecp .eq. .true. .and. func .eq. 14)then
-           write(ich,'(''! ecp(def2-mSVP)'')')
+
+        ! IF ECP true
+        if (ecp  ==  .true. .and. func /= 14)then
+           write(io_orca,'(''! ecp('',a,'')'')')trim(basis(bas))
+        elseif(ecp  ==  .true. .and. func  ==  14)then
+           write(io_orca,'(''! ecp(def2-mSVP)'')')
         endif
-        write(ich,'(''! GRID'',i1)')grid
+
+        ! Set Grid Mashes
+        if ( orca_version == 4 ) write(io_orca,'(''! GRID'',i1)')   grid_orca 
+        if ( orca_version == 5 ) write(io_orca,'(''! DEFGRID'',i1)')grid_orca 
+        
+
      ! func 0,1,2 are pbe hybrid family
      ! func 3 is lda (commented out)
-        if ( func == 0  ) write(ich,'(''! PBE0 D3'')')
-        if ( func == 1  ) write(ich,'(''! D3BJ'')')
-        if ( func == 2  ) write(ich,'(''! D3BJ'')')
-     !  if ( func == 3  ) write(ich,'(''! D3BJ'')')
-        if ( func == 4  ) write(ich,'(''! M062X D3zero'')')
-        if ( func == 5  ) write(ich,'(''! PBE D3BJ'')')
-        if ( func == 6  ) write(ich,'(''! B97-D3 '')')
-        if ( func == 7  ) write(ich,'(''! B3LYP D3BJ'')')
-        if ( func == 8  ) write(ich,'(''! PW6B95 D3BJ'')')
-        if ( func == 9  ) write(ich,'(''! B3PW91 D3BJ'')')
-        if ( func == 10 ) write(ich,'(''! BLYP D3BJ '')')
-        if ( func == 11 ) write(ich,'(''! BP86 D3BJ'')')
-        if ( func == 12 ) write(ich,'(''! TPSS D3BJ'')')
-        if ( func == 13 ) write(ich,'(''! REVPBE D3BJ'')')
-        if ( func == 14 ) write(ich,'(''! PBEH-3c'')')
-        if ( func == 15 ) write(ich,'(''! BHLYP D3BJ'')')
-        write(ich,'(''%output'')')
-        write(ich,'('' Print[ P_AtPopMO_L] 1  end'')')
-        write(ich,'(''%output'')')
-        write(ich,'('' Print[ P_AtPopMO_M] 1  end'')')
-        write(ich,'(''%method'')')
+        if ( func == 0  ) write(io_orca,'(''! PBE0 D3'')')
+        if ( func == 1  ) write(io_orca,'(''! D3BJ'')')
+        if ( func == 2  ) write(io_orca,'(''! D3BJ'')')
+     !  if ( func == 3  ) write(io_orca,'(''! D3BJ'')')
+        if ( func == 4  ) write(io_orca,'(''! M062X D3zero'')')
+        if ( func == 5  ) write(io_orca,'(''! PBE D3BJ'')')
+        if ( func == 6  ) write(io_orca,'(''! B97-D3 '')')
+        if ( func == 7  ) write(io_orca,'(''! B3LYP D3BJ'')')
+        if ( func == 8  ) write(io_orca,'(''! PW6B95 D3BJ'')')
+        if ( func == 9  ) write(io_orca,'(''! B3PW91 D3BJ'')')
+        if ( func == 10 ) write(io_orca,'(''! BLYP D3BJ '')')
+        if ( func == 11 ) write(io_orca,'(''! BP86 D3BJ'')')
+        if ( func == 12 ) write(io_orca,'(''! TPSS D3BJ'')')
+        if ( func == 13 ) write(io_orca,'(''! REVPBE D3BJ'')')
+        if ( func == 14 ) write(io_orca,'(''! PBEH-3c'')')
+        if ( func == 15 ) write(io_orca,'(''! BHLYP D3BJ'')')
+
+        write(io_orca,'(''%output'')')
+        write(io_orca,'('' Print[ P_AtPopMO_L] 1  end'')')
+        write(io_orca,'(''%output'')')
+        write(io_orca,'('' Print[ P_AtPopMO_M] 1  end'')')
+        write(io_orca,'(''%method'')')
+
         if(grad)then
-           write(ich,'('' runtyp gradient'')')
+           write(io_orca,'('' runtyp gradient'')')
         else
-           write(ich,'('' runtyp energy  '')')
+           write(io_orca,'('' runtyp energy  '')')
         endif
      
-        if(func.eq.1.or.func.eq.2)then
-           write(ich,'(''   method dfgto'')')
-           write(ich,'(''   ldaopt C_PWLDA'')')
+        if(func == 1.or.func == 2)then
+           write(io_orca,'(''   method dfgto'')')
+           write(io_orca,'(''   ldaopt C_PWLDA'')')
         endif
      
-     !      if(func.eq.3)then
-     !      write(ich,'(''   exchange    X_SLATER'')')
-     !      write(ich,'(''   correlation C_VWN3'')')
-     !      write(ich,'(''   scalHFX = 0.500'')')
-     !      write(ich,'(''   scalDFX = 0.500'')')
+     !      if(func == 3)then
+     !      write(io_orca,'(''   exchange    X_SLATER'')')
+     !      write(io_orca,'(''   correlation C_VWN3'')')
+     !      write(io_orca,'(''   scalHFX = 0.500'')')
+     !      write(io_orca,'(''   scalDFX = 0.500'')')
      !      endif
      
      
      ! pbe12, pbe38,pbe0
-        if(func.eq.1)then
-           write(ich,'(''   exchange    X_PBE'')')
-           write(ich,'(''   correlation C_PBE'')')
-           write(ich,'(''   scalHFX = 0.375'')')
-           write(ich,'(''   scalDFX = 0.625'')')
+        if(func == 1)then
+           write(io_orca,'(''   exchange    X_PBE'')')
+           write(io_orca,'(''   correlation C_PBE'')')
+           write(io_orca,'(''   scalHFX = 0.375'')')
+           write(io_orca,'(''   scalDFX = 0.625'')')
         endif
-        if(func.eq.2)then
-           write(ich,'(''   exchange    X_PBE'')')
-           write(ich,'(''   correlation C_PBE'')')
-           write(ich,'(''   scalHFX = 0.500'')')
-           write(ich,'(''   scalDFX = 0.500'')')
+        if(func == 2)then
+           write(io_orca,'(''   exchange    X_PBE'')')
+           write(io_orca,'(''   correlation C_PBE'')')
+           write(io_orca,'(''   scalHFX = 0.500'')')
+           write(io_orca,'(''   scalDFX = 0.500'')')
         endif
-     !      if(func.eq.0)then
-     !      write(ich,'(''   exchange    X_PBE'')')
-     !      write(ich,'(''   correlation C_PBE'')')
-     !      write(ich,'(''   scalHFX = 0.250'')')
-     !      write(ich,'(''   scalDFX = 0.750'')')
+     !      if(func == 0)then
+     !      write(io_orca,'(''   exchange    X_PBE'')')
+     !      write(io_orca,'(''   correlation C_PBE'')')
+     !      write(io_orca,'(''   scalHFX = 0.250'')')
+     !      write(io_orca,'(''   scalDFX = 0.750'')')
      !      endif
      
-        write(ich,'(''end'')')
+        write(io_orca,'(''end'')')
      
-        write(ich,'(''%elprop'')')
-        write(ich,'('' dipole false'')')
-        write(ich,'(''end'')')
+        write(io_orca,'(''%elprop'')')
+        write(io_orca,'('' dipole false'')')
+        write(io_orca,'(''end'')')
      
-        write(ich,'(''%scf'')')
-        if(etemp.gt.10.0)&
-        &write(ich,'('' SmearTemp '',F7.0)') etemp
-        write(ich,'('' maxcore   '',i6  )') qcmem
-        write(ich,'('' MaxIter  400''     )')
-        if(spin.gt.1)write(ich,'('' LShift  0.30''     )')
-        write(ich,'(''end'')')
+        write(io_orca,'(''%scf'')')
+        if(etemp > 10.0) write(io_orca,'('' SmearTemp '',F7.0)') etemp
+        write(io_orca,'('' maxcore   '',i6  )') qcmem
+        write(io_orca,'('' MaxIter  400''     )')
+
+        if(spin > 1)write(io_orca,'('' LShift  0.30''     )')
+        write(io_orca,'(''end'')')
      
-        if(bas.eq.2.and.wrb)then
-           write(ich,'(''%basis    '')')
-           if(idum(9).gt.0)then
-              write(ich,'('' addGTO 9  '')')
-              write(ich,'('' D 1      '')')
-              write(ich,'('' 1 1.2 1.0'')')
-              write(ich,'('' end'')')
+        if(bas == 2.and.wrb)then
+           write(io_orca,'(''%basis    '')')
+           if(idum(9) > 0)then
+              write(io_orca,'('' addGTO 9  '')')
+              write(io_orca,'('' D 1      '')')
+              write(io_orca,'('' 1 1.2 1.0'')')
+              write(io_orca,'('' end'')')
            endif
-           if(idum(8).gt.0)then
-              write(ich,'('' addGTO 8  '')')
-              write(ich,'('' D 1      '')')
-              write(ich,'('' 1 1.0 1.0'')')
-              write(ich,'('' end'')')
+           if(idum(8) > 0)then
+              write(io_orca,'('' addGTO 8  '')')
+              write(io_orca,'('' D 1      '')')
+              write(io_orca,'('' 1 1.0 1.0'')')
+              write(io_orca,'('' end'')')
            endif
-           if(idum(7).gt.0)then
-              write(ich,'('' addGTO 7  '')')
-              write(ich,'('' D 1      '')')
-              write(ich,'('' 1 0.8 1.0'')')
-              write(ich,'('' end'')')
+           if(idum(7) > 0)then
+              write(io_orca,'('' addGTO 7  '')')
+              write(io_orca,'('' D 1      '')')
+              write(io_orca,'('' 1 0.8 1.0'')')
+              write(io_orca,'('' end'')')
            endif
-           if(idum(14).gt.0)then
-              write(ich,'('' addGTO 14 '')')
-              write(ich,'('' D 1      '')')
-              write(ich,'('' 1 0.35 1.0'')')
-              write(ich,'('' end'')')
+           if(idum(14) > 0)then
+              write(io_orca,'('' addGTO 14 '')')
+              write(io_orca,'('' D 1      '')')
+              write(io_orca,'('' 1 0.35 1.0'')')
+              write(io_orca,'('' end'')')
            endif
-           write(ich,'(''end'')')
+           write(io_orca,'(''end'')')
         endif
      
-        write(ich,'(''* xyz '',2i3)')chrg,spin
+        write(io_orca,'(''* xyz '',2i3)')chrg,spin
         do i=1,nat
-           write(ich,300)toSymbol(iat(i)),xyz(1,i)*autoaa,xyz(2,i)*autoaa,xyz(3,i)*autoaa
+           write(io_orca,300)toSymbol(iat(i)),xyz(1,i)*autoaa,xyz(2,i)*autoaa,xyz(3,i)*autoaa
         enddo
      300 format(a2,3(f22.12))
-        write(ich,'(''*'')')
+        write(io_orca,'(''*'')')
      
-        close(ich)
+        close(io_orca)
      
      end subroutine orcaout
      
-     !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      
      subroutine rdorcagrad(fname,nat,g,achrg,aspin,edum)
 
@@ -315,9 +337,9 @@ module qcxms_use_orca
    character(len=80) :: command
    external :: system
    
-   if(line.ge.10000)stop 'error 1 inside copyorc'
+   if(line >= 10000)stop 'error 1 inside copyorc'
    
-   if(line.ge.1000)then
+   if(line >= 1000)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')line
       call system(command)
       write(command,'(''cp coord TMPQCXMS/TMP.'',i4)')line
@@ -325,7 +347,7 @@ module qcxms_use_orca
       return
    endif
    
-   if(line.ge.100)then
+   if(line >= 100)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i3)')line
       call system(command)
       write(command,'(''cp coord TMPQCXMS/TMP.'',i3)')line
@@ -333,7 +355,7 @@ module qcxms_use_orca
       return
    endif
    
-   if(line.ge.10)then
+   if(line >= 10)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i2)')line
       call system(command)
       write(command,'(''cp coord TMPQCXMS/TMP.'',i2)')line
@@ -341,7 +363,7 @@ module qcxms_use_orca
       return
    endif
    
-   if(line.ge.0)then
+   if(line >= 0)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i1)')line
       call system(command)
       write(command,'(''cp coord TMPQCXMS/TMP.'',i1)')line
