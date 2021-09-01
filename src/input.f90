@@ -613,7 +613,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
           if ( prog == 2 .and. index(line,'GRID') /= 0)then            
                call readl(line,xx,nn)
                grid_orca=xx(1)
-            endif
           endif
 
           ! set grid for TMOL (not yet implemnted)
