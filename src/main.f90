@@ -821,10 +821,10 @@ iee2:  do i = 1, ndumpGS
         ! fimp is a scaling factor (default = 1.0)
         ! exc is now randomly chosen, but at least larger than ehomo
         if (scani  ==  0) then
-          edum = fimp * exc / autoev
+          edum = fimp * exc * evtoau 
         elseif (scani  ==  1) then
           exc = lowerbound + (((upperbound-lowerbound)/dble(ntraj))*dble(nrun))
-          edum = fimp * exc / autoev
+          edum = fimp * exc * evtoau 
         endif
 
         ! map IEE to MO number, shake-up possibility (ie MO2>0)
