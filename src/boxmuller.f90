@@ -5,6 +5,7 @@
 ! DOI: https://doi.org/10.1214/aoms/1177706645
 
 module qcxms_boxmuller
+  use newcommon
   use xtb_mctc_accuracy
   use xtb_mctc_constants, only: pi
   implicit none
@@ -50,6 +51,8 @@ module qcxms_boxmuller
       call random_seed()
       call random_number(dum)
       call random_number(dum2)
+      if (verbose) &
+        & write(*,'('' random numbers:                : '',2f4.2)')dum,dum2
 
       sigma = E_in * dble(E_Distr)  !dble(0.25)
 
