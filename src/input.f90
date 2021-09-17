@@ -198,6 +198,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   nfragexit = 3     
   ! unity scaling
   unity = .False.
+  ! ORCA nprocs
+  nproc_orca = 0
   
   !!!           !!!! 
   !!!!!! CID !!!!!!!
@@ -609,17 +611,25 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
              convetemp=xx(1)
           endif
 
+          ! set grid for TMOL (not yet implemnted)
+          !if ( prog == 2 .and. index(line,'GRID') /= 0 )then            
+          !     call readl(line,xx,nn)
+          !     grid_tmol=xx(1)
+          !endif
+
           ! set grid for ORCA
-          if ( prog == 2 .and. index(line,'GRID') /= 0)then            
+          if ( prog == 3 .and. index(line,'GRID') /= 0)then            
                call readl(line,xx,nn)
                grid_orca=xx(1)
           endif
 
-          ! set grid for TMOL (not yet implemnted)
-          !if ( prog == 3 .and. index(line,'GRID') /= 0 )then            
+          !! set numthreads orca
+          !if ( prog == 3 .and. index(line,'NPROC') /= 0)then            
           !     call readl(line,xx,nn)
-          !     grid_tmol=xx(1)
+          !     nproc_orca = xx(1)
+          !     write(*,*) 'ORCA PROCS', nproc_orca
           !endif
+
   
   !       SCAN FUNCTION 
           if(index(line,'SCANI' ) /= 0)scanI = 1   

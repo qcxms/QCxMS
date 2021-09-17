@@ -88,10 +88,11 @@ module qcxms_use_orca
         else
            write(io_orca,'(''!  DEF2/J SMALLPRINT NOSOSCF'')')
         endif
+
      
         ! Set mayer and finalgrid
         if ( orca_version == 4 ) write(io_orca,'(''! NOFINALGRID NOMAYER'')')
-        if ( orca_version == 5 ) write(io_orca,'(''! NOMAYER'')')
+        if ( orca_version == 5 ) write(io_orca,'(''! NOFINALGRIDX NOMAYER'')')
      
         write(io_orca,'(''! UHF'')')
 
@@ -137,6 +138,14 @@ module qcxms_use_orca
         write(io_orca,'('' Print[ P_AtPopMO_L] 1  end'')')
         write(io_orca,'(''%output'')')
         write(io_orca,'('' Print[ P_AtPopMO_M] 1  end'')')
+
+        ! Set multicores
+        if ( nproc_orca > 0 ) then
+          write(io_orca,'(''%pal'')')
+          write(io_orca,'('' nprocs '',i2)') nproc_orca
+          write(io_orca,'(''end'')')
+        endif
+
         write(io_orca,'(''%method'')')
 
         if(grad)then

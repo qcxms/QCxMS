@@ -14,6 +14,7 @@ module common1
   integer  ::  orca_version
   integer  ::  grid_orca
   !integer  ::  grid_tmol
+  integer  :: nproc_orca
 
   real(wp) ::  a1,a2,s8
   real(wp) ::  ax
