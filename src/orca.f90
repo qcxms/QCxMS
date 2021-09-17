@@ -136,7 +136,6 @@ module qcxms_use_orca
 
         write(io_orca,'(''%output'')')
         write(io_orca,'('' Print[ P_AtPopMO_L] 1  end'')')
-
         write(io_orca,'(''%output'')')
         write(io_orca,'('' Print[ P_AtPopMO_M] 1  end'')')
 
