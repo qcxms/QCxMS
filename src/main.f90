@@ -62,8 +62,9 @@ program QCxMS
   integer  :: collisions,set_coll,MaxColl
   integer  :: minmass,numb
   integer  :: coll_counter,new_counter,frag_counter
-  integer  :: simMD,save_MD
+  integer  :: simMD, manual_simMD, save_simMD
   integer  :: rand_int,dep,convetemp
+  integer  :: manual_dist
   ! GBSA
   !integer  :: gsolvstate
 
@@ -243,6 +244,8 @@ program QCxMS
   ! GS Etemp (to converge radicals etc)
   etempGS=298.15 ! normal ! Maybe make this input relevant
   convetemp=0
+  ! introduce simmd
+  simMD = 0
 
   ! GBSA Solvation Model
   !solvent='none'
@@ -273,8 +276,8 @@ program QCxMS
   &          scani,lowerbound,upperbound,metal3d,                           &
   &          Eimpact,eExact,ECP,unity,noecp,nometal,                        &
   &          vScale,CollNo,CollSec,ConstVelo,                               &
-  &          minmass,simMD,convetemp,set_coll,MaxColl,                      &
-  &          MinPot,ESI,tempESI,No_ESI,NoScale)
+  &          minmass,manual_simMD,convetemp,set_coll,MaxColl,               &
+  &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   ! Choose the MS method
@@ -821,10 +824,10 @@ iee2:  do i = 1, ndumpGS
         ! fimp is a scaling factor (default = 1.0)
         ! exc is now randomly chosen, but at least larger than ehomo
         if (scani  ==  0) then
-          edum = fimp * exc / autoev
+          edum = fimp * exc * evtoau 
         elseif (scani  ==  1) then
           exc = lowerbound + (((upperbound-lowerbound)/dble(ntraj))*dble(nrun))
-          edum = fimp * exc / autoev
+          edum = fimp * exc * evtoau 
         endif
 
         ! map IEE to MO number, shake-up possibility (ie MO2>0)
@@ -1141,6 +1144,7 @@ mCID:if ( method == 3 .or. method == 4 ) then
       velof = 0.0_wp
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+      !> set the charges
       if ( method == 3 ) mchrg =  1
       if ( method == 4 ) mchrg = -1
 
@@ -1148,8 +1152,11 @@ mCID:if ( method == 3 .or. method == 4 ) then
 
       edum = 0
 
-      ! Check if input (qcxms.in) makes sense
+      !> Check if input (qcxms.in) makes sense
       call cidcheck(MaxColl, CollNo, CollSec)
+
+      !> Check if the sim. MD time has been manually set
+      if ( manual_simMD > 0 ) simMD = manual_simMD
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! Do ESI MD if ESI larger than 0
@@ -1288,7 +1295,7 @@ ESI_loop: do
 
               if (isec == 1)then
                 prestep = nint(ENe(4)/100)
-                prestep = prestep*300
+                prestep = prestep*200
                 starting_MD = .true.
               else
                 prestep=simMD
@@ -1297,7 +1304,7 @@ ESI_loop: do
               endif
 
             elseif (TempRun .and. isec == 1) then
-              prestep=simMD
+              prestep = simMD
               starting_MD = .true.
             elseif (TempRun .and. isec > 1) then
               starting_MD = .false.
@@ -1372,7 +1379,9 @@ ESI_loop: do
               nuc=k
               ! count number of fragmentations
               coll_counter = coll_counter + 1
-              write(*,*) 'Number of frag Processes',coll_counter
+              write(*,'(''-- No of overall fragmentations: '',i3, '' --'')')&
+                coll_counter
+              write(*,'(40(''(!)''))')
               write(*,*) 'Fragmentation in ESI MD'
 
             elseif (tcont == 0) then
@@ -1459,7 +1468,7 @@ ESI_loop: do
 cnt:  if (.not. TempRun .and. .not. small .and. isec < 3) then
 
         starting_md = .false.
-        save_MD = simMD
+        save_simMD = simMD
         new_counter = 0
 
         ! Full Auto = Total Program control depending on mol. size, pressure cham. length etc.
@@ -1546,7 +1555,7 @@ cidlp:  do
           isec = 1
           icoll=icoll+1
           fragstate = 0
-          simMD = save_MD
+          simMD = save_simMD
 
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1575,11 +1584,11 @@ cidlp:  do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           ! Call CID module
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          call cid(nuc,iat,mass,xyz,velo,tstep,mchrg,eTempin,               &
-          &  stopcid,Eimpact,axyz,ttime,eExact,ECP,           &
-          &  vScale,MinPot,ConstVelo,cross,                   &
-          &  mfpath,rtot,chrg,icoll,collisions,direc,new_velo,aTlast,         &
-          &  calc_collisions,imass)
+          call cid(nuc, iat, mass, xyz, velo, tstep, mchrg, eTempin,  &
+          & stopcid, Eimpact, axyz, ttime, eExact, ECP, manual_dist,  &
+          & vScale, MinPot, ConstVelo, cross,                         &
+          & mfpath, rtot, chrg, icoll, collisions, direc, new_velo,   &
+          & aTlast, calc_collisions, imass)
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
           new_temp = aTlast
@@ -1630,7 +1639,8 @@ cidlp:  do
             nuc=k
             ! count number of fragmentations
             coll_counter = coll_counter + 1
-            write(*,*) 'Number of frag Processes',coll_counter
+            write(*,'(''-- No of overall fragmentations: '',i3, '' --'')')&
+              coll_counter
 
           elseif (tcont == 0) then
             do i = 1, nuc
@@ -1694,6 +1704,8 @@ cidlp:  do
           ! the mean-free-path in between collisions
 
 
+          write(*,'(/,80(''-''))')
+          write(*,'(a)') ' - Entering Mean-Free-Path simulation - '
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !!!!!        Mean-free-path MD                                       !!!!!
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1701,24 +1713,25 @@ cidlp:  do
           ! Loop MD simulations if fragmentation occurs until nothing happens
 MFPloop:  do
             isec = isec + 1
-
-            if ( fragstate == 2 ) simMD = simMD / 2
+            Tdum = 0
 
             ! calculate the center-of-mass and reset for correct collision sim
             call cofmass(nuc,mass,xyz,cm)
             cm1(:) = cm(:) 
 
-            write(*,'(/,80(''=''))')
-            write(*,*)'  Collision ',icoll,' MD trajectory            ',isec
-            write(*,'(80(''=''),/)')
-            write(*,*)'initial Cartesian coordinates:'
+            write(*,'(80(''-''),/)')
+            write(*,*)
+            write(*,'('' MD trajectory                : '',i2)') isec
+            write(*,'('' statistical charge           : '',F8.6)')chrgcont
+            write(*,*)
+            write(*,'(''initial Cartesian coordinates :'')')
+            write(*,*)
 
             do i = 1, nuc
               write(*,'(i3,3f10.5,4x,a2,f10.3)')i,xyz(1,i),xyz(2,i),xyz(3,i), &
               &    toSymbol(iat(i)) , mass(i) * autoamu
             enddo
 
-            write(*,'(/,'' statistical charge  = '',F10.4,/)')chrgcont
 
             ! HS-UHF ini for closed-shells allowed
             mspin=0
@@ -1732,15 +1745,25 @@ MFPloop:  do
               if ( .not. iniok ) stop 'fatal QC error. Must stop!'
             endif
 
-            ! do production MD
-            Tdum=0
 
-            ! scale the sim MD if fragmentation occurs
-            ! if (isec == 2) simMD =int(simMD/2)
-            ! if (isec == 3) simMD =int(simMD/3)
-            ! if (isec == 4) simMD =int(simMD/4)
-            ! if (isec == 3) simMD =int(simMD/2)
-            ! if (isec == 4) simMD =int(simMD/3)
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !> reduce the simulation timings for performance
+
+            !> store the old value to reset later
+            save_simMD = simMD
+
+            !> change MFP times to reduce timings (empirical values)
+            !> but only if not set manually
+            if ( manual_simMD == 0 ) then
+              simMD = icoll * 0.6 * nuc * 100
+              if (simMD > 8000) simMD = 8000
+            endif
+
+            !> reduce the MD time if fragmentation in MFP occurs
+            !> even if manually set
+            if (isec == 3) simMD =int(simMD/2)
+            if (isec >= 4) simMD =int(simMD/3)
+            !if ( fragstate == 2 ) simMD = simMD / 2
 
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1754,18 +1777,20 @@ MFPloop:  do
             &       fragstate,dtime,ECP,.false.,new_velo)
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-            write(*,'(/10x,''Results'',/,'' average Ekin '',F12.6)')Ekav
-            write(*,'('' average Epot  '',F12.6)')Epav
-            write(*,'('' average Etot  '',F12.6)')Epav+Ekav
-            write(*,'('' average T (acc.)'',F12.1)')Tav
-            write(*,'('' Temp without acc '',F12.1)') new_Temp
-            write(*,'('' average last T'',F12.1)')aTlast
+            !> print some energy results if wanted
+            if ( verbose ) then
+              write(*,'(/10x,''Results'')')
+              write(*,'(20(''-''))')
+              write(*,'('' average Ekin     '',F12.6)')Ekav
+              write(*,'('' average Epot     '',F12.6)')Epav
+              write(*,'('' average Etot     '',F12.6)')Epav+Ekav
+              write(*,'('' average T (acc.) '',F12.1)')Tav
+              write(*,'('' Temp without acc '',F12.1)')new_Temp
+              write(*,'('' average last T   '',F12.1)')aTlast
+            endif !verbose
 
-            ! if (isec == 2) simMD = simMD*2
-            ! if (isec == 3) simMD = simMD*3
-            ! if (isec == 4) simMD = simMD*4
-            ! if (isec == 3) simMD =simMD*2
-            ! if (isec == 4) simMD =simMD*3
+            ! reset sim MD time
+            simMD = save_simMD
 
             ! calculate the new center-of-mass as reference
             call cofmass(nuc,mass,xyz,cm)
@@ -1820,7 +1845,8 @@ MFPloop:  do
               nuc = k
               ! count number of fragmentations
               coll_counter = coll_counter + 1
-              write(*,*) 'Number of frag Processes',coll_counter
+              write(*,'(''-- No of overall fragmentations: '',i3, '' --'')')&
+                coll_counter
 
             elseif ( tcont == 0 ) then
               do i = 1, nuc
@@ -1911,7 +1937,7 @@ MFPloop:  do
           !write(*,*)'NEW VELO MD:', new_velo
 
 
-          if ( new_velo <= 800 .or. E_COM <= 0.4 .and. MinPot == 0 ) then
+          if ( new_velo <= 800 .or. E_COM <= 0.75_wp .and. MinPot == 0 ) then
             if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
             endif

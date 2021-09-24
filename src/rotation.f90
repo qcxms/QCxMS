@@ -8,9 +8,11 @@ module qcxms_cid_rotation
 
 contains 
 
-  subroutine euler_rotation(nuc, iat, xyz, velo)
+  subroutine euler_rotation(nuc, iat, xyz, velo, io_rotate)
     
     integer  :: nuc,iat(nuc)
+    integer  :: io_rotate
+    integer  :: i
 
     real(wp),intent(inout) :: xyz(3,nuc),velo(3,nuc)
     real(wp) :: aalpha,abeta,agamma
@@ -63,14 +65,14 @@ contains
        vpoint = 0.0d0
     end do
     !print out new coords to rotate.xyz
-    write(723,*) nuc
-    write(723,*) ' '
+    write(io_rotate,*) nuc
+    write(io_rotate,*) ' '
     do i=1,nuc
-       write(723,*) toSymbol(iat(i)),' ',nxyz(1,i)/aatoau  &
+       write(io_rotate,*) toSymbol(iat(i)),' ',nxyz(1,i)/aatoau  &
            ,' ',nxyz(2,i)/aatoau   &
            ,' ',nxyz(3,i)/aatoau
     end do
-    close(723)
+    close(io_rotate)
      
   !copy the new-coords to xyz
     xyz = 0.0d0
@@ -144,7 +146,7 @@ contains
      ! Get Temperature and Ekin
      call ekinet(nuc,velo,mass,Ekin,Tinit)
  
-     check = dot_product(eigenvector(1:3,3),eigenvector(1:3,2))
+  !   check = dot_product(eigenvector(1:3,3),eigenvector(1:3,2))
   !   write(*,*) 'Ortho', check
      w_new(1) = (sqrt((kB*Tinit) / eigenvalue(1)))  !eigenvealue * 2 ?!? wegen kB T/2 ! wo ist die 2?
      w_new(2) = (sqrt((kB*Tinit) / eigenvalue(2)))  

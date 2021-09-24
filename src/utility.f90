@@ -12,28 +12,31 @@ module qcxms_utility
    ! determine two MOs whose energies add to IEE edum; a third MO (index not used)
    ! represents the virtual MO (vMO) in shake-up to account for right excitation energy
 
-   ! nao = number of AOs (alpha electrons)
+   ! ihomo = number (integer) of HOMO
    ! emo = orbital energy (eigenvalues)
+   ! edum = total energy (ehomo + exc)
 
-   subroutine momap(nao,emo,edum,mo1,mo2)
+   subroutine momap(ihomo,emo,edum,mo1,mo2)
    
-      integer  :: nao,mo1,mo2,k,i1,i2 
+      integer  :: ihomo,mo1,mo2,k,i1,i2 
       integer  :: vmo
    
       real(wp) :: emo(*),edum,dmin,delta,dum
    
-      k =0
-      i1=0
-      i2=0
-      dmin=huge(0.0_wp) !1.d+42
+      k  = 0
+      i1 = 0
+      i2 = 0
+      dmin = huge(0.0_wp) 
    
-      do
-        mo1=irand(nao)
-        mo2=irand(nao)
-        vmo=irand(nao/2)+nao
-        dum=emo(mo1)
+      do while (k <= 5000)
 
-        if ( mo2 > nao / 2 ) then
+        mo1 = irand(ihomo) ! irand -> randomization function (see below) 
+        mo2 = irand(ihomo)
+        vmo = irand(ihomo/2) + ihomo
+        dum = emo(mo1)
+
+        ! if electron is unpaired 
+        if ( mo2 > ihomo / 2 ) then
            mo2 = 0
         else
            dum = dum + emo(mo2)
@@ -49,11 +52,11 @@ module qcxms_utility
         endif
 
         k = k + 1
-        if ( k >= 5000 ) exit 
+
       enddo
    
-      mo1=i1
-      mo2=i2
+      mo1 = i1
+      mo2 = i2
    
    end subroutine momap
    
@@ -331,6 +334,7 @@ module qcxms_utility
    
       integer  :: it,nat
       integer  :: j
+      integer  :: io_wr
    
       real(wp) :: xyzr (3,nat)
       real(wp) :: velor(3,nat)
@@ -344,17 +348,18 @@ module qcxms_utility
       if(it.lt.100)   write(fname,'(''TMPQCXMS/TMP.'',i2,''/qcxms.start'')')it
       if(it.lt.10)    write(fname,'(''TMPQCXMS/TMP.'',i1,''/qcxms.start'')')it
    
-      open(unit=3,file=fname)
-      write(3,'(2i4)') it,nat
-      write(3,'(2D22.14)') eimpr,taddr
+      open(file=fname, newunit= io_wr)
+
+      write(io_wr,'(2i4)') it,nat
+      write(io_wr,'(2D22.14)') eimpr,taddr
    
       do j=1,nat
-         write(3,'(7D22.14)') xyzr (1:3,j),velor(1:3,j),velofr(j)
+         write(io_wr,'(7D22.14)') xyzr (1:3,j),velor(1:3,j),velofr(j)
       enddo
    
-      close(3)
+      close(io_wr)
    
-   end subroutine
+   end subroutine wrstart
    
    
    
@@ -377,7 +382,7 @@ module qcxms_utility
          if(at.gt.28) el=at-28
       endif
    
-   end subroutine
+   end subroutine valel
    
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -399,7 +404,7 @@ module qcxms_utility
    
       if ( j < 1 ) isp = -1
    
-   end subroutine
+   end subroutine getspin
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! Boltzmann population for temp. t and energies e
@@ -428,7 +433,7 @@ module qcxms_utility
          fchrg(i) = exp(-ip(i)/f)/esum
       enddo
    
-   end subroutine
+   end subroutine boltz
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! integer random number n=<irand<=1
@@ -439,8 +444,8 @@ module qcxms_utility
    call random_number(x)
    nx = n * x + 1
    rnd = int(nx)
-   if ( rnd > n ) rnd=n
+   if ( rnd > n ) rnd = n
    
-   end
+   end function irand
    
 end module qcxms_utility

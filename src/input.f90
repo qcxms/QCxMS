@@ -3,8 +3,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
         edistri,btf,ieeatm,                                                       &
         scanI,lowerbound,upperbound,metal3d,ELAB,eExact,ECP,unity,noecp,nometal,  &
         vScale,CollNo,CollSec,ConstVelo,     &
-        minmass,simMD,convetemp,set_coll,MaxColl,       & 
-        MinPot,ESI,tempESI,No_ESI,NoScale)
+        minmass,manual_simMD,convetemp,set_coll,MaxColl,       & 
+        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist)
 !  use gbobc, only: lgbsa
   use readcommon
   use cidcommon
@@ -66,12 +66,12 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   integer  :: CollNo(3)
   integer  :: CollSec(3)
   integer  :: minmass
-  integer  :: simMD
+  integer  :: manual_simMD
   integer  :: convetemp
   integer  :: set_coll
+  integer  :: manual_dist
   
   real(wp) :: ELAB,vScale,ESI,tempESI
-  real(wp) :: PGas,TGas,lchamb
   real(wp) :: MinPot
   
   logical  :: ConstVelo
@@ -206,6 +206,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   !!!           !!!! 
   ELAB       = 40.0_wp  ! The lab. energy frame 
   gas%Iatom  = 0        ! Index of collision atom
+  manual_dist  = 0
 
   !!!                 !!!
   ! Different run types !
@@ -220,7 +221,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   FullAuto        = .False.     
   cell%TGas       = 300.0 ! (K) Temperatur of Gas 
   cell%PGas       = 0.132 ! (Pa = 1mTorr) Pressure of Gas
-  cell%lchamb     = 0.125 ! (m = 12,5 cm) coll. cell. length
+  cell%lchamb     = 0.250 ! (m = 25,0 cm) coll. cell. length
     
   ! 3) Thermal activation run-type
   TempRun    = .False.  
@@ -245,11 +246,11 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Extra settings
-  eExact     = .False.  ! switch off ELAB velocity scaling (exact velocities)
-  minmass    = 45       ! set resolution (lower masses are cut)
-  simMD      = 8000     ! = 8 ps; Mean-free-path steps
-  No_ESI     = .false.  ! Don't do pre-scaling of int. Energy (if true)
-  NoScale    = .false.  ! no distributing ESI energy (if true)
+  eExact       = .False.  ! switch off ELAB velocity scaling (exact velocities)
+  minmass      = 45       ! set resolution (lower masses are cut)
+  manual_simMD = 0        ! set Mean-free-path steps manually
+  No_ESI       = .false.  ! Don't do pre-scaling of int. Energy (if true)
+  NoScale      = .false.  ! no distributing ESI energy (if true)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !!!                 !!!
@@ -789,7 +790,13 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
           ! set mean-free-path way (in fs; care timestep)
           if(index(line,'SIMMD') /= 0)then            
              call readl(line,xx,nn)
-             simMD=xx(1)
+             manual_simMD=xx(1)
+          endif
+
+          ! set number of steps until collision (circa)
+          if(index(line,'DIST') /= 0)then            
+             call readl(line,xx,nn)
+             manual_dist=int(xx(1))
           endif
   
         endif ! end if CHECK

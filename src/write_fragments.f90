@@ -140,7 +140,7 @@ module qcxms_write_fragments
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! save masses of fragments for mspec (->mass.agr)
     ! save all fragments
-    write(*,'(''  mass'',16x,''formula'',18x,''q pop'',3x,''spin'', &
+    write(*,'(''  mass'',16x,''formula'',22x,''q pop'',3x,''spin'', &
       &      4x,''|q IPB|'',2x,''diss time (ps)'')')
 
 loop:do j = 1, nfrag
@@ -149,20 +149,20 @@ loop:do j = 1, nfrag
        if( j == tcont ) adum = ' ~'
 
        if ( fragm(j) < 10 ) then
-          write(*,'('' M='',F4.2,3x,a20,2x,3i4,3F8.3,f9.3,a)')      &
-          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,fragchrg(j), &
+          write(*,'('' M='',F4.2,3x,a20,2x,4i4,3F8.3,f9.3,a)')        &
+          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
           &    fragspin(j),fragchrg2(j),dtime,adum
        endif
 
        if( fragm(j) >= 10 .and. fragm(j) < 100 ) then
-          write(*,'('' M='',F5.2,2x,a20,2x,3i4,3F8.3,f9.3,a)')      &
-          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,fragchrg(j), &
+          write(*,'('' M='',F5.2,2x,a20,2x,4i4,3F8.3,f9.3,a)')        &
+          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
           &    fragspin(j),fragchrg2(j),dtime,adum
        endif
 
        if (fragm(j) >= 100 .and. fragm(j) < 1000 ) then
-          write(*,'('' M='',F6.2,1x,a20,2x,3i4,3F8.3,f9.3,a)')      &
-          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,fragchrg(j), &
+          write(*,'('' M='',F6.2,1x,a20,2x,4i4,3F8.3,f9.3,a)')        &
+          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
           &    fragspin(j),fragchrg2(j),dtime,adum
        endif
 
