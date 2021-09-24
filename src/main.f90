@@ -245,7 +245,7 @@ program QCxMS
   etempGS=298.15 ! normal ! Maybe make this input relevant
   convetemp=0
   ! introduce simmd
-  simMD = 0
+  simMD = 8000 ! =8000 * 0.5 fs => 4 ps
 
   ! GBSA Solvation Model
   !solvent='none'
@@ -1761,8 +1761,9 @@ MFPloop:  do
 
             !> reduce the MD time if fragmentation in MFP occurs
             !> even if manually set
-            if (isec == 3) simMD =int(simMD/2)
-            if (isec >= 4) simMD =int(simMD/3)
+            if (isec == 3) simMD =int(simMD * 0.75_wp)
+            if (isec == 4) simMD =int(simMD * 0.6_wp )
+            if (isec >= 5) simMD =int(simMD * 0.5_wp )
             !if ( fragstate == 2 ) simMD = simMD / 2
 
 
