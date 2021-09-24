@@ -88,23 +88,23 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   ! it> 1 : frag. MD
   
   ! MOLDEN file
-  if(it.eq.0) then
+  if(it == 0) then
                       fname='trjM'
-  elseif(it.gt.0.and.it.lt.9999.and.icoll.lt.10)then
+  elseif(it > 0.and.it < 9999.and.icoll < 10)then
                   write(fname,'(''MDtrj.'',i4,''.'',i1,''.'',i1)')it,icoll,isec
-    if(it.lt.1000)write(fname,'(''MDtrj.'',i3,''.'',i1,''.'',i1)')it,icoll,isec
-    if(it.lt.100) write(fname,'(''MDtrj.'',i2,''.'',i1,''.'',i1)')it,icoll,isec
-    if(it.lt.10)  write(fname,'(''MDtrj.'',i1,''.'',i1,''.'',i1)')it,icoll,isec
-  elseif(it.gt.0.and.it.lt.9999.and.icoll.ge.10)then
+    if(it < 1000)write(fname,'(''MDtrj.'',i3,''.'',i1,''.'',i1)')it,icoll,isec
+    if(it < 100) write(fname,'(''MDtrj.'',i2,''.'',i1,''.'',i1)')it,icoll,isec
+    if(it < 10)  write(fname,'(''MDtrj.'',i1,''.'',i1,''.'',i1)')it,icoll,isec
+  elseif(it > 0.and.it < 9999.and.icoll >= 10)then
                   write(fname,'(''MDtrj.'',i4,''.'',i2,''.'',i1)')it,icoll,isec
-    if(it.lt.1000)write(fname,'(''MDtrj.'',i3,''.'',i2,''.'',i1)')it,icoll,isec
-    if(it.lt.100) write(fname,'(''MDtrj.'',i2,''.'',i2,''.'',i1)')it,icoll,isec
-    if(it.lt.10)  write(fname,'(''MDtrj.'',i1,''.'',i2,''.'',i1)')it,icoll,isec
+    if(it < 1000)write(fname,'(''MDtrj.'',i3,''.'',i2,''.'',i1)')it,icoll,isec
+    if(it < 100) write(fname,'(''MDtrj.'',i2,''.'',i2,''.'',i1)')it,icoll,isec
+    if(it < 10)  write(fname,'(''MDtrj.'',i1,''.'',i2,''.'',i1)')it,icoll,isec
   endif
-  if(it.ge.0.and.it.lt.9999)  open (file = fname, newunit = io_OUT)
+  if(it >= 0.and.it < 9999)  open (file = fname, newunit = io_OUT)
   
   ! this file is used to get the starting points = snapshots
-  if(it.eq.0)then
+  if(it == 0)then
      open (file = 'qcxms.gs', newunit = io_GS)
      write(io_GS,*)nmax
   endif   
@@ -112,22 +112,22 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   ! ini Ekin
   call ekinet(nuc,velo,mass,Ekin,T)
   
-  if(it.eq.9999)Tsoll=T
-  if(method.eq.3.or.method.eq.4)Tsoll=Tsoll
+  if(it == 9999)Tsoll=T
+  if(method == 3.or.method == 4)Tsoll=Tsoll
   Ekinstart=Ekin
   
-  !if (method.eq.3 .and.it.gt.0.and.it.lt.9999)then
+  !if (method == 3 .and.it > 0.and.it < 9999)then
   !  Ekin=esub
-  !endif !method.ne.3
+  !endif !method /= 3
   
   ! in frag runs the electronic temp is set 
-  if(it.gt.0.and.it.lt.9999)then
+  if(it > 0.and.it < 9999)then
      call setetemp(nfrag,eimp,etemp)
   else
      etemp=etempin
   endif
   ! CID mopac-pm6 behaves better without huge Electronic Temp.
-  !if(prog.eq.1.and.method.eq.3.and.temprun.eq..false.)then
+  !if(prog == 1.and.method == 3.and.temprun == .false.)then
   !   write(*,*) 'NOTE:In MOPAC CID runs the electronic T. is set to constant 300 K' 
   !   etemp=300.0d0
   !endif
@@ -136,7 +136,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   spin=0
   call egrad(.true.,nuc,xyz,iat,mchrg,spin,etemp,Epot,grad,achrg,aspin,ECP,gradfail)
   if(gradfail)write(*,*)'Gradient fails in MD 1' !Prob wont happen. Otherwise go into CID and save frags
-  if(Epot.eq.0) return
+  if(Epot == 0) return
   
   ! do more more steps in a fragmentation run when nfragexit frag. 
   ! are already there (i.e. after forming 2 frags, a third often occurs fast)
@@ -173,14 +173,14 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   E_kin = 0.5 * summass * ((new_velo*mstoau)**2) 
   E_kin_diff = Ekin - E_kin
   new_temp = (2*E_kin_diff) / (3 *kB* nuc)
-  if(method.eq.3.and.icoll.gt.0)Ekin = E_kin_diff
-  if(method.eq.4.and.icoll.gt.0)Ekin = E_kin_diff
+  if(method == 3.and.icoll > 0)Ekin = E_kin_diff
+  if(method == 4.and.icoll > 0)Ekin = E_kin_diff
   
   ! no additional calcs in ftemp (trial) runs      
-  if(it.eq.9999)morestep=more+1
+  if(it == 9999)morestep=more+1
   
   ! add the e-hit energy in the first MD steps linearly     
-  if(it.gt.0.and.it.lt.9999)then
+  if(it > 0.and.it < 9999)then
      write(*,'(''Eimp (eV) = '',F6.1,5x,''tauIC (fs) = '',F6.0,6x,''nstep = '',i7,/)')eimp*autoev,tadd/fstoau,nmax
      nadd=(tadd+tstep)/tstep-1             
      fadd=tstep/(tadd+tstep)
@@ -202,10 +202,10 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   
      T=Ekin/(0.5*3*nuc*kB)
      ! in frag runs the electronic temp is set 
-     if(it.le.0.or.it.eq.9999)then
+     if(it <= 0.or.it == 9999)then
         etemp=etempin
         !in mopac cid the elc temp should be 300 ! True? And Negative ion?=
-           if(prog.eq.1.and.method.eq.3)then
+           if(prog == 1.and.method == 3)then
               etemp=300.0d0
            endif
      endif
@@ -213,7 +213,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      Tav =Tav+T
      Epav=Epav+Epot
      Ekav=Ekav+Ekin
-     if(nstep.gt.nadd)then
+     if(nstep > nadd)then
         Edum=Edum+Epot+Ekin
         Eav =Edum/float(nstep-nadd)
      else
@@ -222,24 +222,24 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      Eerror=Eav-Epot-Ekin
   
      ! Avg. Temp.
-     if(nfrag.eq.1)fragT(1)=Tav/k
+     if(nfrag == 1)fragT(1)=Tav/k
   
      ! check av. Etot
   !   Eerror=Eav-Epot-Ekin
-     if(it.eq.9999.or.it.lt.0) Eerror = 0
+     if(it == 9999.or.it < 0) Eerror = 0
      if(starting_md ) Eerror = 0
 
      ! an error ocurred (normally failed to achieve SCF)      
-     if (Epot.eq.0)  err1 = .true. 
-     if(method.ne.3.or.method.ne.4)then
-       if (abs(Eerror).gt.0.1.and.it.ne.9999) err2 = .true.
+     if (Epot == 0)  err1 = .true. 
+     if(method /= 3.or.method /= 4)then
+       if (abs(Eerror) > 0.1.and.it /= 9999) err2 = .true.
      else
-       if (abs(Eerror).gt.0.2.and.it.ne.9999) err2 = .true.
+       if (abs(Eerror) > 0.2.and.it /= 9999) err2 = .true.
      endif
   
      if(err1.or.err2) then
      ! in case of errors take the traj anyway if fragments have been produced              
-        if( (nfrag.gt.1.and.nfrag.le.4).or. isec.gt.1 ) then
+        if( (nfrag > 1.and.nfrag <= 4).or. isec > 1 ) then
            write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
            write(*,*)'EXIT DUE TO SCF CONVERGENCE PROBLEM'
            write(*,*)'OR LARGE MD INTEGRATION ERROR.'
@@ -256,7 +256,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      endif      
   
      ! average over last avdump steps              
-     if(kdump.gt.avdump-1)then
+     if(kdump > avdump-1)then
         kdump =0
         avspin=0
         avchrg=0
@@ -268,12 +268,12 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      avspin = avspin + aspin
      avxyz  = avxyz  + xyz 
   
-     if(method.eq.3.or.method.eq.4 .and. icoll.gt.0)   aTlast = aTlast + new_temp    
-     if(method.ne.3 .or. method.ne.4 .or. icoll.eq.0)  aTlast = aTlast + T    
+     if(method == 3.or.method == 4 .and. icoll > 0)   aTlast = aTlast + new_temp    
+     if(method /= 3 .or. method /= 4 .or. icoll == 0)  aTlast = aTlast + T    
   
      ! print out every screendump steps
-     if(mdump.gt.screendump-1)then
-  !      if(method.eq.3)then
+     if(mdump > screendump-1)then
+  !      if(method == 3)then
   !        e_int = (t*(0.5*3*nuc*0.316681534524639E-05))/0.03674932217565499
   !        write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag),e_int
   !      else
@@ -283,7 +283,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      endif
   
      ! dump for MOLDEN
-     if(ndump.gt.dumpstep-1.and.it.ge.0.and.it.lt.9999)then
+     if(ndump > dumpstep-1.and.it >= 0.and.it < 9999)then
         ndump=0
         write(io_OUT,*)nuc
         write(io_OUT,*)Epot
@@ -293,7 +293,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      endif
   
      ! no fragment run, dump to qcxms.gs
-     if(it.eq.0) then
+     if(it == 0) then
         totdump=totdump+1
         do i=1,nuc  
            write(io_GS,'(6d16.8)')(xyz(j,i),j=1,3),(velo(j,i),j=1,3) 
@@ -319,25 +319,25 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   ! rescale to get Tsoll (NVT ensemble) for equilibration
   ! the GS sampling is done in NVE      
      dum=100.*abs(Tav/k-Tsoll)/Tsoll
-     if(dum.gt.5.0d0.and.it.lt.0.and.k.gt.50)then
+     if(dum > 5.0d0.and.it < 0.and.k > 50)then
         velo = velo/sqrt(Tav/k/Tsoll)
      endif
      
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      ! Berendsen Thermostat ! Only if not fragmented
-     if(method.eq.3.and.k.gt.10.and.starting_md.and. nfrag.eq.1)then
-         sca = dsqrt(1.0d0 + ((tstep/fstoau)/200)*(Tsoll/T-1.0d0))
+     if(method == 3.and.k > 10.and.starting_md.and. nfrag == 1)then
+         sca = dsqrt(1.0_wp + ((tstep/fstoau) / 100)*(Tsoll/T-1.0d0))
          velo= sca * (velo) ! + acc*(tstep/fstoau))
      endif
-     if(method.eq.4.and.k.gt.10.and.starting_md .and. nfrag.eq.1)then
-         sca = dsqrt(1.0d0 + ((tstep/fstoau)/200)*(Tsoll/T-1.0d0))
+     if(method == 4.and.k > 10.and.starting_md .and. nfrag == 1)then
+         sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
          velo= sca * (velo) ! + acc*(tstep/fstoau))
      endif
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
      ! add the IEE but only if not already fragmented
-     if(method.ne.3 .and. method.ne.4)then
-       if(it.gt.0.and.nstep.le.nadd.and.nfrag.eq.1)then
+     if(method /= 3 .and. method /= 4)then
+       if(it > 0.and.nstep <= nadd.and.nfrag == 1)then
           call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
        endif        
   
@@ -347,30 +347,30 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      endif        
   
      ! Etemp for mopac is not performing well! Set it to fixed 300
-     if(prog.eq.1.and.method.eq.3)then
+     if(prog == 1.and.method == 3)then
         etemp=5000.0d0
      endif
 
      ! if it oscillates between bonded and not, reset more
-     if(nfrag.eq.1) morestep=0
+     if(nfrag == 1) morestep=0
   
-     if(nfrag.gt.1.and.dtime.lt.1.d-6) dtime=ttime/1000.
+     if(nfrag > 1.and.dtime < 1.d-6) dtime=ttime/1000.
   
      ! check for fragmentation, EXIT section for frag runs
-     if(it.gt.0)then
+     if(it > 0)then
         call fragment_structure(nuc,iat,xyz,3.0d0,1,0,list)
         call fragmass(nuc,iat,list,mass,imass,nfrag,fragm,fragf,fragat)
-        if(nfrag.gt.1) call intenergy(nuc,list,mass,velo,nfrag,fragT,E_int)
+        if(nfrag > 1) call intenergy(nuc,list,mass,velo,nfrag,fragT,E_int)
 
   
         ! probably an error
-        if(nfrag.gt.6)then
+        if(nfrag > 6)then
           write(*,*) 'More than 6 fragments. Error?'
           !goto 1000
           exit
         endif
   
-     if (method.eq.3.and.icoll.ge.1.or.method.eq.4.and.icoll.ge.1)then ! get the velocity in CID
+     if (method == 3.and.icoll >= 1.or.method == 4.and.icoll >= 1)then ! get the velocity in CID
         call cofmass(nuc,mass,xyz,cm)
         diff_cm(:) = cm(:) - old_cm(:)
         cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 + diff_cm(3)**2)
@@ -389,28 +389,28 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
         Ekin = E_kin_diff
      endif
         ! exit always immidiately if we have > nfragexit frags
-        if(nfrag.gt.nfragexit) then
+        if(nfrag > nfragexit) then
            write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
            write(*,9001)
            fragstate=1
            exit
         endif   
-        if(nfrag.eq.2)then
+        if(nfrag == 2)then
            fconst=fconst+1
         else
            fconst=0          
         endif
   ! exit if nfrag=2 is constant for some time  
-        if(fconst.gt.1000) then
+        if(fconst > 1000) then
            write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
            write(*,9002)
            fragstate=2       
            exit
         endif   
   ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
-        if(nfrag.ge.nfragexit) then
+        if(nfrag >= nfragexit) then
            morestep=morestep+1
-           if(morestep.gt.more) then
+           if(morestep > more) then
               write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
               write(*,9003)
               fragstate=1
@@ -422,15 +422,15 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   
   ! all done and nice
   mdok=.true.
-  if(k.ge.nmax)then
+  if(k >= nmax)then
      write(*,9004)
      fragstate=1
   endif
 
 ! error exit (Skip if all okay)
-!1000  if( it.ge.0.and.it.lt.9999.and.(.not.restart) )close(io_OUT)
-  if( it.ge.0.and.it.lt.9999.and.(.not.restart) )close(io_OUT)
-  if( it.eq.0) close(io_GS)
+!1000  if( it >= 0.and.it < 9999.and.(.not.restart) )close(io_OUT)
+  if( it >= 0.and.it < 9999.and.(.not.restart) )close(io_OUT)
+  if( it == 0) close(io_GS)
 
 ! printed or used in main      
   Tav    = Tav    / k

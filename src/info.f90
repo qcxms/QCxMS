@@ -23,7 +23,6 @@ module qcxms_info
   integer  :: maxsec
   integer  :: nfragexit
   integer  :: dumprint
-  integer  :: input
   integer  :: iprog
   integer  :: edistri
   integer  :: i
@@ -328,7 +327,7 @@ info: if ( method /= 3 .and. method /= 4 )then
     E_int = (temp * (0.5 * 3 * nuc * kB)) * autoev
 
     write(*,*)
-    write(*,'('' internal Energy        : '',F8.4,'' eV''a3)')E_int
+    write(*,'('' internal Energy        : '',F8.4,'' eV'',a3)')E_int
     if (ESI > 0)     write(*,'('' Scaling to  '',F8.4, '' eV'')')ESI
     if (tempESI > 0) write(*,'('' Scaling to  '',F8.4, '' K'')')tempESI
 

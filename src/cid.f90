@@ -1,8 +1,8 @@
-subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
-    stopcid,Eimpact,axyz,ttime,eExact,ECP,   &
-    vScale,MinPot,ConstVelo,cross,    &
-    mfpath,r_mol,achrg,icoll,collisions,direc,velo_cm,aTlast,          &
-    calc_collisions,imass)
+subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
+    stopcid, Eimpact, axyz, ttime, eExact, ECP, manual_dist,        &
+    vScale, MinPot, ConstVelo, cross,                               &
+    mfpath, r_mol, achrg, icoll, collisions, direc, velo_cm,        &
+    aTlast, calc_collisions,imass)
 
   use common1 
   use cidcommon
@@ -36,7 +36,8 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
   integer  :: list(nuc),nfrag
   integer  :: fragat(200,10)  
   integer  :: imass(nuc)
-  integer  :: istep
+  integer  :: istep, step_dist, manual_dist
+  integer  :: io_cid, io_rotate
 
   real(wp) :: calc_collisions
   real(wp) :: etemp,E,ke
@@ -121,25 +122,26 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
   !OPEN FILES
   if (icoll == 1)then
   
-     OPEN(unit=723,file='rotate.xyz',status='replace')
-     write(723,*) nuc
-     write(723,*) ' '
+     open(file='rotate.xyz',newunit=io_rotate,status='replace')
+     write(io_rotate,*) nuc
+     write(io_rotate,*) ' '
      do i=1,nuc
-        write(723,*) toSymbol(iat(i)),' ',xyz(1,i)/aatoau &
+        write(io_rotate,*) toSymbol(iat(i)),' ',xyz(1,i)/aatoau &
             ,' ',xyz(2,i)/aatoau &
             ,' ',xyz(3,i)/aatoau
      end do
 
    endif
-  
+
   fname='CID.xyz'
-  
+
  ! elseif(icoll > 1)then
  !                          write(fname,'(''CID'',i4,''.xyz'')')icoll
   if(icoll < 1000)write(fname,'(''CID'',i3,''.xyz'')')icoll
   if(icoll < 100) write(fname,'(''CID'',i2,''.xyz'')')icoll
   if(icoll < 10)  write(fname,'(''CID'',i1,''.xyz'')')icoll
-  open(unit=724,file=fname)
+
+  open(file=fname,newunit=io_cid,status='replace')
   
  !open(unit=777,file='velocities.dat')
   
@@ -156,7 +158,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
   
   !------------------------------------------------------     
   !Initial hardcoded parameter block
-  start_dist = 25 * aatoau !distance for Ar-M 
+  !start_dist = 20 * aatoau !distance for Ar-M 
   
   dumpscreen = 100   !interval for screen dumping
   dumpcoord  = 4     !interval for coordinate dumping
@@ -212,7 +214,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
 
 
       ! Do Euler Rotation
-      call euler_rotation(nuc, iat, xyz, velo)
+      call euler_rotation(nuc, iat, xyz, velo, io_rotate)
   
       ! Give angular momentums 
       call rotation_velo(xyz, nuc, mass, velo, velo_rot, E_rot)
@@ -475,46 +477,76 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
 
   
   if(icoll == 1)then
-     ! Set the initial direction of the hit depending on the axis-of-flight
-     xyz_start(1) = cm(1) !+ start_dist * a 
-     xyz_start(2) = cm(2) ! + start_dist * b 
-     xyz_start(3) = cm(3) + start_dist 
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !> set (step) distance automatically
+    if ( manual_dist == 0 ) then
+      step_dist  =   2 * nuc * 10            ! set number of steps until collision depending on the size of the fragment/ion
+      if (step_dist > 800 ) step_dist = 800  ! set upper limit to reduce cost
+    !> or manually
+    else
+      step_dist = manual_dist
+    endif
+
+    start_dist = ( fasti ) * ( 2 * time_step ) ! convert velo. into distance
+    start_dist =  step_dist * start_dist * autoaa ! re-convert into angstrom
+
+    if ( start_dist < 10.0_wp ) start_dist = 10.0_wp ! set lower limit to account for too short distances
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    ! Set the initial direction of the hit depending on the axis-of-flight
+    xyz_start(1) = cm(1) !+ start_dist * a 
+    xyz_start(2) = cm(2) ! + start_dist * b 
+    xyz_start(3) = cm(3) + start_dist 
   
-     direc(:) = xyz_start(:) 
+    direc(:) = xyz_start(:) 
   
-     !change direc to unity vector
-     do i = 1,3
-        direc(i) = direc(i) / (sqrt(direc(1)**2 + direc(2)**2 + direc(3)**2))
-     end do
+    !change direc to unity vector
+    do i = 1,3
+       direc(i) = direc(i) / (sqrt(direc(1)**2 + direc(2)**2 + direc(3)**2))
+    end do
   
   
-  !   write(*,*) 'Radius', rtot/aatoau
-     ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
-     xyzAr(1) = xyz_start(1) + diff2 *0.8 !(g * rtot)*0.6 
-     xyzAr(2) = xyz_start(2) + diff1 *0.8 !(f * rtot)*0.6
-     xyzAr(3) = xyz_start(3) !+  !(d * rtot)*0.6
-  !   write(*,*) 'Ar XYZ', xyzAr/aatoau
-  !   write(*,*) 'randoms g=x',  g 
-  !   write(*,*) 'randoms f=y',  f 
-  !   write(*,*) 'randoms d=z',  d 
+  !  write(*,*) 'Radius', rtot/aatoau
+    ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
+    xyzAr(1) = xyz_start(1) + diff2 *0.8 !(g * rtot)*0.6 
+    xyzAr(2) = xyz_start(2) + diff1 *0.8 !(f * rtot)*0.6
+    xyzAr(3) = xyz_start(3) !+  !(d * rtot)*0.6
+  !  write(*,*) 'Ar XYZ', xyzAr/aatoau
+  !  write(*,*) 'randoms g=x',  g 
+  !  write(*,*) 'randoms f=y',  f 
+  !  write(*,*) 'randoms d=z',  d 
   
-     scale_velo = (direc * fasti)
+    scale_velo = (direc * fasti)
   
   else
-  ! Make collision distance dependend on mol. velo.
-  !    start_dist = ( velo_cm * mstoau ) * (2 * time_step) ! in au
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !> set (step) distance automatically
+    if ( manual_dist == 0 ) then
+      step_dist  =   2 * nuc * 10            ! set number of steps until collision depending on the size of the fragment/ion
+      if (step_dist > 800 ) step_dist = 800  ! set upper limit to reduce cost
+    !> or manually
+    else
+      step_dist = manual_dist
+    endif
 
+    ! Make collision distance dependend on mol. velo.
+    start_dist = ( velo_cm * mstoau ) * ( 2 * time_step ) ! convert velo. into distance
+    start_dist =  step_dist * start_dist * autoaa ! re-convert into angstrom
+
+    if ( start_dist < 15.0_wp ) start_dist = 15.0_wp ! set lower limit to account for too short distances
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   ! Re-initialize the coordinates
-      xyz(1,:) = xyz(1,:) - cm(1)
-      xyz(2,:) = xyz(2,:) - cm(2)
-      xyz(3,:) = xyz(3,:) - cm(3)
-     ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
-     xyzAr(1) = cm(1) + (direc(1) * start_dist) + diff2 * 0.7 !(g * rtot)*0.90 
-     xyzAr(2) = cm(2) + (direc(2) * start_dist) + diff1 * 0.7 !(f * rtot)*0.90 
-     xyzAr(3) = cm(3) + (direc(3) * start_dist) !+ (d * rtot)*0.90 
-  !   xyzAr(:) = cm(:) + direc * start_dist 
-     scale_velo = 0
+    xyz(1,:) = xyz(1,:) - cm(1)
+    xyz(2,:) = xyz(2,:) - cm(2)
+    xyz(3,:) = xyz(3,:) - cm(3)
+    ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
+    xyzAr(1) = cm(1) + (direc(1) * start_dist) + diff2 * 0.7 !(g * rtot)*0.90 
+    xyzAr(2) = cm(2) + (direc(2) * start_dist) + diff1 * 0.7 !(f * rtot)*0.90 
+    xyzAr(3) = cm(3) + (direc(3) * start_dist) !+ (d * rtot)*0.90 
+  !  xyzAr(:) = cm(:) + direc * start_dist 
+    scale_velo = 0
   endif
   
   
@@ -597,9 +629,12 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
   call egrad(.True.,nuc0,xyz0,iat0,mchrg,spin,etemp,E,grad0, &
              achrg0,aspin0,ECP,gradfail)
   
-  
+  write(*,*)
+  write(*,'('' Est. no. steps (collision): '',i4,3x,'' Distance (A): '',f9.6)') &
+    & step_dist, start_dist
+  write(*,*)
   write(*,'(''   step  time [fs]'',4x,''Epot'',7x,''Ekin'',7x, &
-       &    ''Etot'',6x,''eTemp'',4x,''Avg. Temp.'')')
+    &    ''Etot'',6x,''eTemp'',4x,''Avg. Temp.'')')
   screen_dump = 0
   coord_dump = 0
   distance_dump = 0
@@ -692,10 +727,10 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
     
     if (coord_dump == dumpcoord .or. istep == 1)then
        coord_dump = 0
-       write(724,*) nuc0
-       write(724,*) 'E=',ke+E
+       write(io_cid,*) nuc0
+       write(io_cid,*) 'E=',ke+E
        do ind = 1,nuc0
-          write(724,*) trim(toSymbol(iat0(ind))) &
+          write(io_cid,*) trim(toSymbol(iat0(ind))) &
                ,' ',xyz0(1,ind) * autoaa     &
                ,' ',xyz0(2,ind) * autoaa     &
                ,' ',xyz0(3,ind) * autoaa 
@@ -868,7 +903,7 @@ subroutine cid(nuc,iat,mass,xyz,velo,time_step,mchrg,etemp, &
   velo_cm         = new_velo
   deallocate(xyz0,velo0,grad0,mass0,iat0,achrg0,aspin0)
   
-  close(724)
+  close(io_cid)
   
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!      
