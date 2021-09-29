@@ -534,7 +534,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     start_dist = ( velo_cm * mstoau ) * ( 2 * time_step ) ! convert velo. into distance
     start_dist =  step_dist * start_dist * autoaa ! re-convert into angstrom
 
-    if ( start_dist < 15.0_wp ) start_dist = 15.0_wp ! set lower limit to account for too short distances
+    if ( start_dist < 17.0_wp ) start_dist = 17.0_wp ! set lower limit to account for too short distances
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   ! Re-initialize the coordinates

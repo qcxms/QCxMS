@@ -1300,7 +1300,7 @@ ESI_loop: do
               else
                 prestep=simMD
                 starting_MD = .false.
-                if(fragstate == 2) prestep=simMD/2
+                if(fragstate == 2) prestep=simMD * 0.75
               endif
 
             elseif (TempRun .and. isec == 1) then
@@ -1308,7 +1308,7 @@ ESI_loop: do
               starting_MD = .true.
             elseif (TempRun .and. isec > 1) then
               starting_MD = .false.
-              if(fragstate == 2) prestep = prestep/2
+              if(fragstate == 2) prestep = prestep * 0.75
             endif
 
 
@@ -1379,10 +1379,12 @@ ESI_loop: do
               nuc=k
               ! count number of fragmentations
               coll_counter = coll_counter + 1
+              write(*,'(40(''!''))')
+              write(*,'(''!! Fragmentation in ESI MD !!'')')
               write(*,'(''-- No of overall fragmentations: '',i3, '' --'')')&
                 coll_counter
-              write(*,'(40(''(!)''))')
-              write(*,*) 'Fragmentation in ESI MD'
+              write(*,'(40(''!''))')
+              write(*,*)
 
             elseif (tcont == 0) then
               do i = 1, nuc
@@ -1405,13 +1407,19 @@ ESI_loop: do
 
             ! do not continue with small fragments
             if ( nuc <= 5 ) then
-               small = .true.
-               exit
+              small = .true.
+              if(index(asave,'NOT USED') == 0)then
+                write(io_res,'(a)')asave
+              endif
+              exit
             endif
 
             ! do not continue with low masses/resolution of instrument (user)
             if ( sum(mass(1:nuc)) / amutoau <=  minmass ) then
               littlemass = .true.
+              if(index(asave,'NOT USED') == 0)then
+                write(io_res,'(a)')asave
+              endif
               exit
             endif
 
@@ -1441,7 +1449,7 @@ ESI_loop: do
 
 
             ! Check fragmentation state and chose what to do 
-            if (tcont > 0) then
+            if ( tcont > 0 ) then
               cycle ESI_loop ! CYCLE the MD loop if fragmentation happend
             else
               exit ESI_loop  ! EXIT the MD loop if nothing happend
@@ -1449,11 +1457,11 @@ ESI_loop: do
 
           enddo ESI_loop ! ENDDO loop the MD module
 
-          if ( TempRun .or. small .or. isec > 2 ) then
-            if( index(asave,'NOT USED') == 0 ) then
-              write(io_res,'(a)')asave
-            endif
-          endif
+          !if ( TempRun .or. small .or. isec > 2 ) then
+          !  if( index(asave,'NOT USED') == 0 ) then
+          !    write(io_res,'(a)')asave
+          !  endif
+          !endif
 
         endif doESI ! ENDIF E_Scale gt 0
 
@@ -1552,10 +1560,10 @@ cidlp:  do
             write(*,*) ' '
           endif
 
-          isec = 1
-          icoll=icoll+1
+          isec      = 1
+          icoll     = icoll + 1
           fragstate = 0
-          simMD = save_simMD
+          simMD     = save_simMD
 
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1756,7 +1764,8 @@ MFPloop:  do
             !> but only if not set manually
             if ( manual_simMD == 0 ) then
               simMD = icoll * 0.6 * nuc * 100
-              if (simMD > 8000) simMD = 8000
+              if ( simMD > 8000 .and. coll_counter <= 2 ) simMD = 8000
+            !  if ( simMD > 8000 .and. coll_counter > 2  ) simMD = 8000 / coll_counter
             endif
 
             !> reduce the MD time if fragmentation in MFP occurs
@@ -1937,16 +1946,16 @@ MFPloop:  do
           !write(*,*) 'ECOM (eV) :    ', E_COM
           !write(*,*)'NEW VELO MD:', new_velo
 
-
-          if ( new_velo <= 800 .or. E_COM <= 0.75_wp .and. MinPot == 0 ) then
+          ! set end-conditions for the CID module
+          if ( new_velo <= 800 .or. E_COM <= 0.85_wp .and. MinPot == 0 ) then
             if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
             endif
-            write(*,*) ' !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-            write(*,*) ' ! Low velocity and thus low E(COM) !'
-            write(*,*) '   -> The velocity',new_velo, '<-    !'
-            write(*,*) '   -> E_COM       ',E_COM, '<-    !'
-            write(*,*) ' !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            write(*,'(40(''!''))')
+            write(*,'(''! Low velocity and thus low E(COM) !'')')
+            write(*,'('' -> The velocity is now: '',f10.6)') new_velo
+            write(*,'('' -> E(COM)       is now: '',f10.6)') E_COM
+            write(*,'(40(''!''))')
             exit
           endif
 
@@ -2042,13 +2051,13 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
             write(*,*)'-------------------------------------------------'
             write(io_res,'(a)')asave
 
-            !if(num_frags == 0)then
-            !   write(*,*)''
-            !   write(*,*)'------------------------------------------'
-            !   write(*,*)'    No fragmentation in the simulation!   '
-            !   write(*,*)'   Increase energy or time of sampling.   '
-            !   write(*,*)'------------------------------------------'
-            !endif
+            if(num_frags == 0)then
+               write(*,*)''
+               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(*,*)'    No fragmentation in the simulation!   '
+               write(*,*)'   Increase energy or time of sampling.   '
+               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            endif
 
             exit cidlp ! End the collision routine
 
@@ -2070,7 +2079,9 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
            if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
            endif
+           write(*,'(40(''!''))')
            write(*,*)'     run not continued because of small fragment(s)'
+           write(*,'(40(''!''))')
            write(*,*)''
         endif
 
@@ -2079,17 +2090,21 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
            if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
            endif
-           write(*,*)'     run not continued because of resolution'
-           write(*,*) 'Input      : ', minmass
-           write(*,*) 'Actual mass: ', sum(mass(1:nuc))/amutoau
-           write(*,*)''
+           write(*,'(40(''!''))')
+           write(*,'(''run not continued because of resolution'')')
+           write(*,'(40(''!''))')
+           write(*,'(''Threshold  : '',4x,i4)') minmass
+           write(*,'(''Frag. mass : '',4x,f10.6)') sum(mass(1:nuc)) * autoamu
+           write(*,*)
         endif
 
         ! ERROR
         if(stopcid)then
            if(index(asave,'NOT USED') == 0)write(io_res,'(a)')asave
-           write(*,*)'     run aborted, last structure saved '
-           write(*,*)''
+           write(*,'(40(''!''))')
+           write(*,*)' --- run aborted, last structure saved! --- '
+           write(*,'(40(''!''))')
+           write(*,*)
         endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

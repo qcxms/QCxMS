@@ -140,14 +140,16 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   ! Print CID settings
   else  
     write(*,*)
-    write(*,'(11(''-''),(a),11(''-''))') ' CID settings '
-    if (gas%IndAtom == 7 ) then
-      write(*,'('' Collision Gas         : '',a,''2'')') trim(toSymbol(gas%IndAtom))
-    else
-      write(*,'('' Collision Gas         : '',a)') trim(toSymbol(gas%IndAtom))
-    endif
+    if ( .not. TempRun ) then
+      write(*,'(11(''-''),(a),11(''-''))') ' CID settings '
+      if (gas%IndAtom == 7 ) then
+        write(*,'('' Collision Gas         : '',a,''2'')') trim(toSymbol(gas%IndAtom))
+      else
+        write(*,'('' Collision Gas         : '',a)') trim(toSymbol(gas%IndAtom))
+      endif
 
-    write(*,'('' E (LAB)               : '',f7.2,'' eV'')') eimpact
+      write(*,'('' E (LAB)               : '',f7.2,'' eV'')') eimpact
+    endif
 
     ! General run-type
     if ( Fullauto) then
@@ -307,10 +309,12 @@ info: if ( method /= 3 .and. method /= 4 )then
 
   ! Print CID settings
   else  
-    write(*,*)
-    write(*,'(11(''-''),(a),11(''-''))') ' CID settings '
-    write(*,'('' Collision Gas         : '',a2)')      toSymbol(gas%IndAtom)
-    write(*,'('' E (LAB)               : '',f7.2,'' eV'')') Eimpact
+    if ( .not. TempRun ) then
+      write(*,*)
+      write(*,'(11(''-''),(a),11(''-''))') ' CID settings '
+      write(*,'('' Collision Gas         : '',a2)')      toSymbol(gas%IndAtom)
+      write(*,'('' E (LAB)               : '',f7.2,'' eV'')') Eimpact
+    endif
 
     ! General run-type
     if ( Fullauto) then
@@ -327,9 +331,9 @@ info: if ( method /= 3 .and. method /= 4 )then
     E_int = (temp * (0.5 * 3 * nuc * kB)) * autoev
 
     write(*,*)
-    write(*,'('' internal Energy        : '',F8.4,'' eV'',a3)')E_int
-    if (ESI > 0)     write(*,'('' Scaling to  '',F8.4, '' eV'')')ESI
-    if (tempESI > 0) write(*,'('' Scaling to  '',F8.4, '' K'')')tempESI
+    write(*,'('' internal Energy        : '',F6.2,'' eV'',a3)')E_int
+    if (ESI > 0)     write(*,'('' Scaling to             : '',F6.2, '' eV'')')ESI
+    if (tempESI > 0) write(*,'('' Scaling to             : '',F6.2, '' K'')')tempESI
 
   endif info
 

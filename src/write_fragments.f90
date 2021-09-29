@@ -67,7 +67,7 @@ module qcxms_write_fragments
     write(*,'('' fragment assigment list:'',80i1)')(list(k),k=1,nuc)
 
     ! compute fragment IP/EA
-    if (method == 3 .or. method == 4) then ! fix average geometry for CID (axyz)
+    if ( method == 3 .or. method == 4 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
        call analyse(iprog,nuc,iat,xyz,list,aTlast,fragip, &
                   natf,ipok,icoll,isec,metal3d,ECP)
     else
@@ -91,16 +91,16 @@ module qcxms_write_fragments
        frag_number = list(k)
 
        ! dftb
-       if ( prog.eq.0 ) then
+       if ( prog == 0 ) then
           call valel(iat(k),z)
           fragchrg(frag_number) = fragchrg(frag_number) + z - chrg(k)
 
        ! mopac
-       elseif (prog.eq.1.or.prog.eq.5)then
+       elseif ( prog == 1 .or. prog == 5 ) then
           fragchrg(frag_number) = fragchrg(frag_number) + chrg(k)
 
        ! msindo
-       elseif (prog.eq.4)then
+       elseif ( prog == 4 ) then
           call valel(iat(k),z)
           fragchrg(frag_number) = fragchrg(frag_number) + z - chrg(k)
 
@@ -170,7 +170,7 @@ loop:do j = 1, nfrag
 
        do k = 1, 200
 
-          if(fragat(k,j).ne.0)then
+          if(fragat(k,j) /= 0)then
              l = l + 1
              idum1(l) = fragat(k,j)
              idum2(l) = k
