@@ -4,7 +4,9 @@
 module qcxms_tblite
    use mctc_env, only : error_type
    use mctc_io, only : structure_type, new
+   use tblite_container, only : container_type
    use tblite_context_type, only : context_type
+   use tblite_external_field, only : electric_field
    use tblite_wavefunction_type, only : wavefunction_type, new_wavefunction
    use tblite_xtb_calculator, only : xtb_calculator
    use tblite_xtb_gfn2, only : new_gfn2_calculator
@@ -63,7 +65,7 @@ contains
 
 !> Entry point for QCxMS to request calculations from the tblite library
 subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
-      & output_file, qat, energy, gradient, stat, spec_calc)
+      & output_file, qat, energy, gradient, stat, spec_calc, efield)
    !> Atomic numbers for each atom
    integer, intent(in) :: num(:)
    !> Cartesian coordinates for each atom in Bohr
@@ -91,6 +93,8 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
    real(wp) :: ehomo
    !> Calculate MO ?
    logical  :: spec_calc
+   !> Electrical field
+   real(wp), intent(in), optional :: efield(:)
 
    type(context_type) :: ctx
    type(structure_type) :: mol
@@ -128,6 +132,14 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
       call ctx%message(info_label//"Starting IPEA1-xTB calculation in tblite")
       call new_ipea1_calculator(calc, mol)
    end select
+
+   if (present(efield)) then
+      block
+         class(container_type), allocatable :: cont
+         cont = electric_field(efield)
+         call calc%push_back(cont)
+      end block
+   end if
 
    ! Create a new wavefunction for every calculation
    call new_wavefunction(wfn, mol%nat, calc%bas%nsh, calc%bas%nao, etemp * ktoau)
