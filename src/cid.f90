@@ -1,5 +1,5 @@
 subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
-    stopcid, Eimpact, axyz, ttime, eExact, ECP, manual_dist,        &
+    stopcid, ELAB, ECOM, axyz, ttime, eExact, ECP, manual_dist,     &
     vScale, MinPot, ConstVelo, cross,                               &
     mfpath, r_mol, achrg, icoll, collisions, direc, velo_cm,        &
     aTlast, calc_collisions,imass)
@@ -25,7 +25,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer  :: nstp
   integer  :: dumpavg,dumpxyz,dumpscreen,dumpcoord,dumpdist
   integer  :: average_dump,xyzavg_dump,screen_dump,coord_dump,distance_dump
-  integer  :: i,j,ind,m
+  integer  :: i,j,k,ind,m
   integer  :: time_step_count
   integer  :: icoll
   integer  :: collisions
@@ -37,7 +37,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer  :: fragat(200,10)  
   integer  :: imass(nuc)
   integer  :: istep, step_dist, manual_dist
-  integer  :: io_cid, io_rotate
+  integer  :: io_cid, io_rotate, io_test
 
   real(wp) :: calc_collisions
   real(wp) :: etemp,E,ke
@@ -55,14 +55,15 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   real(wp) :: distcrit !distance criterion
   real(wp) :: start_dist,new_dist
   real(wp) :: Tinit
-  real(wp) :: E_kin,E_kin_diff, E_Therm
-  real(wp) :: E_COM,yamma,beta,ny
+  real(wp) :: E_velo,E_kin_diff, E_Therm
+  real(wp) :: E_COM_calc,beta !,ny,yamma
   real(wp) :: Ekin,T,Tav,avgT
   real(wp) :: new_temp
   real(wp) :: T_GBSA
   real(wp) :: r_mol
   real(wp) :: mfpath
-  real(wp) :: Eimpact,E_Scale,MinPot,vScale,W,scale_MinPot
+  real(wp) :: Eimpact, ECOM, ELAB
+  real(wp) :: E_Scale,MinPot,vScale,W,scale_MinPot
   real(wp) :: summass,cross
   real(wp) :: direc(3),scale_velo(3)
   real(wp) :: fasti
@@ -75,6 +76,9 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   real(wp) :: fragT(10)     
   real(wp) :: E_Distr
   real(wp) :: aTlast
+
+  real(wp) :: save_grad!(5000)
+  real(wp) :: set_grad
   
   !Rotation parameters
 !  real(wp) :: a,b,c
@@ -82,9 +86,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   real(wp) :: velo_rot(3,nuc), E_Rot
 
   ! Allocatables
-  real(wp),  allocatable :: xyz0(:,:),velo0(:,:),grad0(:,:)
-  real(wp),  allocatable :: mass0(:),achrg0(:),aspin0(:)
-  integer, allocatable :: iat0(:)
+  real(wp), allocatable :: xyz0(:,:),velo0(:,:),grad0(:,:)
+  real(wp), allocatable :: mass0(:),achrg0(:),aspin0(:)
+  integer,  allocatable :: iat0(:)
+
 
   !Characters
   character(len=20) :: fname
@@ -100,9 +105,20 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: gradfail
   logical :: xstps
 
+  interface
+    function calc_ECOM(beta,e_kin) result(E_COM)
+      !use cidcommon
+      use xtb_mctc_accuracy, only: wp
+      !use xtb_mctc_convert
+      implicit none
+    
+      real(wp) :: beta, e_kin, E_COM
+    end function calc_ECOM
+  end interface
 
   ! initiate random numbers
   call random_seed()
+
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !Allocate molecule+Impactatom
@@ -143,7 +159,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
   open(file=fname,newunit=io_cid,status='replace')
   
- !open(unit=777,file='velocities.dat')
+ open(file='avgxyz.xyz',newunit=io_test,status='replace')
   
   
   !---------------------------------------------------------
@@ -163,7 +179,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   dumpscreen = 100   !interval for screen dumping
   dumpcoord  = 4     !interval for coordinate dumping
   dumpdist   = 10    !interval for distance dumping
-  dumpxyz    = 50
   dumpavg    = 50
   ntot       = 15000 !maximum number of steps 
   
@@ -173,7 +188,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   time_step_count = 0
   step_counter = 0
   
-  avxyz =0
+  avxyz = 0
+  set_grad = huge(0.0_wp)
 
   !velo_rot(3,3) = 0.0d0
   
@@ -184,101 +200,112 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   nfrag = 1 
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !1. Get Impact Energy! Than vary it via box-muller distribution
-  if (.not. eExact) then
-     E_Distr = 0.1_wp
-     E_Scale = vary_energies(Eimpact, E_Distr)
-  endif
-  
-  !2. Or set Impact Energy as given value
-  if (eExact)then
-     E_Scale = Eimpact !set Energy constant in all prod runs 
-  endif
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   ! set eletronic temperature 
   if(etemp <= 0)then    ! Fermi-smearing levels
-     etemp = 5000.0d0   !+ 20000.0d0 
+    etemp = 5000.0d0   !+ 20000.0d0 
   endif
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! rotate molecule and give angular momentum
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   if (icoll == 1)then
-  !Calculate center of mass
-      call cofmass(nuc,mass,xyz,cm)
-  !translate center of mass to origin
-      xyz(1,:) = xyz(1,:)-cm(1)
-      xyz(2,:) = xyz(2,:)-cm(2)
-      xyz(3,:) = xyz(3,:)-cm(3)
+
+    !> Calculate center of mass
+    call cofmass(nuc,mass,xyz,cm)
+
+    !> translate center of mass to origin
+    xyz(1,:) = xyz(1,:)-cm(1)
+    xyz(2,:) = xyz(2,:)-cm(2)
+    xyz(3,:) = xyz(3,:)-cm(3)
 
 
-      ! Do Euler Rotation
-      call euler_rotation(nuc, iat, xyz, velo, io_rotate)
+    !> Do Euler Rotation
+    call euler_rotation(nuc, iat, xyz, velo, io_rotate)
   
-      ! Give angular momentums 
-      call rotation_velo(xyz, nuc, mass, velo, velo_rot, E_rot)
+    !> Give angular momentums 
+    call rotation_velo(xyz, nuc, mass, velo, velo_rot, E_rot)
   
-     ! Calc. ratio of energies (not important)
-     !jpoint(1)=  tinit*0.5*3*nuc* kB
-     !jpoint(2) = E_Rot
-     !jpoint(3) = jpoint(1)/jpoint(2)
+    ! Calc. ratio of energies (not important)
+    !jpoint(1)=  tinit*0.5*3*nuc* kB
+    !jpoint(2) = E_Rot
+    !jpoint(3) = jpoint(1)/jpoint(2)
   
-  
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      do i =1,nuc
-         velo(1,i) = velo(1,i)  + velo_rot(1,i)
-         velo(2,i) = velo(2,i)  + velo_rot(2,i)
-         velo(3,i) = velo(3,i)  + velo_rot(3,i)
-      end do
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    do i =1,nuc
+      velo(1,i) = velo(1,i)  + velo_rot(1,i)
+      velo(2,i) = velo(2,i)  + velo_rot(2,i)
+      velo(3,i) = velo(3,i)  + velo_rot(3,i)
+    end do
   
   endif
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !########################################################################
   ! Set starting conditions
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !########################################################################
 
-  !Calculate masses
+  !> Calculate masses
   summass = 0.0d0
   do i = 1,nuc
      summass = summass +  mass(i) 
   enddo
+
+  beta  = gas%mIatom/(gas%mIatom + summass)
   
-  ! set the kinetic energy
+  !> set the kinetic energy 
+  !>> For first collision 
   if (icoll == 1)then
-    E_kin = E_Scale * evtoau
+
+    !> determine if start E is LAB or COM 
+    if ( ECOM > 0.0_wp ) then
+      Eimpact = ECOM / beta
+    else
+      Eimpact = ELAB
+    endif
+
+    !1. Get Impact Energy! Than vary it via box-muller distribution
+    if (.not. eExact) then
+      E_Distr = 0.1_wp
+      E_Scale = vary_energies(Eimpact, E_Distr)
+    !2. Or set Impact Energy as given value
+    else
+      E_Scale = Eimpact !set Energy constant in all prod runs 
+    endif
+
+    ! To a.u. and E_velo
+    E_velo = E_Scale * evtoau
+
+  !>> For consecutive collisions
   else
-    ! set this, because it is set in main to au units !fasti / mstoau
-    E_kin = 0.5_wp * summass * ((velo_cm * mstoau)**2) 
+    ! set this, because it is set in main to au units 
+    E_velo = 0.5_wp * summass * ((velo_cm * mstoau)**2) 
   endif
 
-  ! thermal energy molecule 
+
+  !> calculate thermal energy molecule 
   call ekinet(nuc,velo,mass,Ekin,Tinit)
   E_Therm = tinit * 0.5_wp * 3.0_wp * nuc * kB
+  E_COM_calc = calc_ECOM(beta,E_velo) ! beta * E_velo 
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !Stuff for scaling velos
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  beta  = gas%mIatom/(gas%mIatom + summass)
-  ny    = 2 
-  yamma = ((2 * summass) + (ny * gas%mIatom)) / (summass + gas%mIatom)
+  !ny    = 2 
+  !yamma = ((2 * summass) + (ny * gas%mIatom)) / (summass + gas%mIatom)
   
-  E_COM = beta * E_kin 
-  
+
+
   !write(*,*) 'BETA',beta
   !write(*,*) 'GAMMA',yamma
-  
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
-  !   BEGIN CID MODULE   ! 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
+ 
+
+  !########################################################################
+  !### BEGIN CID MODULE  ################################################### 
+  !########################################################################
   
   if (icoll == 1)then
-     !set Energy and velocity         
-     ! Save kinetic energy
-     fasti = sqrt(2 * E_kin / summass)
+     !set Energy and velocity
+     fasti = sqrt(2 * E_velo / summass)
 
      write(*,*) ' '
      write(*,'(80(''=''))')
@@ -303,10 +330,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 !     write(*,'('' Mass Precursor Ion (kg)      : '',e10.2)')summass * amutokg
      write(*,*)
      write(*,*) ' ----- Collision Energetics  -----------------'
-     write(*,'('' Kinetic Energy eV (LAB)      : '',f14.6)')  E_kin / evtoau
-     write(*,'('' Kinetic Energy au (LAB)      : '',f14.6)')  E_kin 
-     write(*,'('' Kinetic Energy eV (COM)      : '',f14.6)')  E_COM/evtoau
-     write(*,'('' Kinetic Energy au (COM)      : '',f14.6)')  E_COM 
+     write(*,'('' Kinetic Energy eV (LAB)      : '',f14.6)')  E_velo / evtoau
+     write(*,'('' Kinetic Energy au (LAB)      : '',f14.6)')  E_velo 
+     write(*,'('' Kinetic Energy eV (COM)      : '',f14.6)')  E_COM_calc
+     write(*,'('' Kinetic Energy au (COM)      : '',f14.6)')  E_COM_calc * evtoau
      write(*,*) ' '
      write(*,'('' Velocity (au)                : '',e14.2)')  fasti
      write(*,'('' Velocity (m/s)               : '',f14.6)')  fasti / mstoau 
@@ -327,9 +354,9 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      write(*,'('' Collision cell length (m)    : '',f14.6)') cell%lchamb
      write(*,'(32x,15(''-''))')
      write(*,'('' Mean free path (m)           : '',f14.6)') mfpath
-     write(*,'('' Calculated collisions        : '',f14.6)') calc_collisions !int(lchamb/mfpath)
+     write(*,'('' Calculated collisions        : '',f14.6)') calc_collisions 
      write(*,'(32x,15(''=''))')
-     write(*,'('' Number of collisions varied  : '',i7)'   ) collisions !int(lchamb/mfpath)
+     write(*,'('' Number of collisions varied  : '',i7)'   ) collisions 
      write(*,*)
      write(*,'(47(''-''),/)')
   else
@@ -339,9 +366,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      write(*,'('' Mass Collsion Gas            : '',f14.6,a3)') gas%mIatom/amutoau,  ' Da'
      write(*,*) ' '
      write(*,*) ' ----- Collision Energetics  -----------------'
-!     write(*,*) 'Kinetic Energy (LAB)   :',  E_kin/evtoau , 'eV'
-     write(*,'('' Kinetic Energy (LAB)         : '',f14.6,a3)') E_kin / evtoau,  ' eV'
-     write(*,'('' Kinetic Energy (COM)         : '',f14.6,a3)') E_COM / evtoau , ' eV'
+     write(*,'('' Kinetic Energy (LAB)         : '',f14.6,a3)') E_velo / evtoau,  ' eV'
+     write(*,'('' Kinetic Energy (COM)         : '',f14.6,a3)') E_COM_calc     ,  ' eV'
      write(*,'('' Velocity now                 : '',f14.6,a4)') velo_cm        , ' m/s'
      write(*,*) ' '
      write(*,*) ' ----- Collision calculations ----------------'
@@ -350,13 +376,13 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      write(*,'('' Cross-section                : '',e14.2,a4)') cross ,'m²' 
      write(*,'(32x,15(''-''))')
      write(*,'('' Mean free path               : '',f14.6,a2)') mfpath, ' m'
-     write(*,'('' Calculated collisions        : '',f14.6)') calc_collisions !int(lchamb/mfpath)
+     write(*,'('' Calculated collisions        : '',f14.6)') calc_collisions 
      write(*,'(32x,15(''=''))')
-     write(*,'('' Number of collisions varied  : '',i7)'   ) collisions !int(lchamb/mfpath)
+     write(*,'('' Number of collisions varied  : '',i7)'   ) collisions 
      write(*,*) ' '
      write(*,'(32x,15(''-''))')
 
-     if (MinPot > 0 .and.E_COM/evtoau < MinPot)then
+     if (MinPot > 0 .and. E_COM_calc < MinPot)then
        scale_MinPot = MinPot / beta
        W = mfpath * scale_MinPot 
        vScale = sqrt((2*W)/summass)
@@ -534,7 +560,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     start_dist = ( velo_cm * mstoau ) * ( 2 * time_step ) ! convert velo. into distance
     start_dist =  step_dist * start_dist * autoaa ! re-convert into angstrom
 
-    if ( start_dist < 15.0_wp ) start_dist = 15.0_wp ! set lower limit to account for too short distances
+    if ( start_dist < 17.0_wp ) start_dist = 17.0_wp ! set lower limit to account for too short distances
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   ! Re-initialize the coordinates
@@ -697,8 +723,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      ! Calculate different energies/temperatures 
      call ekinet(nuc,velo0(:,:nuc),mass0(:nuc),Ekin,T)
   
-     E_kin = 0.5 * summass * ((new_velo*mstoau)**2) 
-     E_kin_diff = Ekin - E_kin
+     E_velo = 0.5 * summass * ((new_velo*mstoau)**2) 
+     E_kin_diff = Ekin - E_velo
   
      new_temp = (2*E_kin_diff) / (3 * kB * nuc)
      if (istep == 1) new_temp = tinit
@@ -708,7 +734,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      avgT = Tav / m
 
      !set collision energy (eV)
-     E_COM = (beta * E_kin)/evtoau
+     E_COM_calc = calc_ECOM(beta,E_velo)  !(beta * E_velo)/evtoau
 
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      ! increase number of steps to allow longer collision MD if fragmentation occured
@@ -757,17 +783,24 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! WORK IN PROGRESS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if (xyzavg_dump == dumpavg) then
-       xyzavg_dump = 0
-       avxyz =0
-       ! hier muss ich die average xyz coords rausfinden 
-    end if
+    !if (xyzavg_dump == dumpavg) then
+    !  xyzavg_dump = 0
+    !  avxyz =0
+    !  ! hier muss ich die average xyz coords rausfinden
+    !  set_grad = huge(0.0_wp)
+    !end if
 
-    do j = 1, nuc
-       avxyz(1,j)  = avxyz(1,j)  + (xyz(1,j)) ! - diff_cm(1)) 
-       avxyz(2,j)  = avxyz(2,j)  + (xyz(2,j)) ! - diff_cm(2)) 
-       avxyz(3,j)  = avxyz(3,j)  + (xyz(3,j)) ! - diff_cm(3)) 
-    enddo
+    !save_grad = sum(grad0(:,:nuc))
+    !if (save_grad < set_grad)then
+    !  set_grad = save_grad
+    !  avxyz  = xyz0(:,:nuc)
+    !endif
+    
+    !do j = 1, nuc
+    !   avxyz(1,j)  = avxyz(1,j)  + (xyz(1,j)) ! - cm(1)) 
+    !   avxyz(2,j)  = avxyz(2,j)  + (xyz(2,j)) ! - cm(2)) 
+    !   avxyz(3,j)  = avxyz(3,j)  + (xyz(3,j)) ! - cm(3)) 
+    !enddo
    !!! CID muss angepasst werden, die rotationsgeschwindigkeit der einzelnen
    !!! atome von den xyz coords abzeihen um average xyz zu bekommen
 
@@ -829,7 +862,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
           write(*,*) 'Collision MD finished due to STEPS!'
           write(*,*) ''
           velo_diff = velo_cm - new_velo
-          E_kin = (0.5_wp * summass * ((new_velo)**2)) !/ evtoau
+          E_velo = (0.5_wp * summass * ((new_velo)**2)) !/ evtoau
           !write(*,*) ''
           !write(*,*) 'Velo Difference' , velo_diff
           !write(*,*) 'Velocity now  :',  new_velo, 'm/s'
@@ -853,6 +886,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   
   end do
   
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !Save new coordinates and velocities
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -863,7 +897,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   
   call ekinet(nuc,velo0(:,:nuc),mass0(:nuc),Ekin,T)
            
-  E_kin = 0.5 * summass * ((new_velo*mstoau)**2)
+  E_velo = 0.5 * summass * ((new_velo*mstoau)**2)
   
 !  e_int0 = avgT*(0.5*3*nuc*kB)
 
@@ -883,20 +917,17 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      write(*,'('' Internal Energy               : '',f14.6,a3)')E_int(1), ' eV' 
      write(*,'('' Internal Temp                 : '',f14.6,a3)')fragT(1), ' eV' 
   endif
-  write(*,'('' Kinetic Energy  (COM)         : '',f14.6,a3)') E_COM           ,' eV' 
+  write(*,'('' Kinetic Energy  (COM)         : '',f14.6,a3)') E_COM_calc           ,' eV' 
   write(*,'(50(''#''))')
   write(*,*)
   
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
-  
-  
   !Finish due to fragmentation in CID module
   write(*,*) 'E X I T - the CID module is finished'
   write(*,*) ''
   xyz (1:3,1:nuc) = xyz0  (1:3,1:nuc) 
-  axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) / dumpxyz
+  axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) !/ dumpavg
   velo(1:3,1:nuc) = velo0(1:3,1:nuc)
   grad(1:3,1:nuc) = grad0(1:3,1:nuc)
   achrg(1:nuc)    = achrg0(1:nuc)
@@ -1033,3 +1064,18 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
   end subroutine
   
+
+!#########################################################################
+! Calculate the Center-of-mass energy
+!#########################################################################
+
+function calc_ECOM(beta,e_kin) result(E_COM)
+  use xtb_mctc_accuracy, only: wp
+  use xtb_mctc_convert
+  implicit none
+
+  real(wp) :: beta, e_kin, E_COM
+
+  E_COM = (beta * E_KIN) * autoev
+
+end function calc_ECOM

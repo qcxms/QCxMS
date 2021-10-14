@@ -80,14 +80,14 @@ program QCxMS
   real(wp) :: tadd,fimp,aTlast
   real(wp) :: chrgcont,cema(3),eimp0,eimp,dtime
   real(wp) :: iee_a,iee_b,hacc,ieeel,btf,ieeatm,etempGS
-  real(wp) :: vScale,new_velo,avgT,MinPot,ESI,tempESI
+  real(wp) :: vScale,new_velo,MinPot,ESI,tempESI
   real(wp) :: tScale,new_temp
   real(wp) :: summass,beta
   real(wp) :: direc(3),cm(3),cm1(3),cm2(3)
   !real(wp) :: cm_out
   real(wp) :: randx
   real(wp) :: lowerbound,upperbound
-  real(wp) :: Eimpact
+  real(wp) :: ELAB, ECOM
   real(wp) :: gaus(1000)
   real(wp) :: a,b
   real(wp) :: rtot,cross,mfpath
@@ -96,7 +96,7 @@ program QCxMS
   ! Ion tracking arrays
   real(wp) :: fragm(10) !10 fragments max per fragmentation,
   real(wp) :: xyzn(3,10000),velon(3,10000),iatn(10000),massn(10000) !10000 atoms max
-
+  real :: snorm
 
   ! Allocatables
   real(wp),allocatable :: xyz (:,:)
@@ -137,10 +137,19 @@ program QCxMS
   logical :: small,littlemass
   logical :: No_ESI,NoScale
   logical :: starting_md
+  logical :: legacy
   !logical gbsa ! set solvation model
 
   intrinsic :: get_command_argument
   external  :: system
+
+  interface
+    function calc_ECOM(beta,e_kin) result(E_COM)
+      use xtb_mctc_accuracy, only: wp
+      implicit none
+      real(wp) :: beta, e_kin, E_COM
+    end function calc_ECOM
+  end interface
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Start the program
@@ -235,6 +244,7 @@ program QCxMS
   ! check if cid was OK
   stopcid = .false.
   starting_md=.false.
+  legacy = .false.
   ! HS-UHF ini only for frag runs
   iniok  =.true.
   ! dump every dumpstep MD steps for MOLDEN movie (=4 fs as default)
@@ -274,10 +284,10 @@ program QCxMS
   &          iee_a,iee_b,eimp0,eimpw,fimp,iprog,                            &
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
   &          scani,lowerbound,upperbound,metal3d,                           &
-  &          Eimpact,eExact,ECP,unity,noecp,nometal,                        &
+  &          ELAB,ECOM,eExact,ECP,unity,noecp,nometal,                        &
   &          vScale,CollNo,CollSec,ConstVelo,                               &
   &          minmass,manual_simMD,convetemp,set_coll,MaxColl,               &
-  &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist)
+  &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   ! Choose the MS method
@@ -379,8 +389,8 @@ program QCxMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri)
+      & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
 
 
   ! # MD steps in a frag run
@@ -755,7 +765,6 @@ iee0: if (method /= 3 .and. method /= 4)then ! Not important for CID
       endif
 
       exc   = (eimp0 - ehomo) * autoev
-      !exc   = (eimp0 - ehomo) * autoev TEST
       ieeel = dble (ihomo + nb)
 
       ! user input
@@ -783,9 +792,9 @@ iee1: if ( iee_a > 0 .and. iee_b > 0 ) then
       endif
       write(*,*)
 
-      ! For the different structures, use the above settings
+      !> For the different structures, use the above settings
 iee2:  do i = 1, ndumpGS
-        ! read structure and velo from previous GS MD
+        !> read structure and velo from previous GS MD
         do k = 1, nuc
           read(io_gs,*)(xyz(j,k),j=1,3),(velo(j,k),j=1,3)
         enddo
@@ -793,10 +802,17 @@ iee2:  do i = 1, ndumpGS
         if (icalc(i) == 0) cycle
         if (nrun == ntraj) exit
 
-        ! 1. generate an e- that can ionize any MO and vary it by boxuller
-        do 
-          ! vary by normal distributed boxmuller random number
-          Edum = vary_energies(eimp0,eimpw)
+        !> 1. generate an e- that can ionize any MO and vary it by boxuller
+        do
+          !> Legacy support. Do runs with SAME random seed for each run (pseudo-random)
+          if ( legacy ) then
+            Edum = eimp0 + eimpw * eimp0 * snorm() 
+
+          !> DEFAULT: vary by normal distributed boxmuller random number
+          else
+            Edum = vary_energies(eimp0,eimpw)
+          endif
+
           if ( Edum >= ehomo ) exit
         enddo
 
@@ -1022,7 +1038,7 @@ iee2:  do i = 1, ndumpGS
 
     ! sum up the information at the end of creating tmp directories (call #2)
     call info_sumup(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, eimpact, ESI, tempESI,  & 
+      & ieeatm, iee_a, iee_b, ELAB, ECOM, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
 
@@ -1300,7 +1316,7 @@ ESI_loop: do
               else
                 prestep=simMD
                 starting_MD = .false.
-                if(fragstate == 2) prestep=simMD/2
+                if(fragstate == 2) prestep=simMD * 0.75
               endif
 
             elseif (TempRun .and. isec == 1) then
@@ -1308,7 +1324,7 @@ ESI_loop: do
               starting_MD = .true.
             elseif (TempRun .and. isec > 1) then
               starting_MD = .false.
-              if(fragstate == 2) prestep = prestep/2
+              if(fragstate == 2) prestep = prestep * 0.75
             endif
 
 
@@ -1379,10 +1395,12 @@ ESI_loop: do
               nuc=k
               ! count number of fragmentations
               coll_counter = coll_counter + 1
+              write(*,'(40(''!''))')
+              write(*,'(''!! Fragmentation in ESI MD !!'')')
               write(*,'(''-- No of overall fragmentations: '',i3, '' --'')')&
                 coll_counter
-              write(*,'(40(''(!)''))')
-              write(*,*) 'Fragmentation in ESI MD'
+              write(*,'(40(''!''))')
+              write(*,*)
 
             elseif (tcont == 0) then
               do i = 1, nuc
@@ -1405,8 +1423,8 @@ ESI_loop: do
 
             ! do not continue with small fragments
             if ( nuc <= 5 ) then
-               small = .true.
-               exit
+              small = .true.
+              exit
             endif
 
             ! do not continue with low masses/resolution of instrument (user)
@@ -1441,7 +1459,7 @@ ESI_loop: do
 
 
             ! Check fragmentation state and chose what to do 
-            if (tcont > 0) then
+            if ( tcont > 0 ) then
               cycle ESI_loop ! CYCLE the MD loop if fragmentation happend
             else
               exit ESI_loop  ! EXIT the MD loop if nothing happend
@@ -1449,7 +1467,7 @@ ESI_loop: do
 
           enddo ESI_loop ! ENDDO loop the MD module
 
-          if ( TempRun .or. small .or. isec > 2 ) then
+          if ( TempRun .and. small .or. littlemass ) then
             if( index(asave,'NOT USED') == 0 ) then
               write(io_res,'(a)')asave
             endif
@@ -1474,7 +1492,7 @@ cnt:  if (.not. TempRun .and. .not. small .and. isec < 3) then
         ! Full Auto = Total Program control depending on mol. size, pressure cham. length etc.
 auto:   if ( FullAuto )then
 
-          write(*,*) 'Collisions set to automatic'
+          write(*,*) '--- No. of collisions automatically determined --'
 
           ! Calculate radius as distance between COM and Atom that is the farest away from the COM
           call collision_setup(nuc,iat,xyz,mass,rtot,cross,mfpath,calc_collisions)
@@ -1552,10 +1570,10 @@ cidlp:  do
             write(*,*) ' '
           endif
 
-          isec = 1
-          icoll=icoll+1
+          isec      = 1
+          icoll     = icoll + 1
           fragstate = 0
-          simMD = save_simMD
+          simMD     = save_simMD
 
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1584,10 +1602,10 @@ cidlp:  do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           ! Call CID module
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          call cid(nuc, iat, mass, xyz, velo, tstep, mchrg, eTempin,  &
-          & stopcid, Eimpact, axyz, ttime, eExact, ECP, manual_dist,  &
-          & vScale, MinPot, ConstVelo, cross,                         &
-          & mfpath, rtot, chrg, icoll, collisions, direc, new_velo,   &
+          call cid(nuc, iat, mass, xyz, velo, tstep, mchrg, eTempin,     &
+          & stopcid, ELAB, ECOM, axyz, ttime, eExact, ECP, manual_dist,  &
+          & vScale, MinPot, ConstVelo, cross,                            &
+          & mfpath, rtot, chrg, icoll, collisions, direc, new_velo,      &
           & aTlast, calc_collisions, imass)
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1756,7 +1774,8 @@ MFPloop:  do
             !> but only if not set manually
             if ( manual_simMD == 0 ) then
               simMD = icoll * 0.6 * nuc * 100
-              if (simMD > 8000) simMD = 8000
+              if ( simMD > 8000 .and. coll_counter <= 2 ) simMD = 8000
+            !  if ( simMD > 8000 .and. coll_counter > 2  ) simMD = 8000 / coll_counter
             endif
 
             !> reduce the MD time if fragmentation in MFP occurs
@@ -1932,21 +1951,21 @@ MFPloop:  do
 
           E_KIN = 0.5_wp * summass * (( new_velo * mstoau )**2)
           beta = gas%mIatom / (gas%mIatom + summass)
-          E_COM = (beta * E_KIN) * autoev
+          E_COM = calc_ECOM(beta,E_KIN) !(beta * E_KIN) * autoev
           !write(*,*) 'BETA      :    ',beta
           !write(*,*) 'ECOM (eV) :    ', E_COM
           !write(*,*)'NEW VELO MD:', new_velo
 
-
-          if ( new_velo <= 800 .or. E_COM <= 0.75_wp .and. MinPot == 0 ) then
+          ! set end-conditions for the CID module
+          if ( new_velo <= 800 .or. E_COM <= 0.85_wp .and. MinPot == 0 ) then
             if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
             endif
-            write(*,*) ' !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-            write(*,*) ' ! Low velocity and thus low E(COM) !'
-            write(*,*) '   -> The velocity',new_velo, '<-    !'
-            write(*,*) '   -> E_COM       ',E_COM, '<-    !'
-            write(*,*) ' !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            write(*,'(40(''!''))')
+            write(*,'(''! Low velocity and thus low E(COM) !'')')
+            write(*,'('' -> The velocity is now: '',f10.6)') new_velo
+            write(*,'('' -> E(COM)       is now: '',f10.6)') E_COM
+            write(*,'(40(''!''))')
             exit
           endif
 
@@ -2042,13 +2061,13 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
             write(*,*)'-------------------------------------------------'
             write(io_res,'(a)')asave
 
-            !if(num_frags == 0)then
-            !   write(*,*)''
-            !   write(*,*)'------------------------------------------'
-            !   write(*,*)'    No fragmentation in the simulation!   '
-            !   write(*,*)'   Increase energy or time of sampling.   '
-            !   write(*,*)'------------------------------------------'
-            !endif
+            if(num_frags == 0)then
+               write(*,*)''
+               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(*,*)'    No fragmentation in the simulation!   '
+               write(*,*)'   Increase energy or time of sampling.   '
+               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            endif
 
             exit cidlp ! End the collision routine
 
@@ -2070,7 +2089,9 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
            if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
            endif
+           write(*,'(60(''!''))')
            write(*,*)'     run not continued because of small fragment(s)'
+           write(*,'(60(''!''))')
            write(*,*)''
         endif
 
@@ -2079,17 +2100,21 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
            if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
            endif
-           write(*,*)'     run not continued because of resolution'
-           write(*,*) 'Input      : ', minmass
-           write(*,*) 'Actual mass: ', sum(mass(1:nuc))/amutoau
-           write(*,*)''
+           write(*,'(60(''!''))')
+           write(*,'(''run not continued because of resolution'')')
+           write(*,'(60(''!''))')
+           write(*,'(''Threshold  : '',4x,i4)') minmass
+           write(*,'(''Frag. mass : '',4x,f10.6)') sum(mass(1:nuc)) * autoamu
+           write(*,*)
         endif
 
         ! ERROR
         if(stopcid)then
            if(index(asave,'NOT USED') == 0)write(io_res,'(a)')asave
-           write(*,*)'     run aborted, last structure saved '
-           write(*,*)''
+           write(*,'(60(''!''))')
+           write(*,*)' --- run aborted, last structure saved! --- '
+           write(*,'(60(''!''))')
+           write(*,*)
         endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

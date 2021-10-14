@@ -19,6 +19,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
               Tsoll,tadd,eimp,restart,Tav,Epav,Ekav,ttime,aTlast,   &
               fragstate,dtime,ECP,starting_md,new_velo)
   use common1
+  use cidcommon
   use qcxms_impact, only: impactscale
   use qcxms_fragments
   use qcxms_mdinit, only: ekinet
@@ -326,12 +327,12 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      ! Berendsen Thermostat ! Only if not fragmented
      if(method == 3.and.k > 10.and.starting_md.and. nfrag == 1)then
-         sca = dsqrt(1.0_wp + ((tstep/fstoau) / 100)*(Tsoll/T-1.0d0))
-         velo= sca * (velo) ! + acc*(tstep/fstoau))
+         sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
+         velo= sca * (velo) 
      endif
      if(method == 4.and.k > 10.and.starting_md .and. nfrag == 1)then
          sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
-         velo= sca * (velo) ! + acc*(tstep/fstoau))
+         velo= sca * (velo) 
      endif
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
@@ -357,7 +358,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      if(nfrag > 1.and.dtime < 1.d-6) dtime=ttime/1000.
   
      ! check for fragmentation, EXIT section for frag runs
-     if(it > 0)then
+ifit:if(it > 0)then
         call fragment_structure(nuc,iat,xyz,3.0d0,1,0,list)
         call fragmass(nuc,iat,list,mass,imass,nfrag,fragm,fragf,fragat)
         if(nfrag > 1) call intenergy(nuc,list,mass,velo,nfrag,fragT,E_int)
@@ -370,24 +371,34 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
           exit
         endif
   
-     if (method == 3.and.icoll >= 1.or.method == 4.and.icoll >= 1)then ! get the velocity in CID
-        call cofmass(nuc,mass,xyz,cm)
-        diff_cm(:) = cm(:) - old_cm(:)
-        cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 + diff_cm(3)**2)
+        !> it is important to get the RIGHT kinetic energy inside the molecule
+        !> therefor the kinetic energy has to be subtracted from the velocity
+        if (method == 3.and.icoll >= 1.or.method == 4.and.icoll >= 1 &
+          & .and. .not. Temprun)then 
 
-        new_velo = (cm_out / tstep) /mstoau !in ms
-        old_cm(:) = cm(:)
-  
-        call ekinet(nuc,velo,mass,Ekin_new,Tinit)
-  
-        E_kin = 0.5_wp * summass * ((new_velo*mstoau)**2) 
-  !      E_kin_diff = Ekin_new - E_kin
-        E_kin_diff = Ekin - E_kin
-        new_temp = (2.0_wp * E_kin_diff) / (3.0_wp * kB * nuc)
-  !      write(*,*) new_temp
-        vdump = 0
-        Ekin = E_kin_diff
-     endif
+          !> get the length of COM difference
+          call cofmass(nuc,mass,xyz,cm)
+          diff_cm(:) = cm(:) - old_cm(:)
+          cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 + diff_cm(3)**2)
+
+          !> calculate the velocity for this length in steps
+          new_velo = (cm_out / tstep) /mstoau !in ms
+          old_cm(:) = cm(:)
+ 
+          !> calculate the kinetic energy diff, for new velo
+          E_kin = 0.5_wp * summass * ((new_velo*mstoau)**2) 
+
+          !> check the kin. E difference
+          E_kin_diff = Ekin - E_kin
+          new_temp = (2.0_wp * E_kin_diff) / (3.0_wp * kB * nuc)
+          ! write(*,*) new_temp
+          vdump = 0
+
+          !> Now set the new Ekin to a value that does not include the difference
+          !> by the velocity of the ion 
+          Ekin = E_kin_diff
+        endif
+
         ! exit always immidiately if we have > nfragexit frags
         if(nfrag > nfragexit) then
            write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
@@ -417,7 +428,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
               exit
            endif 
         endif        
-     endif
+      endif ifit
   enddo ! END LOOP
   
   ! all done and nice
@@ -505,15 +516,15 @@ subroutine leapfrog(nat,grad,amass,tstp,xyz,vel,ke,nstp)
    real(wp) :: tstp,ke
    real(wp) :: velold, velavg,mass
 
-   ke=0.d0
-   do k=1,nat
-      mass=amass(k)
+   ke = 0.0_wp
+   do k = 1,nat
+      mass = amass(k)
       do j=1,3
          velold   = vel(j,k)
          vel(j,k) = vel(j,k) - (tstp * grad(j,k) / mass)
-         velavg   = 0.5d0 * (velold + vel(j,k))
+         velavg   = 0.5_wp * (velold + vel(j,k))
          xyz(j,k) = xyz(j,k) + (tstp * vel(j,k))
-         ke       = ke + 0.5d0 * (mass * velavg * velavg)
+         ke       = ke + 0.5_wp * (mass * velavg * velavg)
       enddo
    enddo
 

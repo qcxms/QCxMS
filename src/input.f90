@@ -1,10 +1,10 @@
 subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                        &
         iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
         edistri,btf,ieeatm,                                                       &
-        scanI,lowerbound,upperbound,metal3d,ELAB,eExact,ECP,unity,noecp,nometal,  &
-        vScale,CollNo,CollSec,ConstVelo,     &
-        minmass,manual_simMD,convetemp,set_coll,MaxColl,       & 
-        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist)
+        scanI,lowerbound,upperbound,metal3d,ELAB,ECOM, eExact,ECP,unity,noecp,    &
+        nometal,vScale,CollNo,CollSec,ConstVelo,                                  & 
+        minmass,manual_simMD,convetemp,set_coll,MaxColl,                          & 
+        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
 !  use gbobc, only: lgbsa
   use readcommon
   use cidcommon
@@ -57,6 +57,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   logical :: unity
   logical :: noecp,nometal
   logical :: Plasma
+  logical  :: legacy
   ! logical gbsa
   
   !-----------------------------------
@@ -71,7 +72,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   integer  :: set_coll
   integer  :: manual_dist
   
-  real(wp) :: ELAB,vScale,ESI,tempESI
+  real(wp) :: ELAB,ECOM
+  real(wp) :: vScale,ESI,tempESI
   real(wp) :: MinPot
   
   logical  :: ConstVelo
@@ -79,7 +81,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   logical  :: NoScale
   logical  :: eExact
 
-  
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!! DEFAULTS: !!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -204,7 +205,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   !!!           !!!! 
   !!!!!! CID !!!!!!!
   !!!           !!!! 
-  ELAB       = 40.0_wp  ! The lab. energy frame 
+  ELAB       = 40.0_wp  ! The laboratory energy frame 
+  ECOM       =  0.0_wp  ! The center-of-mass energy frame 
   gas%Iatom  = 0        ! Index of collision atom
   manual_dist  = 0
 
@@ -461,6 +463,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
          if ( line == 'NO-ECP')       noecp=.true.    !Do not check for ECP
          if ( line == 'NO-METAL')     nometal=.true.  !Do not check for metal
          if ( line == 'PLASMA')       Plasma = .True.  ! switch off ESI energy distribution
+         if ( line == 'LEGACY')       Legacy = .True.  ! Legacy support (for IEE dist.)
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          !! CID Logicals 
@@ -702,10 +705,16 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   ! ---------------------------------------------------------------
   !!! CID PARAMETERS !!! 
   ! ---------------------------------------------------------------
-  ! Collision energy (eImpact)      
+  ! Collision energy (eImpact)     
+          !> LAB frame (DEFAULT: ON)
           if(index(line,'ELAB') /= 0)then            
              call readl(line,xx,nn)
              ELAB=xx(1)
+          endif
+          !> COM frame (DEFAULT: OFF)
+          if(index(line,'ECOM') /= 0)then            
+             call readl(line,xx,nn)
+             ECOM=xx(1)
           endif
           ! Set a maximum number collisions till fragmentation 
           ! This is for the CollAuto run, i.e. collision until
