@@ -2,7 +2,7 @@ module cidcommon
   use xtb_mctc_accuracy, only: wp
   implicit none
 
-  public :: cell_settings
+  public :: cell_settings, gas_parameters
 
   type :: cell_settings
     real(wp) :: TGas  

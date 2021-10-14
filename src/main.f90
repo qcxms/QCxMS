@@ -87,7 +87,7 @@ program QCxMS
   !real(wp) :: cm_out
   real(wp) :: randx
   real(wp) :: lowerbound,upperbound
-  real(wp) :: Eimpact
+  real(wp) :: ELAB, ECOM
   real(wp) :: gaus(1000)
   real(wp) :: a,b
   real(wp) :: rtot,cross,mfpath
@@ -142,6 +142,14 @@ program QCxMS
 
   intrinsic :: get_command_argument
   external  :: system
+
+  interface
+    function calc_ECOM(beta,e_kin) result(E_COM)
+      use xtb_mctc_accuracy, only: wp
+      implicit none
+      real(wp) :: beta, e_kin, E_COM
+    end function calc_ECOM
+  end interface
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Start the program
@@ -276,7 +284,7 @@ program QCxMS
   &          iee_a,iee_b,eimp0,eimpw,fimp,iprog,                            &
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
   &          scani,lowerbound,upperbound,metal3d,                           &
-  &          Eimpact,eExact,ECP,unity,noecp,nometal,                        &
+  &          ELAB,ECOM,eExact,ECP,unity,noecp,nometal,                        &
   &          vScale,CollNo,CollSec,ConstVelo,                               &
   &          minmass,manual_simMD,convetemp,set_coll,MaxColl,               &
   &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
@@ -381,7 +389,7 @@ program QCxMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
+      & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
       & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
 
 
@@ -1030,7 +1038,7 @@ iee2:  do i = 1, ndumpGS
 
     ! sum up the information at the end of creating tmp directories (call #2)
     call info_sumup(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, eimpact, ESI, tempESI,  & 
+      & ieeatm, iee_a, iee_b, ELAB, ECOM, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
 
@@ -1484,7 +1492,7 @@ cnt:  if (.not. TempRun .and. .not. small .and. isec < 3) then
         ! Full Auto = Total Program control depending on mol. size, pressure cham. length etc.
 auto:   if ( FullAuto )then
 
-          write(*,*) 'Collisions set to automatic'
+          write(*,*) '--- No. of collisions automatically determined --'
 
           ! Calculate radius as distance between COM and Atom that is the farest away from the COM
           call collision_setup(nuc,iat,xyz,mass,rtot,cross,mfpath,calc_collisions)
@@ -1594,10 +1602,10 @@ cidlp:  do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           ! Call CID module
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          call cid(nuc, iat, mass, xyz, velo, tstep, mchrg, eTempin,  &
-          & stopcid, Eimpact, axyz, ttime, eExact, ECP, manual_dist,  &
-          & vScale, MinPot, ConstVelo, cross,                         &
-          & mfpath, rtot, chrg, icoll, collisions, direc, new_velo,   &
+          call cid(nuc, iat, mass, xyz, velo, tstep, mchrg, eTempin,     &
+          & stopcid, ELAB, ECOM, axyz, ttime, eExact, ECP, manual_dist,  &
+          & vScale, MinPot, ConstVelo, cross,                            &
+          & mfpath, rtot, chrg, icoll, collisions, direc, new_velo,      &
           & aTlast, calc_collisions, imass)
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1943,7 +1951,7 @@ MFPloop:  do
 
           E_KIN = 0.5_wp * summass * (( new_velo * mstoau )**2)
           beta = gas%mIatom / (gas%mIatom + summass)
-          E_COM = (beta * E_KIN) * autoev
+          E_COM = calc_ECOM(beta,E_KIN) !(beta * E_KIN) * autoev
           !write(*,*) 'BETA      :    ',beta
           !write(*,*) 'ECOM (eV) :    ', E_COM
           !write(*,*)'NEW VELO MD:', new_velo

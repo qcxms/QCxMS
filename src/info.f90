@@ -14,7 +14,7 @@ module qcxms_info
 
 
   subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
+      & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
       & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
       
   integer  :: ntraj,iseed(1)
@@ -32,14 +32,13 @@ module qcxms_info
   real(wp) :: eimp0
   real(wp) :: iee_a,iee_b,hacc,btf,ieeatm
   real(wp) :: fimp
-  real(wp) :: Eimpact
+  real(wp) :: ELAB, ECOM
   real(wp) :: ESI,tempESI
 
   logical  :: legacy
 
   character(len=20) :: line
   character(len=20) :: line2
-
 
   write(*,'(5(''-''),(a),5(''-''))') ' Internal program parameters '
   write(*,*)
@@ -149,7 +148,12 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
         write(*,'('' Collision Gas         : '',a)') trim(toSymbol(gas%IndAtom))
       endif
 
-      write(*,'('' E (LAB)               : '',f7.2,'' eV'')') eimpact
+      if ( ECOM > 0.0_wp ) then
+        write(*,'('' E (COM)               : '',f7.2,'' eV'')') ECOM
+      else
+        write(*,'('' E (LAB)               : '',f7.2,'' eV'')') ELAB
+      endif
+
     endif
 
     ! General run-type
@@ -236,7 +240,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine info_sumup(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, eimpact, ESI, tempESI,  & 
+      & ieeatm, iee_a, iee_b, ELAB, ECOM, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
   integer  :: ntraj
@@ -250,7 +254,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   real(wp) :: Tinit,trelax
   real(wp) :: eimp0
   real(wp) :: iee_a,iee_b,ieeatm
-  real(wp) :: Eimpact
+  real(wp) :: ELAB, ECOM
   real(wp) :: ESI,tempESI
   real(wp), intent(in)  :: velo(3,nuc),mass(nuc)
   real(wp) :: Ekin,Temp, E_int
@@ -314,7 +318,11 @@ info: if ( method /= 3 .and. method /= 4 )then
       write(*,*)
       write(*,'(11(''-''),(a),11(''-''))') ' CID settings '
       write(*,'('' Collision Gas         : '',a2)')      toSymbol(gas%IndAtom)
-      write(*,'('' E (LAB)               : '',f7.2,'' eV'')') Eimpact
+      if (ECOM > 0.0_wp) then
+        write(*,'('' E (COM)               : '',f7.2,'' eV'')') ECOM
+      else
+        write(*,'('' E (LAB)               : '',f7.2,'' eV'')') ELAB
+      endif
     endif
 
     ! General run-type
