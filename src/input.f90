@@ -2,9 +2,9 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
         iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
         edistri,btf,ieeatm,                                                       &
         scanI,lowerbound,upperbound,metal3d,ELAB,eExact,ECP,unity,noecp,nometal,  &
-        vScale,CollNo,CollSec,ConstVelo,     &
-        minmass,manual_simMD,convetemp,set_coll,MaxColl,       & 
-        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist)
+        vScale,CollNo,CollSec,ConstVelo,                                          &
+        minmass,manual_simMD,convetemp,set_coll,MaxColl,                          & 
+        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
 !  use gbobc, only: lgbsa
   use readcommon
   use cidcommon
@@ -57,6 +57,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   logical :: unity
   logical :: noecp,nometal
   logical :: Plasma
+  logical  :: legacy
   ! logical gbsa
   
   !-----------------------------------
@@ -461,6 +462,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
          if ( line == 'NO-ECP')       noecp=.true.    !Do not check for ECP
          if ( line == 'NO-METAL')     nometal=.true.  !Do not check for metal
          if ( line == 'PLASMA')       Plasma = .True.  ! switch off ESI energy distribution
+         if ( line == 'LEGACY')       Legacy = .True.  ! Legacy support (for IEE dist.)
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          !! CID Logicals 

@@ -32,7 +32,7 @@ module qcxms_analyse
     integer :: sp(3),sn(3),sn0,sp0
 !    integer, intent(in) :: gfnver
     integer :: nb,nel
-    integer :: io_xyz = 42
+    integer :: io_xyz 
   
     real(wp) :: axyz(3,nuc)
     real(wp) :: ip(10),etemp
@@ -97,20 +97,21 @@ module qcxms_analyse
           cema(1:3,i) = 0
           z           = 0
   
-          if (icoll.lt.10) write(fname,'(i1,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
-          if (icoll.ge.10) write(fname,'(i2,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
+          if (icoll < 10) write(fname,'(i1,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
+          if (icoll >= 10) write(fname,'(i2,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
 
-          open (unit=42, file = fname)
+          open (file = fname, newunit = io_xyz)
+!          open (unit=42, file = fname)
   
-          write(42,*) natf(i)
-          write(42,*)
+          write(io_xyz,*) natf(i)
+          write(io_xyz,*)
   
           do j=1,natf(i)
-             write(42,'(a2,5x,3F18.8)') toSymbol(iatf(j,i)), xyzf(1:3,j,i) * autoaa 
+             write(io_xyz,'(a2,5x,3F18.8)') toSymbol(iatf(j,i)), xyzf(1:3,j,i) * autoaa 
              cema(1:3,i) = cema(1:3,i) + xyzf(1:3,j,i) * iatf(j,i)
              z = z + iatf(j,i)
           enddo
-          close(42)
+          close(io_xyz)
           cema(1:3,i) = cema(1:3,i) / z
        enddo   
 
@@ -122,19 +123,19 @@ module qcxms_analyse
   
           write(fname,'(i1,''.'',i1,''.xyz'')') isec, i
 
-!          open (file = fname, newunit = io_xyz)
-          open (unit=42, file = fname)
+          open (file = fname, newunit = io_xyz)
+!          open (unit=42, file = fname)
 
-          write(42,*)natf(i)
-          write(42,*)
+          write(io_xyz,*)natf(i)
+          write(io_xyz,*)
 
           do j=1,natf(i)
-             write(42,'(a2,5x,3F18.8)') toSymbol(iatf(j,i)), xyzf(1:3,j,i) * autoaa 
+             write(io_xyz,'(a2,5x,3F18.8)') toSymbol(iatf(j,i)), xyzf(1:3,j,i) * autoaa 
              cema(1:3,i) = cema(1:3,i) + xyzf(1:3,j,i) * iatf(j,i)
              z = z + iatf(j,i)
           enddo
 
-          close(42)
+          close(io_xyz)
 
           cema(1:3,i) = cema(1:3,i) / z
        enddo 
@@ -155,7 +156,7 @@ module qcxms_analyse
        enddo
     enddo   
     
-    if(nfrag.gt.1) then
+    if(nfrag > 1) then
       write(*,'(2x,a)') 'inter fragment distances (Angst.)'
       call print_matrix(rf,nfrag,0)
     else
@@ -286,7 +287,7 @@ module qcxms_analyse
       ! if metal3d is true, check if fragment i has a metal atom.
          if (metal3d) then
             do k = 1, natf(i)
-               if (iatf(k,i).le.30.and.iatf(k,i).ge.22) then
+               if (iatf(k,i) <= 30.and.iatf(k,i) >= 22) then
                   boolm = .True.
                endif
             enddo
@@ -409,9 +410,9 @@ module qcxms_analyse
             if (method == 2 .or. method == 4) then
       ! NOT SURE WHAT THE BOUNDARIES HERE SHOULD BE FOR EA??
       ! that is why they just have ridicilously high (abs) values.
-               if (ip(i).gt.20.0_wp .or. ip(i).lt.-25.0_wp) iok = iok - 2        
+               if (ip(i) > 20.0_wp .or. ip(i) < -25.0_wp) iok = iok - 2        
             else
-               if (ip(i).lt.0.0_wp  .or. ip(i).gt.30.0_wp)  iok = iok - 2        
+               if (ip(i) < 0.0_wp  .or. ip(i) > 30.0_wp)  iok = iok - 2        
             endif
       
          endif
@@ -420,7 +421,7 @@ module qcxms_analyse
       ! if failed try another code      
       if (iok /= counter*2) then
          itry = itry + 1
-         if (itry.le.3) then
+         if (itry <= 3) then
             write(*,*) '* Try: ', itry, ' failed *'
             cycle
          else

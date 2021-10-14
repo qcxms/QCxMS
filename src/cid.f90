@@ -25,7 +25,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer  :: nstp
   integer  :: dumpavg,dumpxyz,dumpscreen,dumpcoord,dumpdist
   integer  :: average_dump,xyzavg_dump,screen_dump,coord_dump,distance_dump
-  integer  :: i,j,ind,m
+  integer  :: i,j,k,ind,m
   integer  :: time_step_count
   integer  :: icoll
   integer  :: collisions
@@ -37,7 +37,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer  :: fragat(200,10)  
   integer  :: imass(nuc)
   integer  :: istep, step_dist, manual_dist
-  integer  :: io_cid, io_rotate
+  integer  :: io_cid, io_rotate, io_test
 
   real(wp) :: calc_collisions
   real(wp) :: etemp,E,ke
@@ -75,6 +75,9 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   real(wp) :: fragT(10)     
   real(wp) :: E_Distr
   real(wp) :: aTlast
+
+  real(wp) :: save_grad!(5000)
+  real(wp) :: set_grad
   
   !Rotation parameters
 !  real(wp) :: a,b,c
@@ -143,7 +146,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
   open(file=fname,newunit=io_cid,status='replace')
   
- !open(unit=777,file='velocities.dat')
+ open(file='avgxyz.xyz',newunit=io_test,status='replace')
   
   
   !---------------------------------------------------------
@@ -163,7 +166,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   dumpscreen = 100   !interval for screen dumping
   dumpcoord  = 4     !interval for coordinate dumping
   dumpdist   = 10    !interval for distance dumping
-  dumpxyz    = 50
   dumpavg    = 50
   ntot       = 15000 !maximum number of steps 
   
@@ -173,7 +175,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   time_step_count = 0
   step_counter = 0
   
-  avxyz =0
+  avxyz = 0
+  set_grad = huge(0.0_wp)
 
   !velo_rot(3,3) = 0.0d0
   
@@ -757,17 +760,24 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! WORK IN PROGRESS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if (xyzavg_dump == dumpavg) then
-       xyzavg_dump = 0
-       avxyz =0
-       ! hier muss ich die average xyz coords rausfinden 
-    end if
+    !if (xyzavg_dump == dumpavg) then
+    !  xyzavg_dump = 0
+    !  avxyz =0
+    !  ! hier muss ich die average xyz coords rausfinden
+    !  set_grad = huge(0.0_wp)
+    !end if
 
-    do j = 1, nuc
-       avxyz(1,j)  = avxyz(1,j)  + (xyz(1,j)) ! - diff_cm(1)) 
-       avxyz(2,j)  = avxyz(2,j)  + (xyz(2,j)) ! - diff_cm(2)) 
-       avxyz(3,j)  = avxyz(3,j)  + (xyz(3,j)) ! - diff_cm(3)) 
-    enddo
+    !save_grad = sum(grad0(:,:nuc))
+    !if (save_grad < set_grad)then
+    !  set_grad = save_grad
+    !  avxyz  = xyz0(:,:nuc)
+    !endif
+    
+    !do j = 1, nuc
+    !   avxyz(1,j)  = avxyz(1,j)  + (xyz(1,j)) ! - cm(1)) 
+    !   avxyz(2,j)  = avxyz(2,j)  + (xyz(2,j)) ! - cm(2)) 
+    !   avxyz(3,j)  = avxyz(3,j)  + (xyz(3,j)) ! - cm(3)) 
+    !enddo
    !!! CID muss angepasst werden, die rotationsgeschwindigkeit der einzelnen
    !!! atome von den xyz coords abzeihen um average xyz zu bekommen
 
@@ -853,6 +863,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   
   end do
   
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !Save new coordinates and velocities
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -896,7 +907,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   write(*,*) 'E X I T - the CID module is finished'
   write(*,*) ''
   xyz (1:3,1:nuc) = xyz0  (1:3,1:nuc) 
-  axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) / dumpxyz
+  axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) !/ dumpavg
   velo(1:3,1:nuc) = velo0(1:3,1:nuc)
   grad(1:3,1:nuc) = grad0(1:3,1:nuc)
   achrg(1:nuc)    = achrg0(1:nuc)

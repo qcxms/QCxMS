@@ -516,9 +516,9 @@ subroutine leapfrog(nat,grad,amass,tstp,xyz,vel,ke,nstp)
    real(wp) :: tstp,ke
    real(wp) :: velold, velavg,mass
 
-   ke=0.0_wp
-   do k=1,nat
-      mass=amass(k)
+   ke = 0.0_wp
+   do k = 1,nat
+      mass = amass(k)
       do j=1,3
          velold   = vel(j,k)
          vel(j,k) = vel(j,k) - (tstp * grad(j,k) / mass)

@@ -15,7 +15,7 @@ module qcxms_info
 
   subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri)
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
       
   integer  :: ntraj,iseed(1)
   integer  :: MaxColl
@@ -27,8 +27,6 @@ module qcxms_info
   integer  :: edistri
   integer  :: i
 
-  intrinsic :: index
-
   real(wp) :: tstep,tmax,etempin,betemp
   real(wp) :: Tinit,trelax
   real(wp) :: eimp0
@@ -36,6 +34,8 @@ module qcxms_info
   real(wp) :: fimp
   real(wp) :: Eimpact
   real(wp) :: ESI,tempESI
+
+  logical  :: legacy
 
   character(len=20) :: line
   character(len=20) :: line2
@@ -122,6 +122,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
     if (ieetemp > 0.0_wp ) write(*,'('' Iee-temp.   (ieetemp) : '',f7.2,'' K/Eh'')')&
     &   ieetemp
     write(*,'('' Iee/atom     (ieeatm) : '',f7.2,'' eV/atom'')')ieeatm
+    if ( legacy ) write(*,*) ' --- IEE distr. pseudo-random! --- '
     write(*,'('' relax. time  (trelax) : '',f7.2,'' fs'')'     )trelax
     if( verbose ) then
       if ( edistri == 0 ) then

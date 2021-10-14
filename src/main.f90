@@ -80,7 +80,7 @@ program QCxMS
   real(wp) :: tadd,fimp,aTlast
   real(wp) :: chrgcont,cema(3),eimp0,eimp,dtime
   real(wp) :: iee_a,iee_b,hacc,ieeel,btf,ieeatm,etempGS
-  real(wp) :: vScale,new_velo,avgT,MinPot,ESI,tempESI
+  real(wp) :: vScale,new_velo,MinPot,ESI,tempESI
   real(wp) :: tScale,new_temp
   real(wp) :: summass,beta
   real(wp) :: direc(3),cm(3),cm1(3),cm2(3)
@@ -96,7 +96,7 @@ program QCxMS
   ! Ion tracking arrays
   real(wp) :: fragm(10) !10 fragments max per fragmentation,
   real(wp) :: xyzn(3,10000),velon(3,10000),iatn(10000),massn(10000) !10000 atoms max
-
+  real :: snorm
 
   ! Allocatables
   real(wp),allocatable :: xyz (:,:)
@@ -137,6 +137,7 @@ program QCxMS
   logical :: small,littlemass
   logical :: No_ESI,NoScale
   logical :: starting_md
+  logical :: legacy
   !logical gbsa ! set solvation model
 
   intrinsic :: get_command_argument
@@ -235,6 +236,7 @@ program QCxMS
   ! check if cid was OK
   stopcid = .false.
   starting_md=.false.
+  legacy = .false.
   ! HS-UHF ini only for frag runs
   iniok  =.true.
   ! dump every dumpstep MD steps for MOLDEN movie (=4 fs as default)
@@ -277,7 +279,7 @@ program QCxMS
   &          Eimpact,eExact,ECP,unity,noecp,nometal,                        &
   &          vScale,CollNo,CollSec,ConstVelo,                               &
   &          minmass,manual_simMD,convetemp,set_coll,MaxColl,               &
-  &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist)
+  &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   ! Choose the MS method
@@ -380,7 +382,7 @@ program QCxMS
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, eimpact, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri)
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
 
 
   ! # MD steps in a frag run
@@ -755,7 +757,6 @@ iee0: if (method /= 3 .and. method /= 4)then ! Not important for CID
       endif
 
       exc   = (eimp0 - ehomo) * autoev
-      !exc   = (eimp0 - ehomo) * autoev TEST
       ieeel = dble (ihomo + nb)
 
       ! user input
@@ -783,9 +784,9 @@ iee1: if ( iee_a > 0 .and. iee_b > 0 ) then
       endif
       write(*,*)
 
-      ! For the different structures, use the above settings
+      !> For the different structures, use the above settings
 iee2:  do i = 1, ndumpGS
-        ! read structure and velo from previous GS MD
+        !> read structure and velo from previous GS MD
         do k = 1, nuc
           read(io_gs,*)(xyz(j,k),j=1,3),(velo(j,k),j=1,3)
         enddo
@@ -793,10 +794,17 @@ iee2:  do i = 1, ndumpGS
         if (icalc(i) == 0) cycle
         if (nrun == ntraj) exit
 
-        ! 1. generate an e- that can ionize any MO and vary it by boxuller
-        do 
-          ! vary by normal distributed boxmuller random number
-          Edum = vary_energies(eimp0,eimpw)
+        !> 1. generate an e- that can ionize any MO and vary it by boxuller
+        do
+          !> Legacy support. Do runs with SAME random seed for each run (pseudo-random)
+          if ( legacy ) then
+            Edum = eimp0 + eimpw * eimp0 * snorm() 
+
+          !> DEFAULT: vary by normal distributed boxmuller random number
+          else
+            Edum = vary_energies(eimp0,eimpw)
+          endif
+
           if ( Edum >= ehomo ) exit
         enddo
 
@@ -1408,18 +1416,12 @@ ESI_loop: do
             ! do not continue with small fragments
             if ( nuc <= 5 ) then
               small = .true.
-              if(index(asave,'NOT USED') == 0)then
-                write(io_res,'(a)')asave
-              endif
               exit
             endif
 
             ! do not continue with low masses/resolution of instrument (user)
             if ( sum(mass(1:nuc)) / amutoau <=  minmass ) then
               littlemass = .true.
-              if(index(asave,'NOT USED') == 0)then
-                write(io_res,'(a)')asave
-              endif
               exit
             endif
 
@@ -1457,11 +1459,11 @@ ESI_loop: do
 
           enddo ESI_loop ! ENDDO loop the MD module
 
-          !if ( TempRun .or. small .or. isec > 2 ) then
-          !  if( index(asave,'NOT USED') == 0 ) then
-          !    write(io_res,'(a)')asave
-          !  endif
-          !endif
+          if ( TempRun .and. small .or. littlemass ) then
+            if( index(asave,'NOT USED') == 0 ) then
+              write(io_res,'(a)')asave
+            endif
+          endif
 
         endif doESI ! ENDIF E_Scale gt 0
 
@@ -2079,9 +2081,9 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
            if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
            endif
-           write(*,'(40(''!''))')
+           write(*,'(60(''!''))')
            write(*,*)'     run not continued because of small fragment(s)'
-           write(*,'(40(''!''))')
+           write(*,'(60(''!''))')
            write(*,*)''
         endif
 
@@ -2090,9 +2092,9 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
            if(index(asave,'NOT USED') == 0)then
               write(io_res,'(a)')asave
            endif
-           write(*,'(40(''!''))')
+           write(*,'(60(''!''))')
            write(*,'(''run not continued because of resolution'')')
-           write(*,'(40(''!''))')
+           write(*,'(60(''!''))')
            write(*,'(''Threshold  : '',4x,i4)') minmass
            write(*,'(''Frag. mass : '',4x,f10.6)') sum(mass(1:nuc)) * autoamu
            write(*,*)
@@ -2101,9 +2103,9 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
         ! ERROR
         if(stopcid)then
            if(index(asave,'NOT USED') == 0)write(io_res,'(a)')asave
-           write(*,'(40(''!''))')
+           write(*,'(60(''!''))')
            write(*,*)' --- run aborted, last structure saved! --- '
-           write(*,'(40(''!''))')
+           write(*,'(60(''!''))')
            write(*,*)
         endif
 
