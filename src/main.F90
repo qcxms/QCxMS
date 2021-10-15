@@ -774,25 +774,25 @@ iee0: if (method /= 3 .and. method /= 4)then ! Not important for CID
       ! user input
 iee1: if ( iee_a > 0 .and. iee_b > 0 ) then
         call getmaxiee(iee_a,iee_b,ieeel,edistri,exc,dum,pmax,dums)
-        write(*,'('' IEE a (eV) [set]               : '',f8.2)')iee_a
-        write(*,'('' IEE b (eV) [set]               : '',f8.2)')iee_b
+        write(*,'('' IEE a (eV) [set]               : '',f8.2)')  iee_a
+        write(*,'('' IEE b (eV) [set]               : '',f8.2)')  iee_b
 
       ! automatic
       else
          call getieeab (iee_a,iee_b,ieeel,edistri,exc,nuc,ieeatm)
          call getmaxiee(iee_a,iee_b,ieeel,edistri,exc,dum,pmax,dums)
-         write(*,'('' IEE a (eV) [determined]        : '',f8.2)')iee_a
-         write(*,'('' IEE b (eV) [determined]        : '',f8.2)')iee_b
+         write(*,'('' IEE a (eV) [determined]        : '',f8.2)') iee_a
+         write(*,'('' IEE b (eV) [determined]        : '',f8.2)') iee_b
 
       endif iee1 ! EI
 
       if (scani  ==  0) then
-         write(*,'('' maximum IEE (eV)               : '',f8.2)')exc
-         write(*,'('' maximum of P(E) at (eV)        : '',f8.2)')dum
-         write(*,'('' average E for P(E) (eV)        : '',f8.2)')dums
+         write(*,'('' maximum IEE (eV)               : '',f8.2)') exc
+         write(*,'('' maximum of P(E) at (eV)        : '',f8.2)') dum
+         write(*,'('' average E for P(E) (eV)        : '',f8.2)') dums
       elseif (scani  ==  1) then
-         write(*,'('' minimum IEE (eV)               : '',f8.2)')lowerbound
-         write(*,'('' maximum IEE (eV)               : '',f8.2)')upperbound
+         write(*,'('' minimum IEE (eV)               : '',f8.2)') lowerbound
+         write(*,'('' maximum IEE (eV)               : '',f8.2)') upperbound
       endif
       write(*,*)
 
@@ -1107,11 +1107,13 @@ iee2:  do i = 1, ndumpGS
     coll_counter = 0
     frag_counter = 0
 
+    !> start timer
     call timing(t1,w1)
 
-    ! Read the qcxms.start file
+    !> Read the qcxms.start file
     call rdstart(itrj,nuc,xyz,velo,velof,tadd,eimp)
 
+    !> Check and open .res file (important for PlotMS in the end)
     if ( method == 3 .or. method == 4 ) then
       res_name = 'qcxms_cid.res'
     else
@@ -1146,15 +1148,10 @@ iee2:  do i = 1, ndumpGS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! Initialize QM code for production runs
-! Note; if method=3 (CID) then the initalizing is done within cid.f
-! instead of inside the main. The reason is to avoid
-! declaring the impact-atom related variables inside main.
 ! The cid module is called dependend on the number of collisions it
 ! undergoes.
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! Go into CID module
 mCID:if ( method == 3 .or. method == 4 ) then
@@ -1335,10 +1332,10 @@ ESI_loop: do
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !! Pre-CID MD Loop => ESI MD
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            call md(itrj,icoll,isec,nuc,prestep,xyz,iat,mass,imass,mchrg,   &
-            & grad,velo,velof,list,tstep,j,nfragexit,fragm,fragf,     &
-            & fragat,dumpstep,etempin,mdok,chrg,spin,axyz,tscale,tadd, &
-            & eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,fragstate,dtime,      &
+            call md(itrj,icoll,isec,nuc,prestep,xyz,iat,mass,imass,mchrg,     &
+            & grad,velo,velof,list,tstep,j,nfragexit,fragm,fragf,             &
+            & fragat,dumpstep,etempin,mdok,chrg,spin,axyz,tscale,tadd,        &
+            & eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,fragstate,dtime,        &
             & ECP,starting_MD,0.0d0)
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1359,7 +1356,7 @@ ESI_loop: do
             if(mdok)then
 
               call manage_fragments(nuc, iat, xyz, axyz, chrg, spin, mass, imass, &
-                &  iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
+                &  iprog, aTlast, itrj, icoll, isec, list, chrgcont,              &
                 &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res )
 
               write(*,*)
@@ -1533,8 +1530,8 @@ noauto:   if ( CollSec(1) /= 0 ) then
                write(*,*) ' - Fragmentations this run: ', new_counter
             endif
 
-        ! Users chose the amount of collisions for different amount (percent) of runs
-        ! The entire spectrum is pieced together from 3 different amounts of collisions
+          ! Users chose the amount of collisions for different amount (percent) of runs
+          ! The entire spectrum is pieced together from 3 different amounts of collisions
           elseif(CollNo(1) /= 0)then
             write(*,'(/,80(''-''))')
             write(*,*) '!!! Amount of entire collisions are set !!!'
@@ -1550,8 +1547,8 @@ noauto:   if ( CollSec(1) /= 0 ) then
 
             new_counter = 0 ! Set to 0 so exit condition will be skipped
 
-        ! Users chose the maximum amount of collisions between M+ and Gas
-        ! There will be NO (fgc) collisions as soon as a fragmentation occurs !!!
+          ! Users chose the maximum amount of collisions between M+ and Gas
+          ! There will be NO (fgc) collisions as soon as a fragmentation occurs !!!
           elseif ( MaxColl /= 0 ) then
             write(*,'(/,80(''-''))')
             write(*,*) '!!! M+ collisions are user set !!!'
@@ -1954,7 +1951,7 @@ MFPloop:  do
           enddo
 
           E_KIN = 0.5_wp * summass * (( new_velo * mstoau )**2)
-          beta = gas%mIatom / (gas%mIatom + summass)
+          beta  = gas%mIatom / (gas%mIatom + summass)
           E_COM = calc_ECOM(beta,E_KIN) !(beta * E_KIN) * autoev
           !write(*,*) 'BETA      :    ',beta
           !write(*,*) 'ECOM (eV) :    ', E_COM
@@ -1966,9 +1963,9 @@ MFPloop:  do
               write(io_res,'(a)')asave
             endif
             write(*,'(40(''!''))')
-            write(*,'(''! Low velocity and thus low E(COM) !'')')
-            write(*,'('' -> The velocity is now: '',f10.6)') new_velo
-            write(*,'('' -> E(COM)       is now: '',f10.6)') E_COM
+            write(*,'(''!    Low velocity and thus low E(COM)  !'')')
+            write(*,'(''! -> The velocity is now: '',f12.4)') new_velo
+            write(*,'(''! -> E(COM)       is now: '',f12.4)') E_COM
             write(*,'(40(''!''))')
             exit
           endif
@@ -2033,18 +2030,18 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
             &    calc_collisions)
 
             if ( collisions > 0 )then
-               call random_seed(numb)
-               call random_number(a)
+              call random_seed(numb)
+              call random_number(a)
 
-               b = nuc / 10.0
-               dep = nint(b)
+              b = nuc / 10.0
+              dep = nint(b)
 
-               rand_int =  FLOOR((dep+1)*a) ! 0-dep
-               write(*,'('' Random integer        : '',I2)') rand_int
+              rand_int =  FLOOR((dep+1)*a) ! 0-dep
+              write(*,'('' Random integer        : '',I2)') rand_int
 
-               collisions = icoll + rand_int !+ dep
-               numb=numb+1
-               write(*,'('' Total no. collisions  : '',i2)') collisions
+              collisions = icoll + rand_int !+ dep
+              numb=numb+1
+              write(*,'('' Total no. collisions  : '',i2)') collisions
 
             elseif( collisions == 0 .and. icoll /= 1)then
               write(*,*) 'Molecule too small for further collisions'
@@ -2065,12 +2062,12 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
             write(*,*)'-------------------------------------------------'
             write(io_res,'(a)')asave
 
-            if(num_frags == 0)then
-               write(*,*)''
-               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-               write(*,*)'    No fragmentation in the simulation!   '
-               write(*,*)'   Increase energy or time of sampling.   '
-               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            if ( num_frags == 0 ) then
+              write(*,*)''
+              write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+              write(*,*)'    No fragmentation in the simulation!   '
+              write(*,*)'   Increase energy or time of sampling.   '
+              write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
             endif
 
             exit cidlp ! End the collision routine
@@ -2329,8 +2326,8 @@ frag:     if(tcont > 0 .and. maxsec > 0)then
 
 
   call timing(t2,w2)
-  write(*,'(/,'' wall time (min)'',F10.2  )')(w2-w1)/60.0_wp
-  write(*,'(  '' # of QC calls  '',I10  ,/)')calls
+  write(*,'(/,'' wall time (min)'',F10.2  )') (w2-w1)/60.0_wp
+  write(*,'(  '' # of QC calls  '',I10  ,/)') calls
 
   call execute_command_line('date')
   call version(2)

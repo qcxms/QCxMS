@@ -278,8 +278,9 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
 
   if ( prog /= iprog ) then
     call qcstring(iprog,line,line2) 
+    write(*,'('' QC Prog. for IP/EA    : '',(a))') trim(line)
     if ( method == 2 .or. method == 4 ) then
-       write(*,'('' QC Prog. for EAs      : '',a)')line 
+       write(*,'('' QC Level for EAs      : '',a)')line2
     else
        write(*,'('' QC Level for IPs      : '',a)')line2 
     endif

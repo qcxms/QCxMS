@@ -370,6 +370,7 @@ module qcxms_iniqm
     
        ! Call-xTB
        if (prog == 6) then
+          calls = calls + 1
           call callxtb(nat,xyz,iat,chrg,spin,etemp,energy,gradient,qat,dum2)
           write(*,*)
           if(chrg == 0)then
@@ -390,6 +391,7 @@ module qcxms_iniqm
             call eself(nat,iat,z,energy)
             qat    = 0.0_wp
           else
+            calls = calls + 1
             call get_xtb_egrad(iat, xyz, chrg, spin, ipea1_xtb, etemp, &
                    & output_name, qat, energy, gradient, stat, spec_calc)
           end if
@@ -406,6 +408,7 @@ module qcxms_iniqm
             call eself(nat,iat,z,energy)
             qat    = 0.0_wp
           else
+            calls = calls + 1
             call get_xtb_egrad(iat, xyz, chrg, spin, gfn2_xtb, etemp, &
                 &    output_name, qat, energy, gradient, stat, spec_calc)
             if (stat /= 0) then
