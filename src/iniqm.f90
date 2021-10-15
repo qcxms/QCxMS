@@ -370,7 +370,6 @@ module qcxms_iniqm
        ! Call-xTB
        if (prog == 6) then
           call callxtb(nat,xyz,iat,mchrg,spin,etemp,energy,gradient,qat,dum2)
-          write(*,*)
           if(chrg == 0)then
              call execute_command_line('mv xtb.last neutral.out')
           else
