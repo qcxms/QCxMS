@@ -1141,10 +1141,9 @@ iee2:  do i = 1, ndumpGS
     coll_counter = 0
     frag_counter = 0
 
-    !> start timer
     call timing(t1,w1)
 
-    !> Read the qcxms.start file
+    ! Read the qcxms.start file
     call rdstart(itrj,nuc,xyz,velo,velof,tadd,eimp)
 
     if ( method == 3 ) then !.or. method == 4 ) then
@@ -1913,7 +1912,6 @@ MFPloop:  do
               call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, &
                 &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont, nfrag_ok, &
                 &  tcont, nfrag, nometal, ECP, btf, maxsec, dtime, asave, io_res )
-
                !If MD fails
               write(*,*)
             else
@@ -2036,7 +2034,7 @@ MFPloop:  do
           enddo
 
           E_KIN = 0.5_wp * summass * (( new_velo * mstoau )**2)
-          beta  = gas%mIatom / (gas%mIatom + summass)
+          beta = gas%mIatom / (gas%mIatom + summass)
           E_COM = calc_ECOM(beta,E_KIN) !(beta * E_KIN) * autoev
           !write(*,*) 'BETA      :    ',beta
           !write(*,*) 'ECOM (eV) :    ', E_COM
@@ -2153,12 +2151,12 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
             write(*,*)'-------------------------------------------------'
             write(io_res,'(a)')asave
 
-            if ( num_frags == 0 ) then
-              write(*,*)''
-              write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-              write(*,*)'    No fragmentation in the simulation!   '
-              write(*,*)'   Increase energy or time of sampling.   '
-              write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            if(num_frags == 0)then
+               write(*,*)''
+               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(*,*)'    No fragmentation in the simulation!   '
+               write(*,*)'   Increase energy or time of sampling.   '
+               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
             endif
 
             exit cidlp ! End the collision routine
@@ -2433,8 +2431,8 @@ frag:     if(tcont > 0 .and. maxsec > 0)then
 
 
   call timing(t2,w2)
-  write(*,'(/,'' wall time (min)'',F10.2  )') (w2-w1)/60.0_wp
-  write(*,'(  '' # of QC calls  '',I10  ,/)') calls
+  write(*,'(/,'' wall time (min)'',F10.2  )')(w2-w1)/60.0_wp
+  write(*,'(  '' # of QC calls  '',I10  ,/)')calls
 
   call execute_command_line('date')
   call version(2)
