@@ -236,10 +236,10 @@ module qcxms_iniqm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
     
     ! compute energies only as used in fragment IP calc
-    subroutine eqm(prog,nat,xyz,iat,chrg,dumspin,etemp,newcalc,iok, &
+    subroutine eqm(prog,nat,xyz,iat,mchrg,dumspin,etemp,newcalc,iok, &
                    energy,nel,nb,ECP,spec_calc)
     
-       integer  :: prog,nat,iat(nat),chrg
+       integer  :: prog,nat,iat(nat),mchrg
        integer  :: iok
        integer  :: spin
        integer  :: dumspin
@@ -263,9 +263,9 @@ module qcxms_iniqm
     ! However, because metals need to vary the spin, it needs to be an
     ! input variable as well.
     ! NOTE: IF SPIN IS INPUT VARIABLE IT SHOULD COME IN AS MULTIPLICITY?
-    
+   
        if(dumspin == -1)then
-          call getspin(nat,iat,chrg,spin)
+          call getspin(nat,iat,mchrg,spin)
        else
           spin = dumspin
        endif
@@ -286,8 +286,8 @@ module qcxms_iniqm
        ! DFTB+
        if(prog == 0)then
           call execute_command_line('rm -f charges.bin')
-          call dftbout(nat,xyz,iat,chrg,spin,.false.,etemp,1.d-5)
-          if(chrg == 0)then
+          call dftbout(nat,xyz,iat,mchrg,spin,.false.,etemp,1.d-5)
+          if(mchrg == 0)then
              call qccall(0,'neutral.out')
           else
              call qccall(0,'ion.out')
@@ -297,7 +297,7 @@ module qcxms_iniqm
 
        ! MOPAC
        if(prog == 1)then
-          call getmopgrad(nat,iat,xyz,gradient,chrg,etemp, &
+          call getmopgrad(nat,iat,xyz,gradient,mchrg,etemp, &
             .true.,energy,qat,dum2)
        endif
 
@@ -306,8 +306,8 @@ module qcxms_iniqm
           call execute_command_line('rm -f control gradient energy')
           call wrcoord(nat,xyz,iat)
     
-          if(chrg == 0)then
-             call initm(nat,iat,chrg,spin)
+          if(mchrg == 0)then
+             call initm(nat,iat,mchrg,spin)
              if(etemp > 0) call setfermi(etemp)
              call execute_command_line('kdg scfdump')
              call qccall(2,'neutral.out')
@@ -315,7 +315,7 @@ module qcxms_iniqm
              call execute_command_line('cp gradient gradient.neutral')
              call rdtmenergy('energy.neutral',energy)
           else
-             call initm(nat,iat,chrg,spin)
+             call initm(nat,iat,mchrg,spin)
              if(etemp > 0) call setfermi(etemp)
              call execute_command_line('kdg scfdump')
              call qccall(2,'ion.out')
@@ -328,8 +328,8 @@ module qcxms_iniqm
        ! ORCA
        if(prog == 3)then
           if(newcalc) call execute_command_line('rm -f ORCA.INPUT.gbw')
-          call orcaout(nat,xyz,iat,chrg,spin,etemp,.false.,ECP)
-          if(chrg == 0)then
+          call orcaout(nat,xyz,iat,mchrg,spin,etemp,.false.,ECP)
+          if(mchrg == 0)then
              call qccall(3,'neutral.out')
              call rdorcaen('neutral.out',energy)
           else
@@ -337,7 +337,7 @@ module qcxms_iniqm
              call rdorcaen('ion.out',energy)
           endif
           if(abs(energy) < 1.d-10)then
-             if(chrg == 0)then
+             if(mchrg == 0)then
                 call qccall(3,'neutral.out')
                 call rdorcaen('neutral.out',energy)
              else
@@ -349,7 +349,7 @@ module qcxms_iniqm
 
        ! MSINDO
        if(prog == 4)then
-          call getmsindograd(.true.,nat,iat,chrg,spin,xyz,etemp,14, &
+          call getmsindograd(.true.,nat,iat,mchrg,spin,xyz,etemp,14, &
             gradient,energy,qat,dum2)
           call execute_command_line('rm -f fort.*')
        endif
@@ -357,8 +357,8 @@ module qcxms_iniqm
        ! MNDO
        if(prog == 5)then
           call execute_command_line('rm fort.11 fort.15')
-          call mndoout(nat,xyz,iat,chrg,spin,etemp,4,10)
-          if(chrg == 0)then
+          call mndoout(nat,xyz,iat,mchrg,spin,etemp,4,10)
+          if(mchrg == 0)then
              call qccall(5,'neutral.out')
              call mndograd('neutral.out',nat,gradient,qat,dum2,energy)
           else
@@ -370,8 +370,7 @@ module qcxms_iniqm
     
        ! Call-xTB
        if (prog == 6) then
-          calls = calls + 1
-          call callxtb(nat,xyz,iat,chrg,spin,etemp,energy,gradient,qat,dum2)
+          call callxtb(nat,xyz,iat,mchrg,spin,etemp,energy,gradient,qat,dum2)
           write(*,*)
           if(chrg == 0)then
              call execute_command_line('mv xtb.last neutral.out')
@@ -382,7 +381,7 @@ module qcxms_iniqm
     
        ! GFN1-xTB
        if (prog == 7) then
-          if (chrg == 0) then
+          if (mchrg == 0) then
              output_name = "neutral.out"
           else
              output_name = "ion.out"
@@ -391,15 +390,14 @@ module qcxms_iniqm
             call eself(nat,iat,z,energy)
             qat    = 0.0_wp
           else
-            calls = calls + 1
-            call get_xtb_egrad(iat, xyz, chrg, spin, ipea1_xtb, etemp, &
+            call get_xtb_egrad(iat, xyz, mchrg, spin, ipea1_xtb, etemp, &
                    & output_name, qat, energy, gradient, stat, spec_calc)
           end if
        end if
     
        ! GFN2-xTB
        if (prog == 8) then
-          if (chrg == 0) then
+          if (mchrg == 0) then
              output_name = "neutral.out"
           else
              output_name = "ion.out"
@@ -408,8 +406,7 @@ module qcxms_iniqm
             call eself(nat,iat,z,energy)
             qat    = 0.0_wp
           else
-            calls = calls + 1
-            call get_xtb_egrad(iat, xyz, chrg, spin, gfn2_xtb, etemp, &
+            call get_xtb_egrad(iat, xyz, mchrg, spin, gfn2_xtb, etemp, &
                 &    output_name, qat, energy, gradient, stat, spec_calc)
             if (stat /= 0) then
               error stop "[Fatal] Calculation in tblite library failed"
@@ -422,7 +419,7 @@ module qcxms_iniqm
        if (abs(energy) < 1.d-10 .or. stat/=0) then
           write(*,*)'QM code failure'
           write(*,*)'prog   = ',prog
-          write(*,*)'charge = ',chrg
+          write(*,*)'charge = ',mchrg
           write(*,*)'mult   = ',spin
        else
           iok=iok+1

@@ -13,13 +13,14 @@ module qcxms_info
   contains
 
 
-  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
+  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg_prod,              &
+      & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,      &
       & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
       
   integer  :: ntraj,iseed(1)
   integer  :: MaxColl
   integer  :: CollSec(3),CollNo(3)
+  integer  :: mchrg_prod
   integer  :: maxsec
   integer  :: nfragexit
   integer  :: dumprint
@@ -107,10 +108,12 @@ module qcxms_info
   endif
 
   write(*,*)
+  write(*,'('' Mol. Ion chrg (ichrg) : '',i4  )')mchrg_prod
   write(*,'('' total traj.   (ntraj) : '',i4  )')ntraj
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep 
   write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
@@ -278,9 +281,8 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
 
   if ( prog /= iprog ) then
     call qcstring(iprog,line,line2) 
-    write(*,'('' QC Prog. for IP/EA    : '',(a))') trim(line)
     if ( method == 2 .or. method == 4 ) then
-       write(*,'('' QC Level for EAs      : '',a)')line2
+       write(*,'('' QC Prog. for EAs      : '',a)')line 
     else
        write(*,'('' QC Level for IPs      : '',a)')line2 
     endif
@@ -442,7 +444,6 @@ info: if ( method /= 3 .and. method /= 4 )then
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   end subroutine cidcheck
-
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Write program strings

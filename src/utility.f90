@@ -71,7 +71,7 @@ module qcxms_utility
    
       etemp =  5000. + 20000. * ax
    
-      if(eimp.gt.0.and.nfrag.le.1)then
+      if (eimp > 0 .and. nfrag <= 1) then
    
          tmp=max(eimp,0.0d0)
    
@@ -395,7 +395,7 @@ module qcxms_utility
    
       j = j - chrg
       isp = 1 + mod(j,2)
-   
+      
       if ( j < 1 ) isp = -1
    
    end subroutine getspin
@@ -403,11 +403,12 @@ module qcxms_utility
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! Boltzmann population for temp. t and energies e
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   subroutine boltz(units,nfrag,temp,ip,fchrg)
+   subroutine boltz(units,nfrag,mchrg,temp,ip,fragchrg2)
    
-      integer  :: nfrag,units,i
+      integer  :: nfrag,units,i, j, mchrg
    
-      real(wp) :: ip(nfrag),fchrg(nfrag)
+      real(wp),intent(in)  :: ip(nfrag,mchrg)
+      real(wp),intent(out) :: fragchrg2(nfrag,mchrg)
       real(wp) :: temp,f,esum,const
    
       ! kcal/mol
@@ -416,15 +417,19 @@ module qcxms_utility
       if (units==2) const = autoev
    
       f = temp * kB * const
-   
+
       esum = 0
    
       do i = 1, nfrag
-         esum = esum + exp(-ip(i)/f)
+        do j = 1, mchrg
+          esum = esum + exp(-ip(i,j)/f)
+        enddo
       enddo
    
       do i = 1, nfrag
-         fchrg(i) = exp(-ip(i)/f)/esum
+        do j = 1, mchrg
+          fragchrg2(i,j) = exp(-ip(i,j)/f) / esum
+        enddo
       enddo
    
    end subroutine boltz

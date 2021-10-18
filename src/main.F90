@@ -49,7 +49,8 @@ program QCxMS
   integer  :: ntraj,iseed(1)
   integer  :: i,j,k,m
   integer  :: nrun,nfragexit
-  integer  :: mspin,mchrg,iprog,tcont
+  integer  :: mspin,iprog,tcont
+  integer  :: mchrg, mchrg_prod
   integer  :: maxsec,idum,edistri
   integer  :: ihomo,nb,nuc,mo1,mo2,fragstate
   integer  :: num_frags
@@ -171,11 +172,12 @@ program QCxMS
   write(*,'(22x,''*********************************************'')')
   write(*,*)
   write(*,'('' QCxMS is free software: you can redistribute it and/or &
-           & modify it under'')')
+          &modify it under'')')
   write(*,'('' the terms of the GNU Lesser General Public License as &
-           & published by '')') 
-  write(*,'(''the Free Software Foundation, either version 3 of the License, or '')') 
-  write(*,'(''(at your option) any later version.'')')
+          &published by '')') 
+  write(*,'('' the Free Software Foundation, either version 3 of the &
+          &License, or '')') 
+  write(*,'('' (at your option) any later version.'')')
   write(*,*)
   write(*,'('' QCxMS is distributed in the hope that it will be useful, '')')
   write(*,'('' but WITHOUT ANY WARRANTY; without even the implied warranty of '')') 
@@ -279,7 +281,7 @@ program QCxMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Read the INPUT file
   ! input, all defaults are set here
-  call input(tstep,tmax,ntraj,iseed(1),etempin,Tinit,mchrg,                 &
+  call input(tstep,tmax,ntraj,iseed(1),etempin,Tinit, mchrg_prod,           &
   &          iee_a,iee_b,eimp0,eimpw,fimp,iprog,                            &
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
   &          scani,lowerbound,upperbound,metal3d,                           &
@@ -392,7 +394,7 @@ program QCxMS
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! printing runtype information and chosen parameters
-  call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
+  call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg_prod, &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
       & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
 
@@ -529,15 +531,6 @@ program QCxMS
      stop 'normal termination of QCxMS'
   endif
 
-  ! Set the charge of the chosen method 
-  ! 0 = EI , 1 = CSC, 2 = DEA, 3 = CID+, 4 = CID-
-  if     (method  ==  0 .or. method  ==  2) then
-    mchrg = 0
-  elseif (method  ==  1 .or. method  ==  3) then
-    mchrg = 1
-  elseif (method  ==  4) then
-    mchrg = -1
-  endif
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -548,6 +541,16 @@ prun: if(.not.prod) then
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Set the charge of the chosen method 
+    ! 0 = EI , 1 = CSC, 2 = DEA, 3 = CID+, 4 = CID-
+    if     (method  ==  0 .or. method  ==  2) then
+      mchrg = 0
+    elseif (method  ==  1 .or. method  ==  3) then
+      mchrg = mchrg_prod 
+    elseif (method  ==  4) then
+      mchrg = -1 * mchrg_prod
+    endif
+
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -689,9 +692,9 @@ GS: if(.not.ex)then
     ! (It is important to do for calcs with TM and ORCA)
     call timing(t1,w1)
     if     (method  ==  0 .or. method  ==  1 .or. method == 3) then !cations
-      mchrg = 1
+      mchrg = mchrg_prod ! set to at least 1 (normal) or higher (input)
     elseif (method  ==  2 .or. method == 4) then ! anions
-      mchrg = -1
+      mchrg = -1 * mchrg_prod
     endif
 
     write(*,'(''--- Checking QC method for ions ---'')')
@@ -1102,18 +1105,15 @@ iee2:  do i = 1, ndumpGS
     isec  = 0
     asave ='NOT USED'
     tcont = 0
-    chrgcont  = 1.0
     num_frags = 0
     coll_counter = 0
     frag_counter = 0
 
-    !> start timer
     call timing(t1,w1)
 
-    !> Read the qcxms.start file
+    ! Read the qcxms.start file
     call rdstart(itrj,nuc,xyz,velo,velof,tadd,eimp)
 
-    !> Check and open .res file (important for PlotMS in the end)
     if ( method == 3 .or. method == 4 ) then
       res_name = 'qcxms_cid.res'
     else
@@ -1161,9 +1161,10 @@ mCID:if ( method == 3 .or. method == 4 ) then
       velof = 0.0_wp
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      !> set the charges
-      if ( method == 3 ) mchrg =  1
-      if ( method == 4 ) mchrg = -1
+      if ( method == 3 ) mchrg =  mchrg_prod
+      if ( method == 4 ) mchrg = -1 * mchrg_prod
+
+      chrgcont  = real(mchrg,wp) 
 
       collisions = 0
 
@@ -1355,8 +1356,9 @@ ESI_loop: do
             ! printout and count
             if(mdok)then
 
-              call manage_fragments(nuc, iat, xyz, axyz, chrg, spin, mass, imass, &
-                &  iprog, aTlast, itrj, icoll, isec, list, chrgcont,              &
+              !> do IP calc and write out fragment files
+              call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, &
+                &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont,       &
                 &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res )
 
               write(*,*)
@@ -1579,16 +1581,18 @@ cidlp:  do
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           ! Write Coordinates
-          write(*,'(80(''=''))')
-          write(*,'(6x,a10,2x,i4,6x,a9,2x,i2,1x,a1,i2)')&
-          & 'trajectory ',itrj, 'collision ',icoll,'/',collisions
-          write(*,'(80(''=''),/)')
-          write(*,*)'initial Cartesian coordinates:'
+          if ( icoll == 1 .or. verbose ) then
+            write(*,'(80(''=''))')
+            write(*,'(6x,a10,2x,i4,6x,a9,2x,i2,1x,a1,i2)')&
+            & 'trajectory ',itrj, 'collision ',icoll,'/',collisions
+            write(*,'(80(''=''),/)')
+            write(*,*)'initial Cartesian coordinates:'
 
-          do i = 1, nuc
-            write(*,'(i3,3f10.5,4x,a2,f10.3)')&
-            & i,xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i)),mass(i)/amutoau
-          enddo
+            do i = 1, nuc
+              write(*,'(i3,3f10.5,4x,a2,f10.3)')&
+              & i,xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i)),mass(i)/amutoau
+            enddo
+          endif
 
 
           ! First collision
@@ -1618,8 +1622,9 @@ cidlp:  do
           ! END STUFF HERE
           if ( stopcid ) exit
 
-          call manage_fragments(nuc, iat, xyz, axyz, chrg, spin, mass, imass, &
-            &  iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
+          !> do IP calc and write out fragment files
+          call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, &
+            &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
             &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res)
 
 
@@ -1663,13 +1668,13 @@ cidlp:  do
 
           elseif (tcont == 0) then
             do i = 1, nuc
-              xyzn (1:3,i)=xyz (1:3,i)
-              velon(1:3,i)=velo(1:3,i)
-              iatn (    i)=iat (    i)  
-              massn(    i)=mass(    i)  
-              imassn(   i)=imass(   i)  
-              dum         =dum+iatn(i)
-              cema(1:3)   =cema(1:3)+xyzn(1:3,i)*iatn(i)
+              xyzn (1:3,i) = xyz (1:3,i)
+              velon(1:3,i) = velo(1:3,i)
+              iatn (    i) = iat (    i)  
+              massn(    i) = mass(    i)  
+              imassn(   i) = imass(   i)  
+              dum          = dum+iatn(i)
+              cema(1:3)    = cema(1:3) + xyzn(1:3,i) * iatn(i)
             enddo
           endif
 
@@ -1741,15 +1746,17 @@ MFPloop:  do
             write(*,'(80(''-''),/)')
             write(*,*)
             write(*,'('' MD trajectory                : '',i2)') isec
-            write(*,'('' statistical charge           : '',F8.6)')chrgcont
+            write(*,'('' statistical charge           : '',F10.4)')chrgcont
             write(*,*)
-            write(*,'(''initial Cartesian coordinates :'')')
-            write(*,*)
+            if ( verbose ) then
+              write(*,'(''initial Cartesian coordinates :'')')
+              write(*,*)
 
-            do i = 1, nuc
-              write(*,'(i3,3f10.5,4x,a2,f10.3)')i,xyz(1,i),xyz(2,i),xyz(3,i), &
-              &    toSymbol(iat(i)) , mass(i) * autoamu
-            enddo
+              do i = 1, nuc
+                write(*,'(i3,3f10.5,4x,a2,f10.3)')i,xyz(1,i),xyz(2,i),xyz(3,i), &
+                &    toSymbol(iat(i)) , mass(i) * autoamu
+              enddo
+            endif
 
 
             ! HS-UHF ini for closed-shells allowed
@@ -1828,8 +1835,9 @@ MFPloop:  do
 
             ! printout and count
             if(mdok)then
-              call manage_fragments(nuc, iat, xyz, axyz, chrg, spin, mass, imass, &
-                &  iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
+              !> do IP calc and write out fragment files
+              call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, &
+                &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
                 &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res )
 
                !If MD fails
@@ -1951,7 +1959,7 @@ MFPloop:  do
           enddo
 
           E_KIN = 0.5_wp * summass * (( new_velo * mstoau )**2)
-          beta  = gas%mIatom / (gas%mIatom + summass)
+          beta = gas%mIatom / (gas%mIatom + summass)
           E_COM = calc_ECOM(beta,E_KIN) !(beta * E_KIN) * autoev
           !write(*,*) 'BETA      :    ',beta
           !write(*,*) 'ECOM (eV) :    ', E_COM
@@ -1963,9 +1971,9 @@ MFPloop:  do
               write(io_res,'(a)')asave
             endif
             write(*,'(40(''!''))')
-            write(*,'(''!    Low velocity and thus low E(COM)  !'')')
-            write(*,'(''! -> The velocity is now: '',f12.4)') new_velo
-            write(*,'(''! -> E(COM)       is now: '',f12.4)') E_COM
+            write(*,'(''!   Low velocity and thus low E(COM)  !'')')
+            write(*,'('' -> The velocity is now: '',f12.4)') new_velo
+            write(*,'('' -> E(COM)       is now: '',f12.4)') E_COM
             write(*,'(40(''!''))')
             exit
           endif
@@ -2062,12 +2070,12 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
             write(*,*)'-------------------------------------------------'
             write(io_res,'(a)')asave
 
-            if ( num_frags == 0 ) then
-              write(*,*)''
-              write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-              write(*,*)'    No fragmentation in the simulation!   '
-              write(*,*)'   Increase energy or time of sampling.   '
-              write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            if(num_frags == 0)then
+               write(*,*)''
+               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(*,*)'    No fragmentation in the simulation!   '
+               write(*,*)'   Increase energy or time of sampling.   '
+               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
             endif
 
             exit cidlp ! End the collision routine
@@ -2157,8 +2165,10 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ei: if (method /= 3 .and. method /= 4)then
-      if (method  ==  0 .or. method  ==  1 ) mchrg =  1 ! EI
-      if (method  ==  2 )                    mchrg = -1 ! DEA
+      if (method  ==  0 .or. method  ==  1 ) mchrg =  mchrg_prod ! EI
+      if (method  ==  2 )                    mchrg = -1 * mchrg_prod ! DEA
+
+      chrgcont  = real(mchrg,wp) 
 
 loop: do 
         isec=isec+1
@@ -2213,7 +2223,8 @@ loop: do
 
         ! printout and count
 okmd:   if(mdok)then
-          call manage_fragments(nuc, iat, xyz, axyz, chrg, spin, mass, imass, &
+          !> do IP calc and write out fragment files
+          call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, imass, &
           &  iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
           &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res )
 
@@ -2326,8 +2337,8 @@ frag:     if(tcont > 0 .and. maxsec > 0)then
 
 
   call timing(t2,w2)
-  write(*,'(/,'' wall time (min)'',F10.2  )') (w2-w1)/60.0_wp
-  write(*,'(  '' # of QC calls  '',I10  ,/)') calls
+  write(*,'(/,'' wall time (min)'',F10.2  )')(w2-w1)/60.0_wp
+  write(*,'(  '' # of QC calls  '',I10  ,/)')calls
 
   call execute_command_line('date')
   call version(2)

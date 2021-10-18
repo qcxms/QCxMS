@@ -21,8 +21,6 @@ module common1
   real(wp) ::  ieetemp
   real(wp) ::  cab(100,100)
   real(wp) ::  alpc
-  real(wp) ::  ipshift,eashift
-
 
   logical  ::  gcp
   logical  ::  hhmod

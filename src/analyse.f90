@@ -11,452 +11,454 @@ module qcxms_analyse
   contains
 
 
-  subroutine analyse(iprog,nuc,iat,axyz,list,etemp,ip, &
+subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
       natf,ipok,icoll,isec,metal3d,ECP)
     
-    integer :: nuc  
-    integer :: iprog 
-    integer :: list(nuc)
-    integer :: iat (nuc)
-    integer :: icoll,isec
-    integer :: natf(10)
-    integer :: i,j,k
-    integer :: nfrag
-    integer :: iok,progi,itry,useprog(4)  
-    integer :: counter
-    integer :: isave,jsave,ksave,gsave
-    integer :: iatf(nuc,10)
-    integer :: idum(nuc,10)
-    integer :: neutfspin,ionfspin !fragment spin (for metals etc.)
-    integer :: fiter !Number of spin iterations 
-    integer :: sp(3),sn(3),sn0,sp0
-!    integer, intent(in) :: gfnver
-    integer :: nb,nel
-    integer :: io_xyz 
+  integer :: nuc  
+  integer :: iprog 
+  integer :: list(nuc)
+  integer :: iat (nuc)
+  integer :: icoll,isec
+  integer :: natf(10)
+  integer :: i,j,k
+  integer :: nfrag
+  integer :: iok,progi,itry,useprog(4)  
+  integer :: counter
+  integer :: isave,jsave,ksave,gsave
+  integer :: iatf(nuc,10)
+  integer :: idum(nuc,10)
+  integer :: neutfspin,ionfspin !fragment spin (for metals etc.)
+  integer :: fiter !Number of spin iterations 
+  integer :: sp(3),sn(3),sn0,sp0
+  integer :: nb,nel
+  integer :: mchrg, lpchrg
+  integer :: io_xyz 
   
-    real(wp) :: axyz(3,nuc)
-    real(wp) :: ip(10),etemp
-    real(wp) :: xyzf(3,nuc,10)
-    real(wp) :: dum (3,nuc,10)
-    real(wp) :: z,en,ep,cema(3,10),rf(10*(10+1)/2)
-    real(wp) :: t2,t1,w2,w1
-    real(wp) :: gsen(3),gsep(3)
-    real(wp) :: dsave
-!    real(wp) :: ipshift,eashift
+  real(wp) :: axyz(3,nuc)
+  real(wp) :: fragip(nfrag,abs(mchrg)),etemp
+  real(wp) :: xyzf(3,nuc,10)
+  real(wp) :: dum (3,nuc,10)
+  real(wp) :: z,E_neut,E_ion,cema(3,10),rf(10*(10+1)/2)
+  real(wp) :: t2,t1,w2,w1
+  real(wp) :: gsen(3),gsep(3)
+  real(wp) :: dsave
   
-    character(len=80) :: fname
-    character(len=20) :: line, line2
-    
-    logical :: ipok
-    logical :: metal3d,ECP
-    logical :: boolm !if fragment has metal
-    logical :: ipcalc
-    logical :: spec_calc = .false.
-   
-
-    ! timings
-    t1 = 0.0_wp
-    t2 = 0.0_wp
-    w1 = 0.0_wp
-    w2 = 0.0_wp
-
-    write(*,'('' computing average fragment structures ...'')')
-    
-    ipok=.true.
-    xyzf = 0
-    iatf = 0
-    nfrag=maxval(list)
-    do i=1,nuc
-       j=list(i)
-       xyzf(1:3,i,j)=axyz(1:3,i)
-       iatf(    i,j)=iat(    i)
-    enddo   
-    dum  = xyzf
-    idum = iatf
-    
-    xyzf = 0
-    iatf = 0 
-    do i=1,nfrag
-       k=0
-       do j=1,nuc
-          if(idum(j,i) /= 0)then
-             k=k+1
-             xyzf(1:3,k,i)=dum(1:3,j,i)     
-             iatf(    k,i)=idum(   j,i)     
-          endif
-       enddo   
-       natf(i)=k
-    enddo    
-    
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !write fragments with average geometries      
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! CID
-    if(method == 3.or.method == 4)then
-       do i=1,nfrag
-          cema(1:3,i) = 0
-          z           = 0
+  character(len=80) :: fname
+  character(len=20) :: line, line2
   
-          if (icoll < 10) write(fname,'(i1,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
-          if (icoll >= 10) write(fname,'(i2,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
-
-          open (file = fname, newunit = io_xyz)
-!          open (unit=42, file = fname)
+  logical :: ipok
+  logical :: metal3d,ECP
+  logical :: boolm !if fragment has metal
+  logical :: ipcalc
+  logical :: spec_calc = .false.
   
-          write(io_xyz,*) natf(i)
-          write(io_xyz,*)
+
+  ! timings
+  t1 = 0.0_wp
+  t2 = 0.0_wp
+  w1 = 0.0_wp
+  w2 = 0.0_wp
+
+  write(*,'('' computing average fragment structures ...'')')
   
-          do j=1,natf(i)
-             write(io_xyz,'(a2,5x,3F18.8)') toSymbol(iatf(j,i)), xyzf(1:3,j,i) * autoaa 
-             cema(1:3,i) = cema(1:3,i) + xyzf(1:3,j,i) * iatf(j,i)
-             z = z + iatf(j,i)
-          enddo
-          close(io_xyz)
-          cema(1:3,i) = cema(1:3,i) / z
-       enddo   
+  ipok=.true.
+  xyzf = 0
+  iatf = 0
+  do i=1,nuc
+    j=list(i)
+    xyzf(1:3,i,j)=axyz(1:3,i)
+    iatf(    i,j)=iat(    i)
+  enddo   
 
-    ! EI/DEA
-    else
-       do i=1,nfrag
-          cema(1:3,i) = 0
-          z           = 0
+  dum  = xyzf
+  idum = iatf
   
-          write(fname,'(i1,''.'',i1,''.xyz'')') isec, i
-
-          open (file = fname, newunit = io_xyz)
-!          open (unit=42, file = fname)
-
-          write(io_xyz,*)natf(i)
-          write(io_xyz,*)
-
-          do j=1,natf(i)
-             write(io_xyz,'(a2,5x,3F18.8)') toSymbol(iatf(j,i)), xyzf(1:3,j,i) * autoaa 
-             cema(1:3,i) = cema(1:3,i) + xyzf(1:3,j,i) * iatf(j,i)
-             z = z + iatf(j,i)
-          enddo
-
-          close(io_xyz)
-
-          cema(1:3,i) = cema(1:3,i) / z
-       enddo 
-    endif
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
+  xyzf = 0
+  iatf = 0 
+  do i=1,nfrag
     k=0
-    do i=1,nfrag
-       do j=1,i
-          k=k+1
-          rf(k)=0
-          if(i /= j)then
-             rf(k)=sqrt((cema(1,i)-cema(1,j))**2 + &
-                        (cema(2,i)-cema(2,j))**2 + &
-                        (cema(3,i)-cema(3,j))**2) * autoaa
-          endif
-       enddo
+    do j=1,nuc
+      if(idum(j,i) /= 0)then
+        k=k+1
+        xyzf(1:3,k,i)=dum(1:3,j,i)     
+        iatf(    k,i)=idum(   j,i)     
+      endif
     enddo   
-    
-    if(nfrag > 1) then
-      write(*,'(2x,a)') 'inter fragment distances (Angst.)'
-      call print_matrix(rf,nfrag,0)
-    else
-      return
-    endif
+    natf(i)=k
+  enddo    
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !write fragments with average geometries      
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! CID
+  if(method == 3.or.method == 4)then
+    do i=1,nfrag
+      cema(1:3,i) = 0
+      z           = 0
+  
+      if (icoll < 10) write(fname,'(i1,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
+      if (icoll >= 10) write(fname,'(i2,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
+
+      open (file = fname, newunit = io_xyz)
+!      open (unit=42, file = fname)
+  
+      write(io_xyz,*) natf(i)
+      write(io_xyz,*)
+  
+      do j=1,natf(i)
+        write(io_xyz,'(a2,5x,3F18.8)') toSymbol(iatf(j,i)), xyzf(1:3,j,i) * autoaa 
+        cema(1:3,i) = cema(1:3,i) + xyzf(1:3,j,i) * iatf(j,i)
+        z = z + iatf(j,i)
+      enddo
+
+      close(io_xyz)
+      cema(1:3,i) = cema(1:3,i) / z
+     enddo   
+
+  ! EI/DEA
+  else
+    do i=1,nfrag
+      cema(1:3,i) = 0
+      z           = 0
+  
+      write(fname,'(i1,''.'',i1,''.xyz'')') isec, i
+
+      open (file = fname, newunit = io_xyz)
+!      open (unit=42, file = fname)
+
+      write(io_xyz,*)natf(i)
+      write(io_xyz,*)
+
+      do j=1,natf(i)
+         write(io_xyz,'(a2,5x,3F18.8)') toSymbol(iatf(j,i)), xyzf(1:3,j,i) * autoaa 
+         cema(1:3,i) = cema(1:3,i) + xyzf(1:3,j,i) * iatf(j,i)
+         z = z + iatf(j,i)
+      enddo
+
+      close(io_xyz)
+
+     cema(1:3,i) = cema(1:3,i) / z
+    enddo 
+  endif
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
+  k=0
+  do i=1,nfrag
+    do j=1,i
+      k=k+1
+      rf(k)=0
+      if(i /= j)then
+         rf(k)=sqrt((cema(1,i)-cema(1,j))**2 + &
+                    (cema(2,i)-cema(2,j))**2 + &
+                    (cema(3,i)-cema(3,j))**2) * autoaa
+      endif
+    enddo
+  enddo   
+  
+  if(nfrag > 1) then
+    write(*,'(2x,a)') 'inter fragment distances (Angst.)'
+    call print_matrix(rf,nfrag,0)
+  else
+    return
+  endif
+  
+  ! PBE0/SVx for semi, SV(P) is too costly then but negligible in a DFT
+  ! save original run parameters
+  isave = bas
+  jsave = func
+  ksave = ihamilt
+  gsave = gfnver   !save gfnver
+
+  ipcalc =  .False.
+
+  ! save etemp for XTB !THIS IS NOT ETEMP! BUT AVERAGE TEMP OF FRAGMENT!
+  dsave = eTemp
+
+  if ( method  ==  2 ) then
+            bas = 7          !ma-def2-TZVP
+    if(ecp) bas = 11         !def2-TZVP
+  else
+            bas = 3           !SV(P)
+    if(ecp) bas = 9           !def2-SV(P)
+  endif
+  
+  itry = 1
+
+  ! If IP calculation fails, try other QC codes,
+  ! especially XTB (build-in) and ORCA (free)
+
+  ! MOPAC, XTB, XTB2,ORCA
+  if (iprog == 1) then
+    useprog(1) = iprog
+    useprog(2) = 7   
+    useprog(3) = 8   
+    useprog(4) = 3  
+
+  ! TM, ORCA, XTB, XTB2
+  elseif (iprog == 2) then
+    useprog(1) = iprog
+    useprog(2) = 3  
+    useprog(3) = 7   
+    useprog(4) = 8   
+
+  ! ORCA, TMOL, XTB, XTB2
+  elseif (iprog == 3) then
+    useprog(1) = iprog
+    useprog(2) = 2   
+    useprog(3) = 7   
+    useprog(4) = 8  
+  
+  ! MSINDO, XTB, XTB2, ORCA
+  elseif (iprog == 4) then
+    useprog(1) = iprog
+    useprog(2) = 7   
+    useprog(3) = 8   
+    useprog(4) = 3   
+  
+  ! MNDO ,XTB, XTB2, ORCA
+  elseif (iprog == 5) then
+    useprog(1) = iprog
+    useprog(2) = 7   
+    useprog(3) = 8   
+    useprog(4) = 3   
+  
+  ! XTB, XTB, XTB2, ORCA
+  elseif (iprog == 7) then
+    useprog(1) = iprog
+    useprog(2) = iprog
+    useprog(3) = 8
+    useprog(4) = 3
+  
+  ! XTB2, XTB, ORCA
+   elseif (iprog == 8) then
+    useprog(1) = iprog
+    useprog(2) = iprog
+    useprog(3) = 7
+    useprog(4) = 3
+   endif
+  
+  call timing(t1,w1)
+  
+  do 
+    progi=useprog(itry)
    
-    ! PBE0/SVx for semi, SV(P) is too costly then but negligible in a DFT
-    ! save original run parameters
-    isave=bas
-    jsave=func
-    ksave=ihamilt
-    gsave=gfnver   !save gfnver
-
-    ipcalc= .False.
-
-    ! save etemp for XTB !THIS IS NOT ETEMP! BUT AVERAGE TEMP OF FRAGMENT!
-    dsave=eTemp
-
-    if(method  ==  2) then
-               bas = 7          !ma-def2-TZVP
-       if(ecp) bas = 11         !def2-TZVP
+    ! defaults for the IP calc. (PM6 for MOPAC, OM2 for MNDO99 if ORCA fails)      
+    if (progi == 1) ihamilt = 4
+    if (progi == 5) ihamilt = 6
+    
+    ! If IP program is XTB
+    if (progi == 7) then
+      etemp  = 300.0d0
+      ipcalc = .True.
+      gfnver = 1
+  
+    elseif (progi == 8) then
+      etemp  = 300.0d0
+      ipcalc = .True.
+      gfnver = 3
+    endif
+    
+    call qcstring(progi,line,line2) 
+  
+    if (method ==  2.or.method == 4) then
+      write(*,'(/,'' computing EAs with '',(a14),'' at (K) '',f7.0)')trim(line2),dsave
     else
-               bas = 3           !SV(P)
-       if(ecp) bas = 9           !def2-SV(P)
+      write(*,'(/,'' computing IPs with '',(a14),'' at (K) '',f7.0)')trim(line2),dsave
     endif
   
-    itry = 1
-
-    ! If IP calculation fails, try other QC codes,
-    ! especially XTB (build-in) and ORCA (free)
-
-    ! MOPAC, XTB, XTB2,ORCA
-    if (iprog == 1) then
-       useprog(1) = iprog
-       useprog(2) = 7   
-       useprog(3) = 8   
-       useprog(4) = 3  
-
-    ! TM, ORCA, XTB, XTB2
-    elseif (iprog == 2) then
-       useprog(1) = iprog
-       useprog(2) = 3  
-       useprog(3) = 7   
-       useprog(4) = 8   
-
-    ! ORCA, TMOL, XTB, XTB2
-    elseif (iprog == 3) then
-       useprog(1) = iprog
-       useprog(2) = 2   
-       useprog(3) = 7   
-       useprog(4) = 8  
-  
-    ! MSINDO, XTB, XTB2, ORCA
-    elseif (iprog == 4) then
-       useprog(1) = iprog
-       useprog(2) = 7   
-       useprog(3) = 8   
-       useprog(4) = 3   
-  
-    ! MNDO ,XTB, XTB2, ORCA
-    elseif (iprog == 5) then
-       useprog(1) = iprog
-       useprog(2) = 7   
-       useprog(3) = 8   
-       useprog(4) = 3   
-  
-    ! XTB, XTB, XTB2, ORCA
-    elseif (iprog == 7) then
-       useprog(1) = iprog
-       useprog(2) = iprog
-       useprog(3) = 8
-       useprog(4) = 3
-  
-    ! XTB2, XTB, ORCA
-     elseif (iprog == 8) then
-        useprog(1) = iprog
-        useprog(2) = iprog
-        useprog(3) = 7
-        useprog(4) = 3
-     endif
+    fragip  = 0
+    iok     = 0
+    counter = 0
     
-    call timing(t1,w1)
+    !      write(*,*) '* IP/EA will be calculated 
+    !     .with respect to metal fragment multiplicities *'
+    sn = 0
+    sp = 0
   
-   !!!!!!!!!!!!!!!!!!!!!!!! 
-!     999  progi=useprog(itry)
-   !!!!!!!!!!!!!!!!!!!!!!!! 
-   do 
-      progi=useprog(itry)
-    
-      ! defaults for the IP calc. (PM6 for MOPAC, OM2 for MNDO99 if ORCA fails)      
-      if (progi == 1) ihamilt = 4
-      if (progi == 5) ihamilt = 6
-      
-      ! If IP program is XTB
-      if (progi == 7) then
-         etemp  = 300.0d0
-         ipcalc = .True.
-         gfnver = 1
-  
-      elseif (progi == 8) then
-         etemp  = 300.0d0
-         ipcalc = .True.
-         gfnver = 3
-      endif
-      
-      call qcstring(progi,line,line2) 
-  
-      if (method ==  2.or.method == 4) then
-         write(*,'(/,'' computing EAs with '',(a14),'' at (K) '',f7.0)')trim(line2),dsave
-      else
-         write(*,'(/,'' computing IPs with '',(a14),'' at (K) '',f7.0)')trim(line2),dsave
-      endif
-  
-      ip  = 0
-      iok = 0
-      counter = 0
-      
-      !      write(*,*) '* IP/EA will be calculated 
-      !     .with respect to metal fragment multiplicities *'
-      sn = 0
-      sp = 0
-  
-      do i = 1,nfrag
-         gsen  = 0.0d0
-         gsep  = 0.0d0
-         boolm = .False.
+frg:do i = 1,nfrag
+      gsen  = 0.0d0
+      gsep  = 0.0d0
+      boolm = .False.
   
       ! if metal3d is true, check if fragment i has a metal atom.
-         if (metal3d) then
-            do k = 1, natf(i)
-               if (iatf(k,i) <= 30.and.iatf(k,i) >= 22) then
-                  boolm = .True.
-               endif
-            enddo
-         endif
-      
-         if (boolm) then
-            fiter = 3
-      !     FIND SPIN FOR ION AND NEUTRAL of metal              
-            call getspin(natf(i),iatf(1,i),0,neutfspin)
-            if (method ==  2 .or.method == 4) then
-               call getspin(natf(i),iatf(1,i),-1,ionfspin)
-            else
-               call getspin(natf(i),iatf(1,i),1,ionfspin)
-            endif 
-      
-         else                   !NO METAL (DO ORDINARY CALC WITH -1 FOR SPIN)
-      ! That means eqm (iniqm.f), will assign spin by itself.                  
-            boolm = .False.
-            fiter = 1
-            neutfspin = -1
-            ionfspin = -1                  
-         endif
-      
+      if (metal3d) then
+        do k = 1, natf(i)
+          if (iatf(k,i) <= 30.and.iatf(k,i) >= 22) then
+            boolm = .True.
+          endif
+        enddo
+      endif
+    
+      ! find spin for ion and neutral of metal              
+      if (boolm) then
+        fiter = 3
+        call getspin(natf(i),iatf(1,i),0,neutfspin)
+        call getspin(natf(i),iatf(1,i),mchrg,ionfspin)
+!        if (method ==  2 .or.method == 4) then
+!           call getspin(natf(i),iatf(1,i),-1,ionfspin)
+!        else
+!           call getspin(natf(i),iatf(1,i),1,ionfspin)
+!        endif 
+   
+      ! no metal (That means eqm (iniqm.f), will assign spin by itself)
+      else  
+        boolm = .False.
+        fiter = 1
+        neutfspin = -1
+        ionfspin = -1                  
+      endif
+    
       ! MOPAC IP is unreliable for H and other atoms           
-         if(progi == 1.and.natf(i) == 1)then
-            if(method ==  2)stop 'MOPAC CANT BE USED FOR EA!'
-            ip(i) =  valip(iatf(1,i))
-            en    = 1.d-6
-            ep    = ip(i) * evtoau 
-            iok   = iok + 2
-         else
-            do k=1,fiter         !ITER OVER MULTIPLICITES
-               if (k > 1 .and. boolm) then
-                  neutfspin=neutfspin+2
-                  ionfspin=ionfspin+2
-               endif
+!      if(progi == 1.and.natf(i) == 1)then
+!        if (method ==  2 .or. method == 4) stop 'MOPAC CANT BE USED FOR EA!'
+!        fragip(i,1:mchrg) =  valip(iatf(1,i))
+!        E_neut    = 1.d-6
+!        E_ion    = fragip(i,1:mchrg) * evtoau 
+!        iok   = iok + 2
+!      endif
+
+      if ( progi /= 1 )then
+lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
+          if (k > 1 .and. boolm) then
+            neutfspin = neutfspin + 2
+            ionfspin  = ionfspin  + 2
+          endif
   
-      ! CALCULATE NEUTRAL (MCHARGE=0)
-               call eqm(progi,natf(i),xyzf(1,1,i),&
-                 iatf(1,i),0,neutfspin,etemp,.true.,iok,en,nel,nb,ECP,spec_calc)
-      
+          !> 1. Calculate Neutral energy (mcharge=0)
+          call eqm(progi,natf(i),xyzf(1,1,i),&
+            iatf(1,i),0,neutfspin,etemp,.true.,iok,E_neut,nel,nb,ECP,spec_calc)
+    
   
-               if(boolm)then
-                  gsen(k) = en
-                  sn(k)   = neutfspin
-               endif
+          if(boolm)then
+             gsen(k) = E_neut
+             sn(k)   = neutfspin
+          endif
   
-      ! CALCULATE ION 
-               if(method ==  2.or.method == 4)then
-      !     DEA (MCHARGE=-1)              
-                  call eqm(progi,natf(i),xyzf(1,1,i),&
-                  iatf(1,i),-1,ionfspin,etemp,.true.,iok,ep,nel,nb,ECP,spec_calc)
+          !> 2. Calculate Ion energy (mcharg= +/- mchrg)
+          !!>> Negative Charges
+          !if ( method ==  2 .or. method == 4 ) then
+          !  call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),mchrg,ionfspin,&
+          !    etemp,.true.,iok,E_ion,nel,nb,ECP,spec_calc)
   
-                  if (boolm)then
-                     gsep(k) = ep
-                     sp(k) = ionfspin
-                  endif
+          !  if (boolm)then
+          !     gsep(k) = E_ion
+          !     sp(k) = ionfspin
+          !  endif
+ 
+          !!>> Positive Charges
+          !else
+          !  call eqm(progi,natf(i),xyzf(1,1,i),&
+          !  iatf(1,i),1,ionfspin,etemp,.true.,iok,E_ion,nel,nb,ECP,spec_calc)
+          !  if(boolm)then
+          !     gsep(k) = E_ion
+          !     sp(k) = ionfspin
+          !  endif
+          !endif 
+
+          do lpchrg = 1, abs(mchrg)
+            call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),lpchrg,ionfspin,  &
+                etemp,.true.,iok,E_ion,nel,nb,ECP,spec_calc)
+
+            if (boolm)then
+              gsep(k) = E_ion
+              sp(k)   = ionfspin
+            endif
+
+            counter = counter+1 !used for the IOK CHECK
   
-               else
-  
-      !     OTHER (MCHARGE=+1)
-                  call eqm(progi,natf(i),xyzf(1,1,i),&
-                  iatf(1,i),1,ionfspin,etemp,.true.,iok,ep,nel,nb,ECP,spec_calc)
-                  if(boolm)then
-                     gsep(k) = ep
-                     sp(k) = ionfspin
-                  endif
-               endif !ENDING DEA CHECK STATEMENT
-  
-               counter = counter+1 !used for the IOK CHECK
-  
-            enddo ! ENDING ITERATION OVER MULTIPLICITES
-         endif   !ENDING IF STATEMENT WHICH STARTS BY MOPAC CHECK
-      
-      ! Select lowest values - to calculate vertical IP/EA from groundstate neutral to groundstate ion, in regards to spin multiplicity
-         if(boolm) then
-            en = minval(gsen)
-            ep = minval(gsep)
-      ! save neutral-ion (of metal) lowest energy spin
+    
+          ! Select lowest values - calculate vertical IP/EA from groundstate neutral to groundstate ion
+          ! in regards to spin multiplicity
+          if(boolm) then
+            E_neut = minval(gsen)
+            E_ion  = minval(gsep)
+            ! save neutral-ion (of metal) lowest energy spin
             sn0 = 0
             sp0 = 0
   
-            do k=1,3
-               if (gsen(k)  ==  en) then
-                  sn0 = sn(k)              
-               endif
-               if (gsep(k)  ==  ep) then
-                  sp0 = sp(k)
-               endif
-            enddo
-         endif
-      
-         if (ep /= 0 .and. en /= 0) then
-            ip(i) = (ep - en) * autoev
+           ! do k=1,3
+              if (gsen(k)  ==  E_neut)  sn0 = sn(k)              
+              if (gsep(k)  ==  E_ion)   sp0 = sp(k)
+           ! enddo
+          endif
+    
+            if (E_ion /= 0 .and. E_neut /= 0) then
+              fragip(i,lpchrg) = (E_ion - E_neut) * autoev
   
-           !! SHIFT IP FOR XTB - is 0 anyways
-           ! if (progi == 7.or. progi == 8 .or. progi == 9) then !!!XTB2 ?!?!?!
-           !    if (method == 2.or.method == 4) then
-           !       write(*,'(''EA SHIFT (eV): '',F8.4)')eashift* autoev
-           !       ip(i) = ip(i) + (eashift * autoev) 
-           !    else
-           !       write(*,'(''IP SHIFT (eV): '',F8.4)')ipshift* autoev
-           !       ip(i) = ip(i) - (ipshift * autoev) 
-           !    endif
-           ! endif
-  
-      ! THE SIGN OF EA IS OPPOSITE TO IP           
-            if(method == 2 .or. method == 4) ip(i) = -1.0d0*ip(i)
-      ! PRINT OUT
-            if (boolm) then
-               write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
-                    &       IP/EA(eV)='',F8.2,5x,'' Mult.:'',i2,'' (N) and '',i2,'' (I)'')') &
-                    &       i,en,ep,ip(i),sn0,sp0
-            else
-               write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
-                    &       IP/EA(eV)='',F8.2)') i,en,ep,ip(i)
-      ! ok ?           
+              ! the sign of EA is opposite to IP
+!              if(method == 2 .or. method == 4) fragip(i,lpchrg) = -1.0_wp * fragip(i,lpchrg)
+
+              if (boolm) then
+                write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
+                  &       IP/EA(eV)='',F8.2,5x,'' Mult.:'',i2,'' (N) and '',i2,'' (I)'')') &
+                  &       i,E_neut,E_ion,fragip(i,lpchrg),sn0,sp0
+              else
+                write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
+                  &       IP/EA(eV)='',F8.2)') i,E_neut,E_ion,fragip(i,lpchrg)
+              endif
+   
+            !> 
+              if (method == 2 .or. method == 4) then
+                if (fragip(i,lpchrg) > 40.0_wp .or. fragip(i,lpchrg) < -35.0_wp)then! &
+                  !iok = iok - 2 - mchrg 
+                  ipok = .false.
+                endif
+              else
+                if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 50.0_wp) then !&
+                  !iok = iok - 2  - mchrg 
+                  ipok = .false.
+                endif
+              endif
             endif
-      
-            if (method == 2 .or. method == 4) then
-      ! NOT SURE WHAT THE BOUNDARIES HERE SHOULD BE FOR EA??
-      ! that is why they just have ridicilously high (abs) values.
-               if (ip(i) > 20.0_wp .or. ip(i) < -25.0_wp) iok = iok - 2        
-            else
-               if (ip(i) < 0.0_wp  .or. ip(i) > 30.0_wp)  iok = iok - 2        
-            endif
-      
-         endif
-      enddo   
-      
-      ! if failed try another code      
-      if (iok /= counter*2) then
-         itry = itry + 1
-         if (itry <= 3) then
-            write(*,*) '* Try: ', itry, ' failed *'
-            cycle
-         else
-      ! total failure, use Mpop in main                 
-            ip(1:nfrag)=0
-            ipok=.false.
-            exit
-         endif
+
+          !!!!!
+          enddo ! chrgs
+        enddo lpiter
+      !!!!!
+      endif 
+    enddo frg
+   
+    ! if failed try another code      
+!    if (iok /= counter*2) then
+    if ( .not. ipok ) then
+      itry = itry + 1
+      if (itry <= 3) then
+         write(*,*) '* Try: ', itry, ' failed *'
+         cycle
       else
-        exit ! finish all good
-      endif   
-
-    enddo
-    
-    ! restore original settings
-    etemp   = dsave
-    bas     = isave
-    func    = jsave
-    ihamilt = ksave
-    gfnver  = gsave
-
-    ipcalc  = .False.
-    
-    call timing(t2,w2)
-    if(method == 2.or.method == 4)then
-       write(*,'(/,'' wall time for EA (s)'',F10.1,/)')(w2-w1)
+      ! total failure, use Mpop in main                 
+        fragip(1:nfrag,1:mchrg)=0
+        ipok=.false.
+        exit
+      endif
     else
-       write(*,'(/,'' wall time for IP (s)'',F10.1,/)')(w2-w1)
-    endif
+      exit ! finish all good
+    endif   
+
+   enddo
+   
+   ! restore original settings
+   etemp   = dsave
+   bas     = isave
+   func    = jsave
+   ihamilt = ksave
+   gfnver  = gsave
+
+   ipcalc  = .False.
+   
+   call timing(t2,w2)
+   if(method == 2.or.method == 4)then
+      write(*,'(/,'' wall time for EA (s)'',F10.1,/)')(w2-w1)
+   else
+      write(*,'(/,'' wall time for IP (s)'',F10.1,/)')(w2-w1)
+   endif
     
     
   end subroutine analyse
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!       
-    ! FUNCTION FOR ATOM IP (USED ONLY FOR MOPAC)
+  ! FUNCTION FOR ATOM IP (USED ONLY FOR MOPAC)
   function valip(i) result(get_ip)
 
     integer  :: i

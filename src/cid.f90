@@ -311,13 +311,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      write(*,'(80(''=''))')
      write(*,*) '    CID settings:   '
   
-     if ( mchrg == 1) then
+     if ( mchrg > 0 ) then
        write(*,*) '    + Positive Ion mode +   '
-     elseif ( mchrg == -1 ) then
+     elseif ( mchrg < 0 ) then
        write(*,*) '    - Negative Ion mode -   '
-     else 
-       write(*,*) 'Something is wrong in CID - E X I T'
-       stop
      endif
   
      write(*,'(80(''=''),/)')

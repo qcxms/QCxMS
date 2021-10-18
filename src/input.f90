@@ -1,4 +1,4 @@
-subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                        &
+subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                  &
         iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
         edistri,btf,ieeatm,                                                       &
         scanI,lowerbound,upperbound,metal3d,ELAB,ECOM, eExact,ECP,unity,noecp,    &
@@ -25,7 +25,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   integer  :: nn,i,j
   integer  :: io_in
   integer  :: error
-  integer  :: mchrg
+  integer  :: mchrg_prod
   
   real(wp) :: tstep
   real(wp) :: tmax 
@@ -110,6 +110,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   ! IF =False then use ORCA
   XTBMO=.True.
 
+  ! make charge dependend on input (in Prods min. = 1)
+  mchrg_prod = 1
   
   ! MD time step in fs (0.5-1 fs) 
   tstep = 0.5_wp
@@ -574,6 +576,13 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
              call readl(line,xx,nn)
              ntraj=int(xx(1))
           endif
+
+  !       CHARGE IN PROD. RUNS
+          if(index(line,'ICHRG') /= 0)then            
+             call readl(line,xx,nn)
+             mchrg_prod=int(xx(1))
+          endif
+
   !       NUMBER OF FRAGMENTS FOR EXIT
           if(index(line,'NFRAGEXIT') /= 0)then            
              call readl(line,xx,nn)
@@ -635,16 +644,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
           !endif
 
   
-  !       SCAN FUNCTION 
-          if(index(line,'SCANI' ) /= 0)scanI = 1   
-          if(index(line,'UPPER') /= 0)then            
-             call readl(line,xx,nn)
-             upperbound=xx(1)
-          endif
-          if(index(line,'LOWER') /= 0)then            
-             call readl(line,xx,nn)
-             lowerbound=xx(1)
-          endif
   !       Boltzmann factor/weight
           if(index(line,'BTF') /= 0)then            
              call readl(line,xx,nn)
@@ -701,6 +700,16 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
           if(index(line,'IEETEMP' ) /= 0)then            
              call readl(line,xx,nn)
              ieetemp=xx(1)
+          endif
+  !       SCAN FUNCTION 
+          if(index(line,'SCANI' ) /= 0)scanI = 1   
+          if(index(line,'UPPER') /= 0)then            
+             call readl(line,xx,nn)
+             upperbound=xx(1)
+          endif
+          if(index(line,'LOWER') /= 0)then            
+             call readl(line,xx,nn)
+             lowerbound=xx(1)
           endif
   ! ---------------------------------------------------------------
   !!! CID PARAMETERS !!! 
