@@ -236,11 +236,10 @@ module qcxms_iniqm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
     
     ! compute energies only as used in fragment IP calc
-    subroutine eqm(prog,nat,xyz,iat,mchrg,dumspin,etemp,newcalc,iok, &
-                   energy,nel,nb,ECP,spec_calc)
+    subroutine eqm(prog,nat,xyz,iat,mchrg,dumspin, &
+        & etemp,newcalc,ipok,energy,nel,nb,ECP,spec_calc)
     
        integer  :: prog,nat,iat(nat),mchrg
-       integer  :: iok
        integer  :: spin
        integer  :: dumspin
        integer  :: nb
@@ -252,6 +251,7 @@ module qcxms_iniqm
     
        logical  :: newcalc, spec_calc
        logical  :: ECP
+       logical  :: ipok
     
        integer :: stat
        character(len=:), allocatable :: output_name
@@ -276,7 +276,6 @@ module qcxms_iniqm
        if(prog /= 7.and. prog /= 6.and. prog /= 8)then
           if(spin < 1) then
              energy=1.d-6
-             iok=iok+1
              return
           endif
        endif
@@ -421,8 +420,7 @@ module qcxms_iniqm
           write(*,*)'prog   = ',prog
           write(*,*)'charge = ',mchrg
           write(*,*)'mult   = ',spin
-       else
-          iok=iok+1
+          ipok = .false.
        endif
 
     end subroutine eqm

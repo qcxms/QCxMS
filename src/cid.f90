@@ -21,13 +21,14 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   real(wp),parameter :: kB_eV  = kB*autoev
   real(wp),parameter :: kB_J   = 1.38064852E-23
   
-  integer  :: nuc,mchrg,spin,iat(nuc)
+  integer  :: nuc,spin,iat(nuc)
   integer  :: nstp
   integer  :: dumpavg,dumpxyz,dumpscreen,dumpcoord,dumpdist
   integer  :: average_dump,xyzavg_dump,screen_dump,coord_dump,distance_dump
   integer  :: i,j,k,ind,m
   integer  :: time_step_count
   integer  :: icoll
+  integer  :: mchrg
   integer  :: collisions
   integer  :: step_counter
   integer  :: gsolvstate

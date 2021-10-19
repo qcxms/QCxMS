@@ -307,15 +307,19 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
          ! METHODS 
          if(line == 'EI')           method=0
          if(line == 'CSC')          method=1
-         if(line == 'DEA')          method=2
+         if(line == 'DEA') then
+           !method=2
+           mchrg_prod = -1
+         endif
+
          if(line == 'CID')then
                                     method=3
            gas%Iatom = 3 !Argon
          endif
-         if(line == 'NCID')then
-                                    method=4
-           gas%Iatom = 3 !Argon
-         endif
+!         if(line == 'NCID')then
+!                                    method=4
+!           gas%Iatom = 3 !Argon
+!         endif
 
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -578,7 +582,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
           endif
 
   !       CHARGE IN PROD. RUNS
-          if(index(line,'ICHRG') /= 0)then            
+          if(index(line,'CHARGE') /= 0)then            
              call readl(line,xx,nn)
              mchrg_prod=int(xx(1))
           endif

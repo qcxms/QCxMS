@@ -12,7 +12,7 @@ module qcxms_mo_spec
      subroutine getspec(echo,nat,iat,xyz,mchrg,emo,ehomo,mopop,ihomo,nb,ECP)
 
      integer  :: nat,iat(nat),mchrg,ihomo
-     integer  :: i,j,k,idum,ncore
+     integer  :: i,j,k,ncore
      integer  :: nel,nb,nao
 
      real(wp) :: eps (2,5*nat)
@@ -27,11 +27,12 @@ module qcxms_mo_spec
      logical  :: ECP
      logical  :: ex
      logical  :: spec_calc = .true.
+     logical  :: ipok
 
 
      mopop = 0.0d0
 
-     idum=0
+     ipok = .true.
 
      ! save original level
       j=func

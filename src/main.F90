@@ -50,7 +50,8 @@ program QCxMS
   integer  :: i,j,k,m
   integer  :: nrun,nfragexit
   integer  :: mspin,iprog,tcont
-  integer  :: mchrg, mchrg_prod
+  integer  :: mchrg
+  integer  :: mchrg_prod
   integer  :: maxsec,idum,edistri
   integer  :: ihomo,nb,nuc,mo1,mo2,fragstate
   integer  :: num_frags
@@ -291,30 +292,39 @@ program QCxMS
   &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
-  ! Choose the MS method
+  !> Choose the MS method (DEA -> method = 2 for legacy support)
   write(*,*)
   if (method  ==  0) then
-     write(*,'(14x,60(''*''))')
-     write(*,'(22x,'' Mode:          Electron Impact (EI)         '')')
-     write(*,'(14x,60(''*''))')
+    write(*,'(14x,60(''*''))')
+    if ( mchrg_prod > 0 ) write(*,'(22x,'' Mode:          Electron Impact (EI)         '')')
+    if ( mchrg_prod < 0 ) write(*,'(22x,'' Mode: Dissociative Electron Attachment (DEA)'')')
+    if ( mchrg_prod == 0 ) then
+      write(*,*)
+      stop " -- Can't use no charge as input! Select charge! -- "
+    endif
+    write(*,'(14x,60(''*''))')
   elseif (method  ==  1) then !This will be closed shell with EI
-     write(*,'(14x,60(''*''))')
-     write(*,'(22x,'' Mode:         Closed Shell Cation (CSC)     '')')
-     write(*,'(14x,60(''*''))')
-  elseif (method  ==  2) then
-     write(*,'(14x,60(''*''))')
-     write(*,'(22x,'' Mode: Dissociative Electron Attachment (DEA)'')')
-     write(*,'(14x,60(''*''))')
+    write(*,'(14x,60(''*''))')
+    write(*,'(22x,'' Mode:         Closed Shell Cation (CSC)     '')')
+    write(*,'(14x,60(''*''))')
+!  elseif (method  ==  2) then
+!    write(*,'(14x,60(''*''))')
+!    write(*,'(22x,'' Mode: Dissociative Electron Attachment (DEA)'')')
+!    write(*,'(14x,60(''*''))')
   elseif (method  ==  3) then
-     write(*,'(14x,60(''*''))')
-     write(*,'(22x,'' Mode: Collision Induced Dissociation (CID)  '')')
-     write(*,'(22x,''             Positive Ion mode               '')')
-     write(*,'(14x,60(''*''))')
-  elseif (method  ==  4) then
-     write(*,'(14x,60(''*''))')
-     write(*,'(22x,'' Mode: Collision Induced Dissociation (CID)  '')')
-     write(*,'(22x,''             Negative Ion mode  '')')
-     write(*,'(14x,60(''*''))')
+    write(*,'(14x,60(''*''))')
+    write(*,'(22x,'' Mode: Collision Induced Dissociation (CID)  '')')
+    if ( mchrg_prod > 0 ) write(*,'(22x,''           + Positive Ion mode +'')')
+    if ( mchrg_prod < 0 ) write(*,'(22x,''           - Negative Ion mode -'')')
+    if ( mchrg_prod == 0 ) then
+      write(*,*)
+      stop " -- Can't use no charge as input! Select charge! -- "
+    endif
+    write(*,'(14x,60(''*''))')
+  !elseif (method  ==  4) then
+  !   write(*,'(14x,60(''*''))')
+  !   write(*,'(22x,'' Mode: Collision Induced Dissociation (CID)  '')')
+  !        write(*,'(14x,60(''*''))')
   else
      write(*,'(22x,''**************************'')')
      write(*,'(22x,''* Error Error Error      *'')')
@@ -322,14 +332,12 @@ program QCxMS
      write(*,'(22x,''**************************'')')
      stop 'Something went terribly wrong!'
   endif
+  write(*,*)
 
   ! initialize D3
   if (prog /= 8) call copyc6
 
-
-
   ! how many atoms? Initialize to provide setup step
-  !call rd0('coord',nuc)
   call rd(.true.,file_name,nuc)
 
   ! set traj automatically
@@ -394,7 +402,7 @@ program QCxMS
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! printing runtype information and chosen parameters
-  call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg_prod, &
+  call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg, mchrg_prod,         &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
       & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
 
@@ -487,7 +495,7 @@ program QCxMS
   ! assign masses
   call setmass(nuc,iat,mass,imass)
 
-  if(.not.prod)then
+  if (.not.prod .and. verbose ) then
      write(*,*)
      write(*,*)'molecule:'
 
@@ -543,12 +551,12 @@ prun: if(.not.prod) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Set the charge of the chosen method 
     ! 0 = EI , 1 = CSC, 2 = DEA, 3 = CID+, 4 = CID-
-    if     (method  ==  0 .or. method  ==  2) then
+    if     (method  ==  0 ) then !.or. method  ==  2) then
       mchrg = 0
-    elseif (method  ==  1 .or. method  ==  3) then
+    elseif (method  ==  1 .or. method  ==  3) then ! Method = 4
       mchrg = mchrg_prod 
-    elseif (method  ==  4) then
-      mchrg = -1 * mchrg_prod
+!    elseif (method  ==  4) then
+!      mchrg = -1 * mchrg_prod
     endif
 
 
@@ -641,7 +649,7 @@ GS: if(.not.ex)then
     else ! if qcxms.gs is NOT yet created
 
       ! Check if CID input makes sense before creating the dirs.
-      if ( method == 3 .or. method == 4 ) then
+      if ( method == 3 ) then !.or. method == 4 ) then
         call cidcheck(MaxColl, CollNo, CollSec )
       endif
 
@@ -691,11 +699,13 @@ GS: if(.not.ex)then
     !Test SP energy calc. of the used QM method on the input geom with charges (+1,-1)
     ! (It is important to do for calcs with TM and ORCA)
     call timing(t1,w1)
-    if     (method  ==  0 .or. method  ==  1 .or. method == 3) then !cations
-      mchrg = mchrg_prod ! set to at least 1 (normal) or higher (input)
-    elseif (method  ==  2 .or. method == 4) then ! anions
-      mchrg = -1 * mchrg_prod
-    endif
+    !if     (method  ==  0 .or. method  ==  1 .or. method == 3) then !cations
+    !  mchrg = mchrg_prod ! set to at least 1 (normal) or higher (input)
+    !elseif (method  ==  2 ) then !.or. method == 4) then ! anions
+    !  mchrg = -1 * mchrg_prod
+    !endif
+
+    mchrg = mchrg_prod ! set to at least 1 (normal) or higher (input)
 
     write(*,'(''--- Checking QC method for ions ---'')')
     call iniqm(nuc,xyz,iat,mchrg,mspin,betemp,edum,iniok,ECP)
@@ -756,7 +766,7 @@ GS: if(.not.ex)then
     ! Only pmax is used further as the maximum prob. for a given IEE energy (see below)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
     ! NOT needed for CID, no need for IEE
-iee0: if (method /= 3 .and. method /= 4)then ! Not important for CID
+iee0: if (method /= 3 ) then !.and. method /= 4)then ! Not important for CID
 
       emo = 0
 
@@ -965,7 +975,7 @@ iee2:  do i = 1, ndumpGS
 
       !---- CID part --- 
       !no need for EIMP or TADD
-      elseif ( method == 3 .or. method == 4 )then ! iee0
+      elseif ( method == 3 ) then !.or. method == 4 )then ! iee0
 
         do i = 1, ndumpGS
 
@@ -1044,7 +1054,7 @@ iee2:  do i = 1, ndumpGS
     enddo
 
     ! sum up the information at the end of creating tmp directories (call #2)
-    call info_sumup(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
+    call info_sumup(ntraj, mchrg, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, ELAB, ECOM, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
@@ -1066,7 +1076,7 @@ iee2:  do i = 1, ndumpGS
   else !prun - if production run == .true.
 
     ! check whether methods are suitable with codes in input
-    if ( method == 2 ) then
+    if ( method == 0 .and. mchrg < 0 ) then
       if ( prog == 0 ) then
         stop 'Exit: DEA is not suitable with DFTB'
       elseif ( prog == 1 ) then
@@ -1086,7 +1096,7 @@ iee2:  do i = 1, ndumpGS
       endif
 
     !method .eq. 3 = CID
-    elseif ( method ==  3 .or. method == 4 ) then
+    elseif ( method ==  3 ) then ! .or. method == 4 ) then
        if ( prog == 0 ) then
           stop 'Exit: CID is not suitable with DFTB'
        elseif ( prog == 5 .and. gas%Iatom /= 6 .and. gas%Iatom /= 0 ) then !MNDO99 
@@ -1114,7 +1124,7 @@ iee2:  do i = 1, ndumpGS
     ! Read the qcxms.start file
     call rdstart(itrj,nuc,xyz,velo,velof,tadd,eimp)
 
-    if ( method == 3 .or. method == 4 ) then
+    if ( method == 3 ) then !.or. method == 4 ) then
       res_name = 'qcxms_cid.res'
     else
       res_name = 'qcxms.res'
@@ -1154,15 +1164,17 @@ iee2:  do i = 1, ndumpGS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! Go into CID module
-mCID:if ( method == 3 .or. method == 4 ) then
+mCID:if ( method == 3 ) then !.or. method == 4 ) then
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       tadd  = 0.0_wp !should be 0 anyway.
       eimp  = 0.0_wp !should be 0 anyway.
       velof = 0.0_wp
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      if ( method == 3 ) mchrg =  mchrg_prod
-      if ( method == 4 ) mchrg = -1 * mchrg_prod
+      !if ( method == 3 ) mchrg =  mchrg_prod
+      !if ( method == 4 ) mchrg = -1 * mchrg_prod
+
+      mchrg =  mchrg_prod
 
       chrgcont  = real(mchrg,wp) 
 
@@ -1187,10 +1199,12 @@ noESI: if (.not. No_ESI )then
         write(*,*) '# ## ### ## # ## ### ## # ##'
         write(*,*) ''
 
+        !> get internal energy
         call ekinet(nuc,velo,mass,edum,t)
         edum = t * (0.5 * 3 * nuc *kB * autoev)
         ENe(1) = edum
 
+        !> if not set manually, determine automatically and distribute
         if (ESI == 0 .and. tempESI == 0 ) then
           call random_seed()
           call random_number(a)
@@ -1199,14 +1213,13 @@ noESI: if (.not. No_ESI )then
           dep  = nint(b)
           if ( b < 2.0_wp ) dep = 1 ! hard coded for small molecules
 
-          ! Make random energy depending on molecular size
+          !>> Make random energy depending on molecular size
           if (dep == 1) rand_int = 1 + FLOOR(2*a)     ! 1-2
           if (dep == 2) rand_int = 2 + FLOOR(2*a)     ! 2-3
           if (dep == 3) rand_int = 3 + FLOOR(3*a)     ! 3-5 !höher für anderen bereich
           if (dep == 4) rand_int = 3 + FLOOR(4*a)     ! 3-6
           if (dep >= 5) rand_int = 4 + FLOOR(5*a)     ! 4-8
 
-          !write(*,*) 'DEP', dep
 
           write(*,'('' Randomly Scaling internal energy: '')')
           write(*,'(50(''-''))') 
@@ -1216,23 +1229,25 @@ noESI: if (.not. No_ESI )then
           write(*,'('' Wanted value Energy          : '', i4, a3)'  ) rand_int, ' eV'
           write(*,'(50(''-''))') 
 
+          !>> scale depending on random number (or not, if value too low)
           edum = rand_int - edum
           if (edum > 0) then
             E_Scale = vary_energies(edum, 0.1_wp)
             if (rand_int  == 0) E_Scale = 0
-            write(*,'('' Scaling to inner Energy   : '', f14.6,a3)') E_Scale+ENe(1),' eV'
+            write(*,'('' Scaling to inner Energy      : '', f14.6,a3)') E_Scale+ENe(1),' eV'
           else
             write(*,*) ' ! No Scaling ! '
             E_Scale = 0.0_wp
           endif
 
+        !> if ESI value was set manually
         elseif ( ESI > 0.0_wp ) then
           edum = (ESI - edum)
           if ( edum <= 0.4_wp ) then !do not scale if energy is low 
             write(*,'(''No Scaling required ...'')')
             E_Scale = 0.0_wp
+            
           else
-
             write(*,'(''! Scaling internal energy !'')')
             write(*,'(50(''-''))') 
             write(*,'('' Inner Energy before          : '',f14.6,a3)') ENe(1), ' eV'
@@ -1241,14 +1256,16 @@ noESI: if (.not. No_ESI )then
             write(*,'(''Wanted value Energy           : '',f14.6,a3)') ESI,    ' eV'
             write(*,'(50(''-''))') 
 
+            !>> decide if manual value is distributed randomly or not
             if ( NoScale ) then ! No distribution of ESI 
               E_Scale = edum
             else
-              E_Scale = vary_energies(edum, 0.2_wp)
+              E_Scale = vary_energies(edum, 0.2_wp) !distribute width 0.2 (see boxmuller)
             endif
             write(*,'('' Scaling to inner Energy      : '', f14.6,a3)') E_Scale+ENe(1),' eV'
           endif
 
+        !> if temperature is scaled instead of energy
         elseif ( tempESI > 0 ) then
           ESI = 0
           write(*,'(''! Scaling Temperature  !'')')
@@ -1264,13 +1281,13 @@ noESI: if (.not. No_ESI )then
           write(*,'(''Scaling to inner Energy       : '',f14.6,a3)') E_Scale+ENe(1),' eV'
         endif
 
-        if ( tempESI > 0 .and. ESI > 0 ) then
-          write(*,*) 'Cannot provide both, Energy and Temp.!'
-          stop
-        endif
+        !> stop if both values were provided (to circumvent errors in input)
+        if ( tempESI > 0 .and. ESI > 0 ) stop 'Cannot provide both, Energy and Temp.!'
 
+        !> make sure nothing strange is scaled
         if (E_Scale <= 0) E_Scale = 0
 
+        !> convert values for output
         tScale = (E_Scale * 2.0d0/3.0d0) /(nuc * kB * autoev)
         ENe(4) = tScale
         tScale = tScale + T
@@ -2164,9 +2181,11 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
 ! Start Electron ionization Routine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-ei: if (method /= 3 .and. method /= 4)then
-      if (method  ==  0 .or. method  ==  1 ) mchrg =  mchrg_prod ! EI
-      if (method  ==  2 )                    mchrg = -1 * mchrg_prod ! DEA
+ei: if (method /= 3 ) then !.and. method /= 4)then
+      !if (method  ==  0 .or. method  ==  1 ) mchrg =  mchrg_prod ! EI
+      !if (method  ==  2 )                    mchrg = -1 * mchrg_prod ! DEA
+
+      mchrg =  mchrg_prod
 
       chrgcont  = real(mchrg,wp) 
 

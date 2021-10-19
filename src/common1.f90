@@ -3,16 +3,16 @@ module common1
   implicit none
 
   !!!!!!!!!!!!!!!!!!!!!!!
-  integer  ::  shell
-  integer  ::  bas
-  integer  ::  func
-  integer  ::  method
-  integer  ::  gfnver
-  integer  ::  prog
-  integer  ::  qcmem
-  integer  ::  ihamilt
-  integer  ::  orca_version
-  integer  ::  grid_orca
+  integer  :: shell
+  integer  :: bas
+  integer  :: func
+  integer  :: method
+  integer  :: gfnver
+  integer  :: prog
+  integer  :: qcmem
+  integer  :: ihamilt
+  integer  :: orca_version
+  integer  :: grid_orca
   !integer  ::  grid_tmol
   integer  :: nproc_orca
 

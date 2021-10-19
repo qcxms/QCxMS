@@ -22,8 +22,7 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
   integer :: natf(10)
   integer :: i,j,k
   integer :: nfrag
-  integer :: iok,progi,itry,useprog(4)  
-  integer :: counter
+  integer :: progi,itry,useprog(4)  
   integer :: isave,jsave,ksave,gsave
   integer :: iatf(nuc,10)
   integer :: idum(nuc,10)
@@ -31,7 +30,7 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
   integer :: fiter !Number of spin iterations 
   integer :: sp(3),sn(3),sn0,sp0
   integer :: nb,nel
-  integer :: mchrg, lpchrg
+  integer :: mchrg, lpchrg, dump_chrg
   integer :: io_xyz 
   
   real(wp) :: axyz(3,nuc)
@@ -91,7 +90,7 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
   !write fragments with average geometries      
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! CID
-  if(method == 3.or.method == 4)then
+  if(method == 3) then !.or.method == 4)then
     do i=1,nfrag
       cema(1:3,i) = 0
       z           = 0
@@ -175,7 +174,7 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
   ! save etemp for XTB !THIS IS NOT ETEMP! BUT AVERAGE TEMP OF FRAGMENT!
   dsave = eTemp
 
-  if ( method  ==  2 ) then
+  if ( method  ==  0 .and. mchrg < 0 ) then
             bas = 7          !ma-def2-TZVP
     if(ecp) bas = 11         !def2-TZVP
   else
@@ -261,15 +260,13 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
     
     call qcstring(progi,line,line2) 
   
-    if (method ==  2.or.method == 4) then
+    if ( mchrg < 0 ) then !method == 4) then
       write(*,'(/,'' computing EAs with '',(a14),'' at (K) '',f7.0)')trim(line2),dsave
     else
       write(*,'(/,'' computing IPs with '',(a14),'' at (K) '',f7.0)')trim(line2),dsave
     endif
   
     fragip  = 0
-    iok     = 0
-    counter = 0
     
     !      write(*,*) '* IP/EA will be calculated 
     !     .with respect to metal fragment multiplicities *'
@@ -310,12 +307,11 @@ frg:do i = 1,nfrag
       endif
     
       ! MOPAC IP is unreliable for H and other atoms           
-!      if(progi == 1.and.natf(i) == 1)then
-!        if (method ==  2 .or. method == 4) stop 'MOPAC CANT BE USED FOR EA!'
-!        fragip(i,1:mchrg) =  valip(iatf(1,i))
+!      if(  progi == 1.and.natf(i) == 1) then
+!        if ( mchrg < 0 ) stop 'MOPAC CANT BE USED FOR EA!'
+!        fragip(i,1:abs(mchrg)) =  valip(iatf(1,i))
 !        E_neut    = 1.d-6
 !        E_ion    = fragip(i,1:mchrg) * evtoau 
-!        iok   = iok + 2
 !      endif
 
       if ( progi /= 1 )then
@@ -326,68 +322,53 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
           endif
   
           !> 1. Calculate Neutral energy (mcharge=0)
-          call eqm(progi,natf(i),xyzf(1,1,i),&
-            iatf(1,i),0,neutfspin,etemp,.true.,iok,E_neut,nel,nb,ECP,spec_calc)
+          call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),0,neutfspin, &
+            etemp,.true.,ipok,E_neut,nel,nb,ECP,spec_calc)
     
-  
           if(boolm)then
              gsen(k) = E_neut
              sn(k)   = neutfspin
           endif
   
-          !> 2. Calculate Ion energy (mcharg= +/- mchrg)
-          !!>> Negative Charges
-          !if ( method ==  2 .or. method == 4 ) then
-          !  call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),mchrg,ionfspin,&
-          !    etemp,.true.,iok,E_ion,nel,nb,ECP,spec_calc)
-  
-          !  if (boolm)then
-          !     gsep(k) = E_ion
-          !     sp(k) = ionfspin
-          !  endif
- 
-          !!>> Positive Charges
-          !else
-          !  call eqm(progi,natf(i),xyzf(1,1,i),&
-          !  iatf(1,i),1,ionfspin,etemp,.true.,iok,E_ion,nel,nb,ECP,spec_calc)
-          !  if(boolm)then
-          !     gsep(k) = E_ion
-          !     sp(k) = ionfspin
-          !  endif
-          !endif 
-
+          !> 2. Calculate Ion energies (mcharg= +/- mchrg)
           do lpchrg = 1, abs(mchrg)
-            call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),lpchrg,ionfspin,  &
-                etemp,.true.,iok,E_ion,nel,nb,ECP,spec_calc)
+            if (mchrg < 0 ) then
+              dump_chrg = -1 * lpchrg
+            else
+              dump_chrg = lpchrg
+            endif
+
+            call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),dump_chrg,ionfspin,  &
+                etemp,.true.,ipok,E_ion,nel,nb,ECP,spec_calc)
+
 
             if (boolm)then
               gsep(k) = E_ion
               sp(k)   = ionfspin
             endif
 
-            counter = counter+1 !used for the IOK CHECK
   
     
-          ! Select lowest values - calculate vertical IP/EA from groundstate neutral to groundstate ion
-          ! in regards to spin multiplicity
-          if(boolm) then
-            E_neut = minval(gsen)
-            E_ion  = minval(gsep)
-            ! save neutral-ion (of metal) lowest energy spin
-            sn0 = 0
-            sp0 = 0
+            ! Select lowest values - calculate vertical IP/EA from groundstate neutral to groundstate ion
+            ! in regards to spin multiplicity
+            if(boolm) then
+              E_neut = minval(gsen)
+              E_ion  = minval(gsep)
+              ! save neutral-ion (of metal) lowest energy spin
+              sn0 = 0
+              sp0 = 0
   
-           ! do k=1,3
-              if (gsen(k)  ==  E_neut)  sn0 = sn(k)              
-              if (gsep(k)  ==  E_ion)   sp0 = sp(k)
-           ! enddo
-          endif
+             ! do k=1,3
+                if (gsen(k)  ==  E_neut)  sn0 = sn(k)              
+                if (gsep(k)  ==  E_ion)   sp0 = sp(k)
+             ! enddo
+            endif
     
             if (E_ion /= 0 .and. E_neut /= 0) then
               fragip(i,lpchrg) = (E_ion - E_neut) * autoev
   
               ! the sign of EA is opposite to IP
-!              if(method == 2 .or. method == 4) fragip(i,lpchrg) = -1.0_wp * fragip(i,lpchrg)
+              if( mchrg < 0 ) fragip(i,lpchrg) = -1.0_wp * fragip(i,lpchrg)
 
               if (boolm) then
                 write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
@@ -399,14 +380,12 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
               endif
    
             !> 
-              if (method == 2 .or. method == 4) then
+              if ( mchrg < 0 ) then !.or. method == 4) then
                 if (fragip(i,lpchrg) > 40.0_wp .or. fragip(i,lpchrg) < -35.0_wp)then! &
-                  !iok = iok - 2 - mchrg 
                   ipok = .false.
                 endif
               else
                 if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 50.0_wp) then !&
-                  !iok = iok - 2  - mchrg 
                   ipok = .false.
                 endif
               endif
@@ -420,7 +399,6 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
     enddo frg
    
     ! if failed try another code      
-!    if (iok /= counter*2) then
     if ( .not. ipok ) then
       itry = itry + 1
       if (itry <= 3) then
@@ -448,7 +426,7 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
    ipcalc  = .False.
    
    call timing(t2,w2)
-   if(method == 2.or.method == 4)then
+   if( mchrg < 0 ) then ! method == 4)then
       write(*,'(/,'' wall time for EA (s)'',F10.1,/)')(w2-w1)
    else
       write(*,'(/,'' wall time for IP (s)'',F10.1,/)')(w2-w1)

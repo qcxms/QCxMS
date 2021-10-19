@@ -32,11 +32,12 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   
   integer :: nuc,iat(nuc),list(nuc)
   integer :: nmax,it,k,totdump,icoll,isec
-  integer :: mchrg,dumpstep,nfragexit,fragstate
+  integer :: dumpstep,nfragexit,fragstate
   integer :: imass(nuc)
   integer :: fragat(200,10) ! 100 elements+100 for isotopes, 10 fragments max per fragmentation      
   integer :: nstep,ndump,mdump,nfrag,i,j,avdump,kdump,vdump
   integer :: screendump,nadd,morestep,more,spin,fconst
+  integer :: mchrg
   integer :: io_GS, io_OUT
   
   real(wp) :: xyz (3,nuc)
@@ -114,7 +115,8 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   call ekinet(nuc,velo,mass,Ekin,T)
   
   if(it == 9999)Tsoll=T
-  if(method == 3.or.method == 4)Tsoll=Tsoll
+  !if(method == 3.or.method == 4)Tsoll=Tsoll
+  if(method == 3)Tsoll=Tsoll
   Ekinstart=Ekin
   
   !if (method == 3 .and.it > 0.and.it < 9999)then
@@ -175,7 +177,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   E_kin_diff = Ekin - E_kin
   new_temp = (2*E_kin_diff) / (3 *kB* nuc)
   if(method == 3.and.icoll > 0)Ekin = E_kin_diff
-  if(method == 4.and.icoll > 0)Ekin = E_kin_diff
+  !if(method == 4.and.icoll > 0)Ekin = E_kin_diff
   
   ! no additional calcs in ftemp (trial) runs      
   if(it == 9999)morestep=more+1
@@ -232,7 +234,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
 
      ! an error ocurred (normally failed to achieve SCF)      
      if (Epot == 0)  err1 = .true. 
-     if(method /= 3.or.method /= 4)then
+     if(method /= 3) then !.or.method /= 4)then
        if (abs(Eerror) > 0.1.and.it /= 9999) err2 = .true.
      else
        if (abs(Eerror) > 0.2.and.it /= 9999) err2 = .true.
@@ -269,8 +271,10 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      avspin = avspin + aspin
      avxyz  = avxyz  + xyz 
   
-     if(method == 3.or.method == 4 .and. icoll > 0)   aTlast = aTlast + new_temp    
-     if(method /= 3 .or. method /= 4 .or. icoll == 0)  aTlast = aTlast + T    
+     !if(method == 3.or.method == 4 .and. icoll > 0)   aTlast = aTlast + new_temp    
+     if(method == 3.and. icoll > 0)   aTlast = aTlast + new_temp    
+     !if(method /= 3 .or. method /= 4 .or. icoll == 0)  aTlast = aTlast + T    
+     if(method /= 3 .or. icoll == 0)  aTlast = aTlast + T    
   
      ! print out every screendump steps
      if(mdump > screendump-1)then
@@ -330,14 +334,15 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
          sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
          velo= sca * (velo) 
      endif
-     if(method == 4.and.k > 10.and.starting_md .and. nfrag == 1)then
-         sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
-         velo= sca * (velo) 
-     endif
+     !if(method == 4.and.k > 10.and.starting_md .and. nfrag == 1)then
+     !    sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
+     !    velo= sca * (velo) 
+     !endif
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
      ! add the IEE but only if not already fragmented
-     if(method /= 3 .and. method /= 4)then
+     !if(method /= 3 .and. method /= 4)then
+     if(method /= 3 ) then ! .and. method /= 4)then
        if(it > 0.and.nstep <= nadd.and.nfrag == 1)then
           call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
        endif        
@@ -373,8 +378,9 @@ ifit:if(it > 0)then
   
         !> it is important to get the RIGHT kinetic energy inside the molecule
         !> therefor the kinetic energy has to be subtracted from the velocity
-        if (method == 3.and.icoll >= 1.or.method == 4.and.icoll >= 1 &
-          & .and. .not. Temprun)then 
+        !if (method == 3.and.icoll >= 1.or.method == 4.and.icoll >= 1 &
+        !  & .and. .not. Temprun)then 
+        if (method == 3.and.icoll >= 1 .and. .not. Temprun)then 
 
           !> get the length of COM difference
           call cofmass(nuc,mass,xyz,cm)

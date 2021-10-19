@@ -82,7 +82,8 @@ module qcxms_write_fragments
     write(*,'('' fragment assigment list:'',80i1)')(list(k),k=1,nuc)
 
     ! compute fragment IP/EA per frag. and chrg.
-    if ( method == 3 .or. method == 4 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
+    !if ( method == 3 .or. method == 4 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
+    if ( method == 3 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
          call analyse(iprog,nuc,iat,xyz,list,nfrag,aTlast,fragip, mchrg, &
                   natf,ipok,icoll,isec,metal3d,ECP)
     else
@@ -130,11 +131,11 @@ module qcxms_write_fragments
 
         !> locate the positions in the matrix and mask them for each IP-diff.
         !  this accounts for the correct IP ranking
-        !if ( method /= 2 .and. method /= 4 ) then
+        if ( mchrg > 0 ) then
           mat_index = minloc(ip_diff, mask = ip_diff > ip_ranking(count_ip-1))
-        !else
-        !  mat_index = maxloc(ip_diff, mask = ip_diff > ip_ranking(count_ip-1))
-        !endif
+        else
+          mat_index = maxloc(ip_diff, mask = ip_diff < ip_ranking(count_ip-1))
+        endif
 
         !> save the indexes for the next run
         ip_ranking(count_ip) = ip_diff(mat_index(1),mat_index(2))
@@ -158,6 +159,8 @@ module qcxms_write_fragments
          ip_diff2(save_fragID(count_ip),save_chrgID(count_ip)) = huge(0.0_wp)
       enddo
 
+      if ( mchrg < 0 ) ip_diff2    = -1.0_wp * ip_diff2 
+
       !> do boltzmann for the fragment IPs
       call boltz(2,nfrag,abs(mchrg),aTlast*btf,ip_diff2,fragchrg2)
 
@@ -179,13 +182,8 @@ module qcxms_write_fragments
     if ( nfrag > 1) then
       do i = 1, nfrag
         do j = 1, abs(mchrg)
-       !   if ( method /= 2 .and. method /= 4 ) then
-            write(*,*) i,j,fragchrg2(i,j) * (chrgcont / abs(mchrg))
-            fragchrg3(i) = fragchrg3(i) + fragchrg2(i,j) * (chrgcont / abs(mchrg))
-        !  else
-        !    write(*,*) i,j, (1 - (fragchrg2(i,j) * (chrgcont / mchrg)))
-        !    fragchrg3(i) = fragchrg3(i) + (1 - (fragchrg2(i,j) * (chrgcont / mchrg)))
-        !  endif
+          write(*,*) i,j,fragchrg2(i,j) * (chrgcont / abs(mchrg))
+          fragchrg3(i) = fragchrg3(i) + fragchrg2(i,j) * (chrgcont / abs(mchrg))
         enddo
       enddo
     else
@@ -201,7 +199,8 @@ module qcxms_write_fragments
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! continune trajectory for frag with largest positive charge
-    if ( method /= 2 .and. method /= 4 ) then
+    !if ( method /= 2 .and. method /= 4 ) then
+    if ( mchrg > 0 ) then
       largest_chrg = -1
       do i = 1, nfrag
           frag_atms = float(natf(i))
@@ -311,17 +310,18 @@ loop:do j = 1, nfrag
        ! types of atoms in fragment (l), atomic number (idum2), amount of this 
        ! atom typ (idum1) from m = 1 to l
 
-CIDEI: if ( method == 3 .or. method == 4 ) then
+!CIDEI: if ( method == 3 .or. method == 4 ) then
+CIDEI: if ( method == 3 ) then !.or. method == 4 ) then
         if ( tcont > 0 ) then
              if ( tcont == j ) then
-                write(asave,'(F10.7,2i5,2i2,2x,i3,2x,20(i4,i3))')        &
+                write(asave,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')        &
                 !&             fragchrg3(j)*chrgcont2,itrj,icoll,isec,j,  &
-                &             fragchrg3(j),itrj,icoll,isec,j,  &
+                &             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
                 &             l,(idum2(m),idum1(m),m=1,l)
 
                 !> set the total charge to nearest integer of largest charge
                 !> or = 1 if too low
-                if ( method == 3 ) then
+                if (mchrg > 0 ) then
                   if (fragchrg3(j) > 0.5_wp) then
                     mchrg = nint(fragchrg3(j))
                   else
@@ -337,20 +337,20 @@ CIDEI: if ( method == 3 .or. method == 4 ) then
 
 
              elseif (tcont /= j) then
-                 write(io_res,'(F10.7,2i5,2i2,2x,i3,2x,20(i4,i3))')       &
+                 write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')       &
                 !&             fragchrg3(j)*chrgcont2,itrj,icoll,isec,j,  &
-                &             fragchrg3(j),itrj,icoll,isec,j,  &
+                &             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
                 &             l,(idum2(m),idum1(m),m=1,l)
              endif
 
           elseif (tcont == 0 ) then
             if ( Temprun ) then
-                write(io_res,'(F10.7,2i5,2i2,2x,i3,2x,20(i4,i3))')      &
-                &             fragchrg3(j),itrj,icoll,isec,j, &
+                write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')      &
+                &             fragchrg3(j),mchrg,itrj,icoll,isec,j, &
                 &             l,(idum2(m),idum1(m),m=1,l)
             else  
-                write(asave,'(F10.7,2i5,2i2,2x,i3,2x,20(i4,i3))')        &
-                &             fragchrg3(j),itrj,icoll,isec,j,  &
+                write(asave,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')        &
+                &             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
                 &             l,(idum2(m),idum1(m),m=1,l)
             endif
           endif
@@ -359,18 +359,18 @@ CIDEI: if ( method == 3 .or. method == 4 ) then
 
           if ( tcont > 0 ) then
              if ( tcont == j ) then
-                 write(asave,'(F10.7,2i5,2i2,2x,i3,2x,20(i4,i3))')  &
-                 &             fragchrg3(j),itrj,isec,j,  &
+                 write(asave,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')  &
+                 &             fragchrg3(j),mchrg,itrj,isec,j,  &
                  &             l,(idum2(m),idum1(m),m=1,l)
              elseif (tcont /= j) then
-                write(io_res,'(F10.7,2i5,2i2,2x,i3,2x,20(i4,i3))')  &
-                &             fragchrg3(j),itrj,isec,j,   &
+                write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')  &
+                &             fragchrg3(j),mchrg,itrj,isec,j,   &
                 &             l,(idum2(m),idum1(m),m=1,l)
              endif
 
           elseif (tcont == 0) then
-               write(io_res,'(F10.7,2i5,2i2,2x,i3,2x,20(i4,i3))')   &
-               &             fragchrg3(j),itrj,isec,j,    &
+               write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')   &
+               &             fragchrg3(j),mchrg,itrj,isec,j,    &
                &             l,(idum2(m),idum1(m),m=1,l)
           endif
        endif CIDEI

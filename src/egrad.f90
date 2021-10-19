@@ -3,7 +3,7 @@
 ! get energy, gradient, charge and spin density on atoms from QC
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail)
+subroutine egrad(first,nuc,xyz,iat,mchrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail)
    use common1
    use qcxms_tblite, only: get_xtb_egrad, gfn1_xtb, gfn2_xtb
    use qcxms_use_mndo, only: mndoout, mndograd 
@@ -17,7 +17,7 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
    implicit none
 
    integer :: nuc
-   integer :: chrg
+   integer :: mchrg
    integer :: spin
    integer :: iat(nuc)
    integer :: i,idum,stat
@@ -49,15 +49,15 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 !ccccccccccccccccccccccccccc
 
    if(prog.eq.0)then
-      call dftbout(nuc,xyz,iat,chrg,spin,.true.,etemp,1.d-5)
+      call dftbout(nuc,xyz,iat,mchrg,spin,.true.,etemp,1.d-5)
       call qccall(0,'job.last')
       call dftbgrad(nuc,grad,qat,aspin,E)
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
       if(.not.ok) then
-         call dftbout(nuc,xyz,iat,chrg,spin,.false.,etemp,1.d-4)
+         call dftbout(nuc,xyz,iat,mchrg,spin,.false.,etemp,1.d-4)
          call qccall(0,'job.last2')
          call dftbgrad(nuc,grad,qat,aspin,E)
-         call checkqc(nuc,E,grad,qat,ok,method)
+         call checkqc(nuc,E,grad,qat,ok,mchrg)
          if(ok)write(*,*)'healed!'
       endif
    endif
@@ -67,8 +67,8 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 !ccccccccccccccccccccccccccc
 
    if(prog.eq.1)then
-      call getmopgrad(nuc,iat,xyz,grad,chrg,etemp,.false.,E,qat,aspin)
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call getmopgrad(nuc,iat,xyz,grad,mchrg,etemp,.false.,E,qat,aspin)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
    endif
 
 !ccccccccccccccccccccccccccc
@@ -88,7 +88,7 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
       if(etemp.gt.0) call setfermi(etemp)
       call qccall(2,'job.last')
       call rdtmgrad (nuc,grad,qat,aspin,E)
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
    endif
 
 !ccccccccccccccccccccccccccc
@@ -96,15 +96,15 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 !ccccccccccccccccccccccccccc
 
    if(prog.eq.3)then
-      call orcaout(nuc,xyz,iat,chrg,spin,etemp,.true.,ECP)
+      call orcaout(nuc,xyz,iat,mchrg,spin,etemp,.true.,ECP)
       call qccall(3,'job.last')
       call rdorcagrad('job.last',nuc,grad,qat,aspin,E)
 ! second attempt
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
       if(.not.ok) then
          call qccall(3,'job.last2')
          call rdorcagrad('job.last2',nuc,grad,qat,aspin,E)
-         call checkqc(nuc,E,grad,qat,ok,method)
+         call checkqc(nuc,E,grad,qat,ok,mchrg)
          if(ok)write(*,*)'healed!'
       endif
    endif
@@ -114,15 +114,15 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 !ccccccccccccccccccccccccccc
 
    if(prog.eq.4)then
-      call getmsindograd(first,nuc,iat,chrg,spin,xyz,etemp,4,grad,E,qat,aspin)
+      call getmsindograd(first,nuc,iat,mchrg,spin,xyz,etemp,4,grad,E,qat,aspin)
 
-      call checkqc2(nuc,E,grad,qat,ok,method)
-      if(.not.ok) call getmsindograd(first,nuc,iat,chrg,spin,xyz,etemp,14,grad,E,qat,aspin)
+      call checkqc2(nuc,E,grad,qat,ok,mchrg)
+      if(.not.ok) call getmsindograd(first,nuc,iat,mchrg,spin,xyz,etemp,14,grad,E,qat,aspin)
 
-      call checkqc2(nuc,E,grad,qat,ok,method)
-      if(.not.ok) call getmsindograd(first,nuc,iat,chrg,spin,xyz,etemp,16,grad,E,qat,aspin)
+      call checkqc2(nuc,E,grad,qat,ok,mchrg)
+      if(.not.ok) call getmsindograd(first,nuc,iat,mchrg,spin,xyz,etemp,16,grad,E,qat,aspin)
 
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
    endif
 
 !ccccccccccccccccccccccccccc
@@ -130,22 +130,22 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 !ccccccccccccccccccccccccccc
 
    if(prog.eq.5)then
-      call mndoout(nuc,xyz,iat,chrg,spin,etemp,5,10)
+      call mndoout(nuc,xyz,iat,mchrg,spin,etemp,5,10)
       call qccall(5,'job.last')
       call mndograd('job.last',nuc,grad,qat,aspin,E)
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
       if(.not.ok) then
-         call mndoout(nuc,xyz,iat,chrg,spin,etemp,5,20)
+         call mndoout(nuc,xyz,iat,mchrg,spin,etemp,5,20)
          call qccall(5,'job.last2')
          call mndograd('job.last2',nuc,grad,qat,aspin,E)
-         call checkqc(nuc,E,grad,qat,ok,method)
+         call checkqc(nuc,E,grad,qat,ok,mchrg)
          if(ok)write(*,*)'healed!'
       endif
       if(.not.ok) then
-         call mndoout(nuc,xyz,iat,chrg,spin,etemp,4,2)
+         call mndoout(nuc,xyz,iat,mchrg,spin,etemp,4,2)
          call qccall(5,'job.last2')
          call mndograd('job.last2',nuc,grad,qat,aspin,E)
-         call checkqc(nuc,E,grad,qat,ok,method)
+         call checkqc(nuc,E,grad,qat,ok,mchrg)
          if(ok)write(*,*)'healed!'
       endif
    endif
@@ -156,9 +156,9 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 !ccccccccccccccccccccccccc
    if(prog.eq.6)then
 ! idum = spin
-      call getspin(nuc,iat,chrg,idum)
-      call callxtb(nuc,xyz,iat,chrg,idum,etemp,E,grad,qat,aspin)
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call getspin(nuc,iat,mchrg,idum)
+      call callxtb(nuc,xyz,iat,mchrg,idum,etemp,E,grad,qat,aspin)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
       if(.not.ok)then
          gradfail=.true.
          write(*,*) 'GRAD failed!'
@@ -169,15 +169,15 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 ! GFN1-xTB
 !ccccccccccccccccccccccccc
    if(prog.eq.7)then
-      call getspin(nuc,iat,chrg,idum)
+      call getspin(nuc,iat,mchrg,idum)
 !      if (with_tblite) then
-         call get_xtb_egrad(iat, xyz, chrg, idum, gfn1_xtb, etemp, &
+         call get_xtb_egrad(iat, xyz, mchrg, idum, gfn1_xtb, etemp, &
             & "xtb.last", qat, E, grad, stat, .false.)
          ok = stat == 0
 !      else
-!         call qcxtb2(nuc,xyz,iat,chrg,idum,E,etemp,grad,qat,aspin,.false.)
+!         call qcxtb2(nuc,xyz,iat,mchrg,idum,E,etemp,grad,qat,aspin,.false.)
 !      end if
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
       if(.not.ok)then
          gradfail=.true.
          write(*,*) 'QC calc failed!'
@@ -188,15 +188,15 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 ! GFN2-xTB
 !ccccccccccccccccccccccccc
    if(prog.eq.8)then
-      call getspin(nuc,iat,chrg,idum)
+      call getspin(nuc,iat,mchrg,idum)
 !      if (with_tblite) then
-         call get_xtb_egrad(iat, xyz, chrg, idum, gfn2_xtb, etemp, &
+         call get_xtb_egrad(iat, xyz, mchrg, idum, gfn2_xtb, etemp, &
             &               "xtb.last", qat, E, grad, stat, .false.)
          ok = stat == 0
 !      else
-!         call qcxtb2(nuc,xyz,iat,chrg,idum,E,etemp,grad,qat,aspin,.false.)
+!         call qcxtb2(nuc,xyz,iat,mchrg,idum,E,etemp,grad,qat,aspin,.false.)
 !      end if
-      call checkqc(nuc,E,grad,qat,ok,method)
+      call checkqc(nuc,E,grad,qat,ok,mchrg)
       if(.not.ok)then
          gradfail=.true.
          write(*,*) 'QC calc failed!'
@@ -255,11 +255,11 @@ function gnorm(nuc,grad)
 end
 
 ! is E, grad and charge reasonable ?
-subroutine checkqc(nuc,e,grad,qat,ok,method)
+subroutine checkqc(nuc,e,grad,qat,ok,mchrg)
    use xtb_mctc_accuracy, only: wp
    implicit none
 
-   integer  :: nuc,method
+   integer  :: nuc,mchrg
    real(wp) :: grad(3,nuc),e,qat(nuc)
    real(wp) :: gnorm,gn
    logical  :: ok
@@ -279,7 +279,8 @@ subroutine checkqc(nuc,e,grad,qat,ok,method)
       return
    endif
 
-   if (method .eq. 0 .OR. method .eq. 1 .OR. method .eq. 3) then
+   !if (method .eq. 0 .OR. method .eq. 1 .OR. method .eq. 3) then
+   if ( mchrg > 0 ) then
       if(abs(maxval(qat)).lt.1.d-5) then
          write(*,*)'WF seems to be bogus!',sum(qat)
          E=0
@@ -291,11 +292,11 @@ subroutine checkqc(nuc,e,grad,qat,ok,method)
 end
 
 ! is E, grad and charge reasonable ? same as above without print
-subroutine checkqc2(nuc,e,grad,qat,ok,method)
+subroutine checkqc2(nuc,e,grad,qat,ok,mchrg)
    use xtb_mctc_accuracy, only: wp
    implicit none
 
-   integer  :: nuc,method
+   integer  :: nuc,mchrg
 
    real(wp) :: grad(3,nuc),e,qat(nuc)
    real(wp) :: gnorm,gn
@@ -313,7 +314,8 @@ subroutine checkqc2(nuc,e,grad,qat,ok,method)
       E=0
       return
    endif
-   if (method .eq. 0 .OR. method .eq. 1 .OR. method .eq. 3) then
+   !if (method .eq. 0 .OR. method .eq. 1 .OR. method .eq. 3) then
+   if ( mchrg > 0 ) then
       if(abs(maxval(qat)).lt.1.d-5) then
          E=0
          return

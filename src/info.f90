@@ -13,14 +13,14 @@ module qcxms_info
   contains
 
 
-  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg_prod,              &
+  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg, mchrg_prod,       &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,      &
       & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
       
   integer  :: ntraj,iseed(1)
   integer  :: MaxColl
   integer  :: CollSec(3),CollNo(3)
-  integer  :: mchrg_prod
+  integer  :: mchrg, mchrg_prod
   integer  :: maxsec
   integer  :: nfragexit
   integer  :: dumprint
@@ -48,18 +48,22 @@ module qcxms_info
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! QC PROGRAMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! print the QC Protgram used 
+  !> print the QC Program used 
   call qcstring(prog,line,line2) 
   write(*,'('' QC Program            : '',(a))') trim(line)
 
-  ! print out extra information on SQM level or Basis/functional
+  !> print out extra information on SQM level or Basis/functional
   write(*,'('' QC Level              : '',(a))') trim(line2)
 
-  call qcstring(iprog,line,line2) 
-  if ( method == 2 .or. method == 4 ) then
-     write(*,'('' QC Prog. for EAs      : '',a)')line 
-  else
-     write(*,'('' QC Level for IPs      : '',a)')line2 
+  if ( prog /= iprog ) then
+    call qcstring(iprog,line,line2) 
+    if ( method == 2 .or. mchrg < 0 ) then ! method == 4 ) then
+       write(*,'('' QC Prog. for EAs      : '',a)')line 
+       write(*,'('' QC Level  for EAs     : '',(a))') trim(line2)
+    else
+       write(*,'('' QC Prog. for IPs      : '',a)')line 
+       write(*,'('' QC Level  for IPs     : '',(a))') trim(line2)
+    endif
   endif
 
   if ( verbose .and. ax > 0 )then
@@ -100,7 +104,7 @@ module qcxms_info
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! MO spectrum calculations
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  if ( method /= 3 .and. method /= 4 ) then
+  if ( method /= 3 ) then !.and. method /= 4 ) then
     dumprint = 3 ! ORCA
     if ( XTBMO ) dumprint = 7 ! XTB
     call qcstring(dumprint,line,line2) 
@@ -108,7 +112,7 @@ module qcxms_info
   endif
 
   write(*,*)
-  write(*,'('' Mol. Ion chrg (ichrg) : '',i4  )')mchrg_prod
+  write(*,'('' M+ Ion charge(charge) : '',i4  )')mchrg_prod
   write(*,'('' total traj.   (ntraj) : '',i4  )')ntraj
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep 
   write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
@@ -116,7 +120,7 @@ module qcxms_info
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
+CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
 
     write(*,*)
     write(*,'(12(''-''),(a),11(''-''))') ' EI settings '
@@ -242,7 +246,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   !!! Sum up information after run is concluded (main.f90)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  subroutine info_sumup(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
+  subroutine info_sumup(ntraj, mchrg, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, ELAB, ECOM, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
@@ -252,6 +256,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   integer  :: nfragexit
   integer,intent(in) :: nuc
   integer :: io_log
+  integer :: mchrg
 
   real(wp) :: tstep,tmax
   real(wp) :: Tinit,trelax
@@ -281,7 +286,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
 
   if ( prog /= iprog ) then
     call qcstring(iprog,line,line2) 
-    if ( method == 2 .or. method == 4 ) then
+    if ( method == 2 .or. mchrg < 0 ) then  !method == 4 ) then
        write(*,'('' QC Prog. for EAs      : '',a)')line 
     else
        write(*,'('' QC Level for IPs      : '',a)')line2 
@@ -295,7 +300,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
 
   !write out informations
-info: if ( method /= 3 .and. method /= 4 )then
+info: if ( method /= 3 ) then !.and. method /= 4 )then
 
     write(*,*)
     write(*,'(12(''-''),(a),11(''-''))') ' EI settings '
