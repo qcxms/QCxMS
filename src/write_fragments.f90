@@ -97,10 +97,18 @@ ok: if ( nfrag_ok ) then !only do the following if nfrags are reasonable
 
     write(*,'('' fragment assigment list:'',80i1)')(list(k),k=1,nuc)
 
+<<<<<<< HEAD
     !> compute fragment IP/EA per frag. and chrg.
     if ( method == 3 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
          call analyse(iprog,nuc,iat,iatf,xyz,list,nfrag,aTlast,fragip, mchrg, &
                   natf,ip_ok,icoll,isec,nometal,ECP)
+=======
+    ! compute fragment IP/EA per frag. and chrg.
+    !if ( method == 3 .or. method == 4 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
+    if ( method == 3 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
+         call analyse(iprog,nuc,iat,xyz,list,nfrag,aTlast,fragip, mchrg, &
+                  natf,ipok,icoll,isec,metal3d,ECP)
+>>>>>>> acda8ad (fixed neg. charge population distr.)
     else
        call analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,aTlast,fragip, mchrg, &
                   natf,ip_ok,icoll,isec,nometal,ECP)
@@ -143,12 +151,63 @@ fg: if ( nfrag > 1 ) then
       allocate(save_chrgID(MATsize))
 
 
+<<<<<<< HEAD
       !> set the first value to large 
       !if ( mchrg > 0 ) ip_ranking = -huge(0.0_wp)
       !if ( mchrg < 0 ) ip_ranking =  -huge(0.0_wp)
       !if ( mchrg > 0 ) ip_ranking = 0.0_wp
       ip_ranking =  -huge(0.0_wp)
       ! ^ the IP-diff for mult neg charges not yet finished
+=======
+      ip_ranking = 0.0_wp
+
+      write(*,'(''Pos.'',5x,'' IP: '',3x, '' Frag. Chrg. '', 2x)') 
+
+      !> we want to only boltzmann weigh the 2nd, 3rd, ... charge, because
+      !  otherwise the second charge will be double counted.
+      !> determine the 1st charge and save, weigh the 2nd charge etc.
+      do count_ip = 1, MATsize 
+
+        !> locate the positions in the matrix and mask them for each IP-diff.
+        !  this accounts for the correct IP ranking
+        if ( mchrg > 0 ) then
+          mat_index = minloc(ip_diff, mask = ip_diff > ip_ranking(count_ip-1))
+        else
+          mat_index = maxloc(ip_diff, mask = ip_diff < ip_ranking(count_ip-1))
+        endif
+
+        !> save the indexes for the next run
+        ip_ranking(count_ip) = ip_diff(mat_index(1),mat_index(2))
+
+        save_fragID(count_ip) = mat_index(1)
+        save_chrgID(count_ip) = mat_index(2)
+
+        if(verbose) write(*,'((i2), 5x, (f5.2), 3x, 2(i2))') &
+            & count_ip,  ip_ranking(count_ip), mat_index(1), mat_index(2)
+
+      enddo
+
+      !> set 2nd IP value so it can be manipulated without losing info
+      ip_diff2    = ip_diff 
+
+      !if (method == 2 .or. method ==4) ip_diff2 = -1.0_wp * ip_diff !neg.ion mode
+
+      !> set the value with lowest IP to large number, so boltz will mostly
+      !  ignore it -> important for correct values
+      do count_ip = 1, abs(mchrg)-1
+         ip_diff2(save_fragID(count_ip),save_chrgID(count_ip)) = huge(0.0_wp)
+      enddo
+
+      if ( mchrg < 0 ) ip_diff2    = -1.0_wp * ip_diff2 
+
+      !> do boltzmann for the fragment IPs
+      call boltz(2,nfrag,abs(mchrg),aTlast*btf,ip_diff2,fragchrg2)
+
+      !> set all charges to = 1 for all strucs that have to be ignored 
+      do count_ip = 1, abs(mchrg)-1
+         fragchrg2(save_fragID(count_ip),save_chrgID(count_ip)) = 1.0_wp
+      enddo
+>>>>>>> acda8ad (fixed neg. charge population distr.)
 
 
       !> if we have more than 1 chrg to distribute
@@ -242,7 +301,12 @@ mult: if ( abs(mchrg) > 1 ) then
     if ( nfrag > 1) then
       do i = 1, nfrag
         do j = 1, abs(mchrg)
+<<<<<<< HEAD
           fragchrg3(i) = fragchrg3(i) + fragchrg2(i,j) 
+=======
+          write(*,*) i,j,fragchrg2(i,j) * (chrgcont / abs(mchrg))
+          fragchrg3(i) = fragchrg3(i) + fragchrg2(i,j) * (chrgcont / abs(mchrg))
+>>>>>>> acda8ad (fixed neg. charge population distr.)
         enddo
       enddo
     else
@@ -394,17 +458,21 @@ loop:do j = 1, nfrag
         if ( mz_chrg == 0 .and. mchrg < 0 ) mz_chrg = -1
       endif
 
+<<<<<<< HEAD
       ! write into .res file:
       ! charge(qat), trajectory(itrj), number of collision event(icoll), 
       ! numbers of fragments (isec,j),
       ! types of atoms in fragment (l), atomic number (idum2), amount of this 
       ! atom typ (idum1) from m = 1 to l
 
+=======
+>>>>>>> acda8ad (fixed neg. charge population distr.)
 !CIDEI: if ( method == 3 .or. method == 4 ) then
 CIDEI: if ( method == 3 ) then !.or. method == 4 ) then
         if ( tcont > 0 ) then
              if ( tcont == j ) then
                 write(asave,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')        &
+<<<<<<< HEAD
                 &             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
                 &             l,(idum2(m),idum1(m),m=1,l)
 
@@ -412,6 +480,33 @@ CIDEI: if ( method == 3 ) then !.or. method == 4 ) then
              elseif (tcont /= j) then
                write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')       &
                 &             fragchrg3(j),mz_chrg,itrj,icoll,isec,j,      &
+=======
+                !&             fragchrg3(j)*chrgcont2,itrj,icoll,isec,j,  &
+                &             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
+                &             l,(idum2(m),idum1(m),m=1,l)
+
+                !> set the total charge to nearest integer of largest charge
+                !> or = 1 if too low
+                if (mchrg > 0 ) then
+                  if (fragchrg3(j) > 0.5_wp) then
+                    mchrg = nint(fragchrg3(j))
+                  else
+                    mchrg = 1
+                  endif
+                else
+                  if (fragchrg3(j) < -0.5_wp) then
+                    mchrg = nint(fragchrg3(j))! * -1
+                  else
+                    mchrg = -1
+                  endif
+                endif
+
+
+             elseif (tcont /= j) then
+                 write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')       &
+                !&             fragchrg3(j)*chrgcont2,itrj,icoll,isec,j,  &
+                &             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
+>>>>>>> acda8ad (fixed neg. charge population distr.)
                 &             l,(idum2(m),idum1(m),m=1,l)
              endif
 
