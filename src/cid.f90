@@ -258,23 +258,20 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   if (icoll == 1)then
 
     !> determine if start E is LAB or COM 
-    if ( ECOM > 0.0_wp ) then
-      Eimpact = ECOM / beta
-    else
+    if ( ELAB > 0.0_wp ) then
       Eimpact = ELAB
+    else
+      Eimpact = ECOM / beta
     endif
 
     !1. Get Impact Energy! Than vary it via box-muller distribution
     if (.not. eExact) then
       E_Distr = 0.1_wp
-      E_Scale = vary_energies(Eimpact, E_Distr)
+      E_velo = vary_energies(Eimpact, E_Distr) * evtoau
     !2. Or set Impact Energy as given value
     else
-      E_Scale = Eimpact !set Energy constant in all prod runs 
+      E_velo = Eimpact * evtoau !set Energy constant in all prod runs 
     endif
-
-    ! To a.u. and E_velo
-    E_velo = E_Scale * evtoau
 
   !>> For consecutive collisions
   else
@@ -395,7 +392,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   endif
   
   if (ConstVelo .and. icoll  >  1)then
-     W = sqrt(2*E_Scale/summass) !take the FIRST energy
+     W = sqrt(2*E_velo/summass) !take the FIRST energy
      W = W - (velo_cm * mstoau)
      write(*,*) 'W scale m/s',velo_cm+ W/mstoau
 
@@ -467,20 +464,20 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !   write(*,*) 'Z-Axis'
 
   !Vary the collision angle depending on the maximum radius of the molecule
-     lowestx  =  huge(0.0_wp)
-     lowesty  =  huge(0.0_wp)
-     highestx = -huge(0.0_wp)
-     highesty = -huge(0.0_wp)
-     do i=1,nuc
-     lowx  = xyz(1,i)
-     lowy  = xyz(2,i)
-     highx = xyz(1,i)
-     highy = xyz(2,i)
-     if (lowx  < lowestx)  lowestx  = lowx
-     if (highx > highestx) highestx = highx
-     if (lowy  < lowesty)  lowesty  = lowy
-     if (highy > highesty) highesty = highy
-     enddo
+  lowestx  =  huge(0.0_wp)
+  lowesty  =  huge(0.0_wp)
+  highestx = -huge(0.0_wp)
+  highesty = -huge(0.0_wp)
+  do i=1,nuc
+    lowx  = xyz(1,i)
+    lowy  = xyz(2,i)
+    highx = xyz(1,i)
+    highy = xyz(2,i)
+    if (lowx  < lowestx)  lowestx  = lowx
+    if (highx > highestx) highestx = highx
+    if (lowy  < lowesty)  lowesty  = lowy
+    if (highy > highesty) highesty = highy
+  enddo
   
   
      if(lmin < 0.5)then

@@ -170,21 +170,25 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
 !  lgbsa=.false.
   ! memory for QC prog in Mb, input in Gb
   qcmem = 5000      
+  ! ORCA version
+  orca_version = 0
+  ! ORCA nprocs
+  nproc_orca = 0
   
   !!!           !!!! 
   !!!!!!! EI !!!!!!!
   !!!           !!!! 
   ! 70 eV standard impact
-  eimp0 =70.0_wp
+  eimp0 = 70.0_wp
   ! width (rel)
-  eimpw =0.10_wp 
+  eimpw = 0.10_wp 
   ! average IEE per atom (eV)
-  ieeatm=0.6_wp
+  ieeatm = 0.6_wp
   ! relate IEE to eTemp in SCF
-  ieetemp=0.0_wp
+  ieetemp = 0.0_wp
   ! automatically det.
-  iee_a=-99
-  iee_b=-99
+  iee_a = -99
+  iee_b = -99
   ! scaling factor for Boltzmann/IP temp.
   btf = 1.0_wp
   ! scaling of comuted impact energy for fragmentation 
@@ -201,14 +205,12 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   nfragexit = 3     
   ! unity scaling
   unity = .False.
-  ! ORCA nprocs
-  nproc_orca = 0
   
   !!!           !!!! 
   !!!!!! CID !!!!!!!
   !!!           !!!! 
-  ELAB       = 40.0_wp  ! The laboratory energy frame 
-  ECOM       =  0.0_wp  ! The center-of-mass energy frame 
+  ELAB       =  0.0_wp  ! The laboratory energy frame 
+  ECOM       = 11.0_wp  ! The center-of-mass energy frame 
   gas%Iatom  = 0        ! Index of collision atom
   manual_dist  = 0
 
@@ -398,11 +400,18 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! IP CALCULATIONS
          if ( line == 'IP-MOPAC')     iprog=1
+         if ( line == 'IP-TMOL')      iprog=2
          if ( line == 'IP-MNDO')      iprog=5  !OM2 standard
          if ( line == 'IP-XTB')       iprog=7  !Use XTB  
          if ( line == 'IP-XTB2')      iprog=8  !Use XTB2 (default)
-         if ( line == 'IP-ORCA')      iprog=3
-         if ( line == 'IP-TMOL')      iprog=2
+         if ( (line == 'IP-ORCA' .or. line == 'IP-ORCA5') &
+           .and. orca_version == 0) then
+                                      iprog=3
+                                      orca_version = 5
+         elseif ( line == 'IP-ORCA4' .and. orca_version == 0 ) then
+                                      iprog=3
+                                      orca_version = 4
+         endif
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! SEMI-EMPIRCAL HAMILTONIANS
@@ -719,15 +728,18 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   !!! CID PARAMETERS !!! 
   ! ---------------------------------------------------------------
   ! Collision energy (eImpact)     
-          !> LAB frame (DEFAULT: ON)
+          !> LAB frame (DEFAULT: OFF)
           if(index(line,'ELAB') /= 0)then            
              call readl(line,xx,nn)
              ELAB=xx(1)
           endif
-          !> COM frame (DEFAULT: OFF)
+          !> COM frame (DEFAULT: ON)
           if(index(line,'ECOM') /= 0)then            
              call readl(line,xx,nn)
              ECOM=xx(1)
+          !> the negative ion need less energy
+          elseif ( mchrg_prod < 0 ) then
+            ECOM = 7.0_wp
           endif
           ! Set a maximum number collisions till fragmentation 
           ! This is for the CollAuto run, i.e. collision until

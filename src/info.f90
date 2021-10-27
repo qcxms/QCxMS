@@ -13,9 +13,10 @@ module qcxms_info
   contains
 
 
-  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg, mchrg_prod,       &
-      & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,      &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
+  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg, &
+      mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, &
+      CollNo, CollSec, ESI, tempESI, eTempin, maxsec, betemp, nfragexit, &
+      iseed, iprog, edistri, legacy)
       
   integer  :: ntraj,iseed(1)
   integer  :: MaxColl
@@ -57,12 +58,12 @@ module qcxms_info
 
   if ( prog /= iprog ) then
     call qcstring(iprog,line,line2) 
-    if ( method == 2 .or. mchrg < 0 ) then ! method == 4 ) then
+    if ( method == 2 .or. mchrg_prod < 0 ) then ! method == 4 ) then
        write(*,'('' QC Prog. for EAs      : '',a)')line 
-       write(*,'('' QC Level  for EAs     : '',(a))') trim(line2)
+       !write(*,'('' QC Level  for EAs     : '',(a))') trim(line2)
     else
        write(*,'('' QC Prog. for IPs      : '',a)')line 
-       write(*,'('' QC Level  for IPs     : '',(a))') trim(line2)
+      !write(*,'('' QC Level  for IPs     : '',(a))') trim(line2)
     endif
   endif
 
@@ -246,7 +247,7 @@ CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
   !!! Sum up information after run is concluded (main.f90)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  subroutine info_sumup(ntraj, mchrg, tstep, tmax, Tinit, trelax, eimp0, &
+  subroutine info_sumup(ntraj, mchrg_prod, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, ELAB, ECOM, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
@@ -256,7 +257,7 @@ CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
   integer  :: nfragexit
   integer,intent(in) :: nuc
   integer :: io_log
-  integer :: mchrg
+  integer :: mchrg_prod
 
   real(wp) :: tstep,tmax
   real(wp) :: Tinit,trelax
@@ -286,10 +287,10 @@ CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
 
   if ( prog /= iprog ) then
     call qcstring(iprog,line,line2) 
-    if ( method == 2 .or. mchrg < 0 ) then  !method == 4 ) then
-       write(*,'('' QC Prog. for EAs      : '',a)')line 
+    if ( method == 2 .or. mchrg_prod < 0 ) then  !method == 4 ) then
+       write(*,'('' QC Prog. for EAs      : '',a)') trim(line)
     else
-       write(*,'('' QC Level for IPs      : '',a)')line2 
+       write(*,'('' QC Level for IPs      : '',a)') trim(line2)
     endif
   end if
   write(*,*)

@@ -89,7 +89,7 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !write fragments with average geometries      
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! CID
+  !> CID
   if(method == 3) then !.or.method == 4)then
     do i=1,nfrag
       cema(1:3,i) = 0
@@ -99,7 +99,6 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
       if (icoll >= 10) write(fname,'(i2,''.'',i1,''.'',i1,''.xyz'')') icoll, isec, i
 
       open (file = fname, newunit = io_xyz)
-!      open (unit=42, file = fname)
   
       write(io_xyz,*) natf(i)
       write(io_xyz,*)
@@ -114,7 +113,7 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
       cema(1:3,i) = cema(1:3,i) / z
      enddo   
 
-  ! EI/DEA
+  !> EI/DEA
   else
     do i=1,nfrag
       cema(1:3,i) = 0
@@ -123,7 +122,6 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
       write(fname,'(i1,''.'',i1,''.xyz'')') isec, i
 
       open (file = fname, newunit = io_xyz)
-!      open (unit=42, file = fname)
 
       write(io_xyz,*)natf(i)
       write(io_xyz,*)
@@ -143,14 +141,14 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   k=0
-  do i=1,nfrag
-    do j=1,i
-      k=k+1
-      rf(k)=0
-      if(i /= j)then
-         rf(k)=sqrt((cema(1,i)-cema(1,j))**2 + &
-                    (cema(2,i)-cema(2,j))**2 + &
-                    (cema(3,i)-cema(3,j))**2) * autoaa
+  do i = 1, nfrag
+    do j = 1, i
+      k = k + 1
+      rf(k) = 0
+      if (i /= j) then
+         rf(k) = sqrt((cema(1,i)-cema(1,j))**2 + &
+                      (cema(2,i)-cema(2,j))**2 + &
+                      (cema(3,i)-cema(3,j))**2) * autoaa
       endif
     enddo
   enddo   
@@ -174,9 +172,17 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
   ! save etemp for XTB !THIS IS NOT ETEMP! BUT AVERAGE TEMP OF FRAGMENT!
   dsave = eTemp
 
-  if ( method  ==  0 .and. mchrg < 0 ) then
-            bas = 7          !ma-def2-TZVP
-    if(ecp) bas = 11         !def2-TZVP
+  !> if nothing is defined, calculate the IPs/EAs with SV(P) for + and TZVP for -
+  if ( mchrg < 0 ) then
+    if ( iprog == 3 ) then      ! ORCA
+              bas = 7          !ma-def2-TZVP
+      if(ecp) bas = 11         !def2-TZVP
+
+    elseif ( iprog == 2 ) then  ! TM
+              bas = 11         !def2-TZVP
+      if(ecp) bas = 11         !def2-TZVP
+    endif
+          
   else
             bas = 3           !SV(P)
     if(ecp) bas = 9           !def2-SV(P)
@@ -261,15 +267,13 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
     call qcstring(progi,line,line2) 
   
     if ( mchrg < 0 ) then !method == 4) then
-      write(*,'(/,'' computing EAs with '',(a14),'' at (K) '',f7.0)')trim(line2),dsave
+      write(*,'(/,'' computing EAs with '',(a20),'' at (K) '',f7.0)')trim(line2),dsave
     else
-      write(*,'(/,'' computing IPs with '',(a14),'' at (K) '',f7.0)')trim(line2),dsave
+      write(*,'(/,'' computing IPs with '',(a20),'' at (K) '',f7.0)')trim(line2),dsave
     endif
   
     fragip  = 0
     
-    !      write(*,*) '* IP/EA will be calculated 
-    !     .with respect to metal fragment multiplicities *'
     sn = 0
     sp = 0
   
@@ -292,11 +296,6 @@ frg:do i = 1,nfrag
         fiter = 3
         call getspin(natf(i),iatf(1,i),0,neutfspin)
         call getspin(natf(i),iatf(1,i),mchrg,ionfspin)
-!        if (method ==  2 .or.method == 4) then
-!           call getspin(natf(i),iatf(1,i),-1,ionfspin)
-!        else
-!           call getspin(natf(i),iatf(1,i),1,ionfspin)
-!        endif 
    
       ! no metal (That means eqm (iniqm.f), will assign spin by itself)
       else  
@@ -307,13 +306,18 @@ frg:do i = 1,nfrag
       endif
     
       ! MOPAC IP is unreliable for H and other atoms           
-!      if(  progi == 1.and.natf(i) == 1) then
-!        if ( mchrg < 0 ) stop 'MOPAC CANT BE USED FOR EA!'
-!        fragip(i,1:abs(mchrg)) =  valip(iatf(1,i))
-!        E_neut    = 1.d-6
-!        E_ion    = fragip(i,1:mchrg) * evtoau 
-!      endif
+      if(  progi == 1.and.natf(i) == 1) then
+        if ( mchrg < 0 ) stop 'MOPAC CANT BE USED FOR EA!'
+        if ( mchrg > 1 ) stop 'MOPAC CANT BE USED FOR MULTIPLE CHARGES!'
+        !^ can be fixed, but MOPAC should not be used anyways, so...
+        fragip(i,1:abs(mchrg)) =  valip(iatf(1,i))
+        E_neut    = 1.d-6
+        E_ion    = fragip(i,mchrg) * evtoau 
+      endif
 
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !> For everything else than MOPAC
+      !> Calculate the netr. and ion energies to get IPs/EAs
       if ( progi /= 1 )then
 lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
           if (k > 1 .and. boolm) then
@@ -358,10 +362,10 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
               sn0 = 0
               sp0 = 0
   
-             ! do k=1,3
-                if (gsen(k)  ==  E_neut)  sn0 = sn(k)              
-                if (gsep(k)  ==  E_ion)   sp0 = sp(k)
-             ! enddo
+              do j=1,3
+                if (gsen(j)  ==  E_neut)  sn0 = sn(j)              
+                if (gsep(j)  ==  E_ion)   sp0 = sp(j)
+              enddo
             endif
     
             if (E_ion /= 0 .and. E_neut /= 0) then
@@ -433,114 +437,114 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
    endif
     
     
-  end subroutine analyse
+end subroutine analyse
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!       
-  ! FUNCTION FOR ATOM IP (USED ONLY FOR MOPAC)
-  function valip(i) result(get_ip)
+! FUNCTION FOR ATOM IP (USED ONLY FOR MOPAC)
+function valip(i) result(get_ip)
 
-    integer  :: i
+  integer  :: i
 
-    real(wp) :: ip(94), get_ip
-    
-    ip(1 )=-13.598
-    ip(2 )=-24.587
-    ip(3 )=-3.540   
-    ip(4 )=-5.600
-    ip(5 )=-8.298
-    ip(6 )=-11.260
-    ip(7 )=-14.534
-    ip(8 )=-13.618
-    ip(9 )=-17.423
-    ip(10)=-21.565
-    ip(11)=-3.091
-    ip(12)=-4.280
-    ip(13)=-5.986
-    ip(14)=-8.152
-    ip(15)=-10.487
-    ip(16)=-10.360
-    ip(17)=-12.968
-    ip(18)=-15.760
-    ip(19)=-2.786
-    ip(20)=-3.744
-    ip(21)=-9.450
-    ip(22)=-10.495
-    ip(23)=-10.370
-    ip(24)=-10.642
-    ip(25)=-13.017
-    ip(26)=-14.805
-    ip(27)=-14.821
-    ip(28)=-13.820
-    ip(29)=-14.100
-    ip(30)=-4.664
-    ip(31)=-5.999
-    ip(32)=-7.899
-    ip(33)=-9.789
-    ip(34)=-9.752
-    ip(35)=-11.814
-    ip(36)=-14.000
-    ip(37)=-2.664
-    ip(38)=-3.703
-    ip(39)=-7.173
-    ip(40)=-8.740
-    ip(41)=-10.261
-    ip(42)=-11.921
-    ip(43)=-12.59
-    ip(44)=-14.214
-    ip(45)=-15.333
-    ip(46)=-8.337
-    ip(47)=-17.401
-    ip(48)=-4.686
-    ip(49)=-5.786
-    ip(50)=-7.344
-    ip(51)=-8.608
-    ip(52)=-9.010
-    ip(53)=-10.451
-    ip(54)=-12.130
-    ip(55)=-2.544
-    ip(56)=-3.333
-    ip(57)=-7.826
-    ip(58)=-7.594
-    ip(59)=-4.944
-    ip(60)=-4.879
-    ip(61)=-4.813
-    ip(62)=-4.754
-    ip(63)=-4.615
-    ip(64)=-7.915
-    ip(65)=-4.617
-    ip(66)=-4.566
-    ip(67)=-4.520
-    ip(68)=-4.487
-    ip(69)=-4.441
-    ip(70)=-4.378
-    ip(71)=-5.428
-    ip(72)=-8.419
-    ip(73)=-10.786
-    ip(74)=-12.293
-    ip(75)=-13.053
-    ip(76)=-15.450
-    ip(77)=-17.779
-    ip(78)=-19.695
-    ip(79)=-21.567
-    ip(80)=-5.521
-    ip(81)=-6.108
-    ip(82)=-7.417
-    ip(83)=-7.286
-    ip(84)=-8.417
-    ip(85)=-10.7
-    ip(86)=-10.748
-    ip(87)=-2.637
-    ip(88)=-3.412
-    ip(89)=-6.97
-    ip(90)=-9.951
-    ip(91)=-8.09
-    ip(92)=-9.115
-    ip(93)=-9.243
-    ip(94)=-6.324
-    
-    get_ip = -ip(i)
+  real(wp) :: ip(94), get_ip
   
-  end function valip
+  ip(1 )=-13.598
+  ip(2 )=-24.587
+  ip(3 )=-3.540   
+  ip(4 )=-5.600
+  ip(5 )=-8.298
+  ip(6 )=-11.260
+  ip(7 )=-14.534
+  ip(8 )=-13.618
+  ip(9 )=-17.423
+  ip(10)=-21.565
+  ip(11)=-3.091
+  ip(12)=-4.280
+  ip(13)=-5.986
+  ip(14)=-8.152
+  ip(15)=-10.487
+  ip(16)=-10.360
+  ip(17)=-12.968
+  ip(18)=-15.760
+  ip(19)=-2.786
+  ip(20)=-3.744
+  ip(21)=-9.450
+  ip(22)=-10.495
+  ip(23)=-10.370
+  ip(24)=-10.642
+  ip(25)=-13.017
+  ip(26)=-14.805
+  ip(27)=-14.821
+  ip(28)=-13.820
+  ip(29)=-14.100
+  ip(30)=-4.664
+  ip(31)=-5.999
+  ip(32)=-7.899
+  ip(33)=-9.789
+  ip(34)=-9.752
+  ip(35)=-11.814
+  ip(36)=-14.000
+  ip(37)=-2.664
+  ip(38)=-3.703
+  ip(39)=-7.173
+  ip(40)=-8.740
+  ip(41)=-10.261
+  ip(42)=-11.921
+  ip(43)=-12.59
+  ip(44)=-14.214
+  ip(45)=-15.333
+  ip(46)=-8.337
+  ip(47)=-17.401
+  ip(48)=-4.686
+  ip(49)=-5.786
+  ip(50)=-7.344
+  ip(51)=-8.608
+  ip(52)=-9.010
+  ip(53)=-10.451
+  ip(54)=-12.130
+  ip(55)=-2.544
+  ip(56)=-3.333
+  ip(57)=-7.826
+  ip(58)=-7.594
+  ip(59)=-4.944
+  ip(60)=-4.879
+  ip(61)=-4.813
+  ip(62)=-4.754
+  ip(63)=-4.615
+  ip(64)=-7.915
+  ip(65)=-4.617
+  ip(66)=-4.566
+  ip(67)=-4.520
+  ip(68)=-4.487
+  ip(69)=-4.441
+  ip(70)=-4.378
+  ip(71)=-5.428
+  ip(72)=-8.419
+  ip(73)=-10.786
+  ip(74)=-12.293
+  ip(75)=-13.053
+  ip(76)=-15.450
+  ip(77)=-17.779
+  ip(78)=-19.695
+  ip(79)=-21.567
+  ip(80)=-5.521
+  ip(81)=-6.108
+  ip(82)=-7.417
+  ip(83)=-7.286
+  ip(84)=-8.417
+  ip(85)=-10.7
+  ip(86)=-10.748
+  ip(87)=-2.637
+  ip(88)=-3.412
+  ip(89)=-6.97
+  ip(90)=-9.951
+  ip(91)=-8.09
+  ip(92)=-9.115
+  ip(93)=-9.243
+  ip(94)=-6.324
+  
+  get_ip = -ip(i)
+
+end function valip
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

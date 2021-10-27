@@ -447,6 +447,6 @@ module qcxms_iniqm
        edum = e
     !      call wren(e)
     
-    end
+    end subroutine eself
 
 end module qcxms_iniqm

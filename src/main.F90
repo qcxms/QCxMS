@@ -286,7 +286,7 @@ program QCxMS
   &          iee_a,iee_b,eimp0,eimpw,fimp,iprog,                            &
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
   &          scani,lowerbound,upperbound,metal3d,                           &
-  &          ELAB,ECOM,eExact,ECP,unity,noecp,nometal,                        &
+  &          ELAB,ECOM,eExact,ECP,unity,noecp,nometal,                      &
   &          vScale,CollNo,CollSec,ConstVelo,                               &
   &          minmass,manual_simMD,convetemp,set_coll,MaxColl,               &
   &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
@@ -1054,7 +1054,7 @@ iee2:  do i = 1, ndumpGS
     enddo
 
     ! sum up the information at the end of creating tmp directories (call #2)
-    call info_sumup(ntraj, mchrg, tstep, tmax, Tinit, trelax, eimp0, &
+    call info_sumup(ntraj, mchrg_prod, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, ELAB, ECOM, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
