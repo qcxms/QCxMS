@@ -733,6 +733,9 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
           if(index(line,'ECOM') /= 0)then            
              call readl(line,xx,nn)
              ECOM=xx(1)
+          !> the negative ion need less energy
+          elseif ( mchrg_prod < 0 ) then
+            ECOM = 7.0_wp
           endif
           ! Set a maximum number collisions till fragmentation 
           ! This is for the CollAuto run, i.e. collision until
