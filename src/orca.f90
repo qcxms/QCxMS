@@ -67,8 +67,6 @@ module qcxms_use_orca
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
          endif
 
-          
-
         elseif ( func  ==  7 .and. nat < 60 .and. .not.noconv ) then
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
 
