@@ -11,7 +11,7 @@ module qcxms_analyse
   contains
 
 
-subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
+subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
       natf,ipok,icoll,isec,metal3d,ECP)
     
   integer :: nuc  
@@ -262,6 +262,9 @@ subroutine analyse(iprog,nuc,iat,axyz,list,nfrag,etemp,fragip, mchrg, &
       etemp  = 300.0d0
       ipcalc = .True.
       gfnver = 3
+
+    elseif ( progi == 3 .and. method == 3 .and. etemp < 3000.0_wp ) then
+      etemp  = 3000.0d0
     endif
     
     call qcstring(progi,line,line2) 
@@ -388,8 +391,12 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
                 if (fragip(i,lpchrg) > 40.0_wp .or. fragip(i,lpchrg) < -35.0_wp)then! &
                   ipok = .false.
                 endif
-              else
+              elseif (mchrg == 1) then
                 if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 50.0_wp) then !&
+                  ipok = .false.
+                endif
+              elseif ( mchrg > 1 ) then
+                if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 100.0_wp) then !&
                   ipok = .false.
                 endif
               endif

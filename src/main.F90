@@ -402,11 +402,14 @@ program QCxMS
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! printing runtype information and chosen parameters
-  call info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg, mchrg_prod,         &
+  call info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, mchrg_prod,  &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
       & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
 
 
+  !if (method == 3 ) tmax = simMD < implement this
+  ! change time to fs      
+  tmax = tmax*1000
   ! # MD steps in a frag run
   nmax = tmax / tstep
   ! timesteps in au
@@ -449,6 +452,7 @@ program QCxMS
   ! read coord in TM format
 !  call rd('coord',nuc,xyz,iat)
   call rd(.false.,file_name,nuc,xyz,iat)
+  !call wrcoord(nuc, xyz, iat)
 
   ! check for 3d transition metals and 4s-4d/5s-5d elements
   if (.not. noecp)then
@@ -813,7 +817,16 @@ iee1: if ( iee_a > 0 .and. iee_b > 0 ) then
 iee2:  do i = 1, ndumpGS
         !> read structure and velo from previous GS MD
         do k = 1, nuc
-          read(io_gs,*)(xyz(j,k),j=1,3),(velo(j,k),j=1,3)
+          read(io_gs,*, iostat = iocheck)(xyz(j,k),j=1,3),(velo(j,k),j=1,3)
+          if (iocheck>0)then     !Fail
+            write(*,*) 'Something is wrong in the input structure.'
+            if (method == 3 ) write(*,*) 'Did you protonate the structure correctly?'
+            write(*,*) ' --- Exiting --- '
+            stop
+           ! End-of-file
+          elseif (iocheck<0)then !EOF
+            exit
+          endif
         enddo
 
         if (icalc(i) == 0) cycle
@@ -1581,8 +1594,10 @@ noauto:   if ( CollSec(1) /= 0 ) then
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Start Loop for CID collision and subsequent MD simulation
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 cidlp:  do
           if(icoll /= 0)then
@@ -1613,6 +1628,7 @@ cidlp:  do
 
 
           ! First collision
+          write(*,'('' total charge                 : '',i3)')mchrg
           write(*,'(/,'' statistical charge  = '',F10.4,/)')chrgcont
 
           ! set the direction for the CID module after the first coll
@@ -1763,6 +1779,7 @@ MFPloop:  do
             write(*,'(80(''-''),/)')
             write(*,*)
             write(*,'('' MD trajectory                : '',i2)') isec
+            write(*,'('' total charge                 : '',i3)')mchrg
             write(*,'('' statistical charge           : '',F10.4)')chrgcont
             write(*,*)
             if ( verbose ) then
@@ -2182,49 +2199,56 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ei: if (method /= 3 ) then !.and. method /= 4)then
-      !if (method  ==  0 .or. method  ==  1 ) mchrg =  mchrg_prod ! EI
-      !if (method  ==  2 )                    mchrg = -1 * mchrg_prod ! DEA
 
+      !> set the starting overall charge to user input (or default)
       mchrg =  mchrg_prod
 
+      !> set the statistical charge to user input (or default)
       chrgcont  = real(mchrg,wp) 
 
-loop: do 
-        isec=isec+1
+loop: do
+        !> increase the count of runs
+        isec = isec + 1
 
+        !> write out info
         write(*,'(/,80(''=''))')
         write(*,*)'                      trajectory ',itrj,isec
         write(*,'(80(''=''),/)')
         write(*,*)'initial Cartesian coordinates:'
 
+        !> write out coordinates
         do i = 1, nuc
            write(*,'(i3,3f10.5,4x,a2,f10.3)')&
            & i,xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i)),mass(i)/amutoau
         enddo
 
+        !> write out statistical charge
         write(*,'(/,'' statistical charge  = '',F10.4,/)')chrgcont
 
-        ! re- initialize the GBSA module
+        ! re- initialize the GBSA module (if ever becomes important)
         !         if (lgbsa)then
         !           call ekinet(nuc,velo,mass,edum,t)
         !           call init_gbsa(nuc,iat,solvent,gsolvstate,t)
         !         endif
-        
-        ! HS- UHF ini for closed-shells allowed
+       
+        !> initialize the QC code
+        !> HS- UHF ini for closed-shells allowed
         mspin = 0
         call iniqm(nuc,xyz,iat,mchrg,mspin,betemp,edum,iniok,ECP)
 
-        ! a second attempt if this fails
+        !> a second attempt if this fails
         if ( .not. iniok ) then
            iniok =.false.
            call iniqm(nuc,xyz,iat,mchrg,mspin,betemp,edum,iniok,ECP)
            if ( .not. iniok) stop 'fatal QC error. Must stop!'
         endif
 
+        !> if the loop runs more times (in EI i.e. consecutive 
+        !  fragmentation, set nfragexit = 2
         if ( isec > 1 ) nfragexit = 2
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        !  do production MD
+        !>  do production MD run
         Tdum=0
         call md(itrj,0,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
         &       velo,velof,list,tstep,j,nfragexit,                  &
@@ -2234,6 +2258,7 @@ loop: do
         &       fragstate,dtime,ECP,.false.,0.0_wp)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+        !> write out the energies
         write(*,'(/10x,''Results'',/,'' average Ekin '',F12.6)')Ekav
         write(*,'('' average Epot  '',F12.6)')Epav
         write(*,'('' average Etot  '',F12.6)')Epav+Ekav

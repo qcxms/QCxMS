@@ -90,20 +90,23 @@ module qcxms_use_turbomole
 
   subroutine rdtmenergy(fname,edum)
      integer  :: nn
+     integer  :: io_tm 
      real(wp) :: edum,xx(10)
      character(len=*) :: fname
   
-     open(unit=33,file=fname)
+     open(file=fname, newunit=io_tm)
      edum=0.0d0
-     read(33,'(a)')line
-     read(33,'(a)')line
+     read(io_tm,'(a)')line
+     read(io_tm,'(a)')line
      call readl(line,xx,nn)
      edum=xx(2)
+     close(io_tm)
   
   end subroutine rdtmenergy
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
   
   subroutine setfermi(temp)
+     integer  :: io_control 
      real(wp) :: temp
      character(len=80) :: atmp
   
@@ -112,10 +115,10 @@ module qcxms_use_turbomole
   
      call execute_command_line('kdg fermi')
      call execute_command_line('kdg end')
-     open(unit=33,file='control',ACCESS='APPEND')
-     write(33,'(a)')atmp
-     write(33,'(''$end'')')
-     close(33)
+     open(file='control', newunit=io_control, ACCESS='APPEND')
+     write(io_control,'(a)')atmp
+     write(io_control,'(''$end'')')
+     close(io_control)
   
   end subroutine setfermi
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
@@ -354,18 +357,20 @@ module qcxms_use_turbomole
      integer  :: i
      integer  :: iat(n)
      integer  :: n
+     integer  :: io_coord
+
      real(wp) ::  xyz(3,n)
   
      write(*,*)'updating coord file...'
   
-     open(unit=43,file='coord',status='replace')
-     write(43,'(a)')'$coord'
+     open(file='coord',newunit=io_coord,status='replace')
+     write(io_coord,'(a)')'$coord'
      do i=1,n
-        write(43,'(3F20.14,6x,a2)')&
+        write(io_coord,'(3F20.14,6x,a2)')&
         &     xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i))
      enddo
-     write(43,'(a)')'$end'
-     close(unit=43)
+     write(io_coord,'(a)')'$end'
+     close(unit=io_coord)
   
   end subroutine wrcoord
 

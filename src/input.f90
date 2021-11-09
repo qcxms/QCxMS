@@ -310,7 +310,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
          if(line == 'EI')           method=0
          if(line == 'CSC')          method=1
          if(line == 'DEA') then
-           !method=2
            mchrg_prod = -1
          endif
 
@@ -318,11 +317,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
                                     method=3
            gas%Iatom = 3 !Argon
          endif
-!         if(line == 'NCID')then
-!                                    method=4
-!           gas%Iatom = 3 !Argon
-!         endif
-
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! PROGRAMS 
@@ -406,10 +400,10 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
          if ( line == 'IP-XTB2')      iprog=8  !Use XTB2 (default)
          if ( (line == 'IP-ORCA' .or. line == 'IP-ORCA5') &
            .and. orca_version == 0) then
-                                      iprog=3
+                                      iprog = 3
                                       orca_version = 5
          elseif ( line == 'IP-ORCA4' .and. orca_version == 0 ) then
-                                      iprog=3
+                                      iprog = 3
                                       orca_version = 4
          endif
 
@@ -1051,9 +1045,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   endif
   
   
-  ! change to fs      
-  tmax=tmax*1000
-
 end subroutine input
   
   

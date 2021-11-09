@@ -23,13 +23,13 @@ module qcxms_write_fragments
     integer, intent(out)  :: nfrag
     integer  :: fragat(200,10)
     integer  :: natf(10)
-    integer  :: num_frags
+    integer  :: nearest_chrg
     integer  :: frag_number
     integer  :: tcont
     integer  :: maxsec
     integer  :: idum1(200)
     integer  :: idum2(200)
-    integer  :: mchrg
+    integer  :: mchrg, mz_chrg
     integer  :: count_ip
     integer  :: mat_index(2)
     integer  :: MATsize
@@ -51,6 +51,7 @@ module qcxms_write_fragments
     real(wp) :: chrgcont2
     real(wp) :: dtime
     real(wp) :: fragchrg(10)
+    real(wp), allocatable :: norm_chrg(:)
     real(wp), allocatable :: fragip (:,:), fragchrg2(:,:)
     real(wp), allocatable :: ip_diff(:,:),ip_diff2(:,:)
     real(wp), allocatable :: ip_ranking(:)
@@ -65,7 +66,6 @@ module qcxms_write_fragments
 
 
     l=0
-    num_frags = 0
     frag_number = 0
 
     ! calculate fragement structure, atoms, masses
@@ -78,23 +78,23 @@ module qcxms_write_fragments
     allocate ( ip_diff(nfrag, abs(mchrg)) )
     allocate ( ip_diff2(nfrag,abs(mchrg)) )
     allocate ( fragchrg3(nfrag))
+    allocate ( norm_chrg(nfrag))
 
     write(*,'('' fragment assigment list:'',80i1)')(list(k),k=1,nuc)
 
-    ! compute fragment IP/EA per frag. and chrg.
-    !if ( method == 3 .or. method == 4 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
+    !> compute fragment IP/EA per frag. and chrg.
     if ( method == 3 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
-         call analyse(iprog,nuc,iat,xyz,list,nfrag,aTlast,fragip, mchrg, &
+         call analyse(iprog,nuc,iat,iatf,xyz,list,nfrag,aTlast,fragip, mchrg, &
                   natf,ipok,icoll,isec,metal3d,ECP)
     else
-       call analyse(iprog,nuc,iat,axyz,list,nfrag,aTlast,fragip, mchrg, &
+       call analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,aTlast,fragip, mchrg, &
                   natf,ipok,icoll,isec,metal3d,ECP)
     endif
 
     ! compute charge from IPs at finite temp.
-    fragchrg2 = chrgcont !mchrg ! 1.0_wp
+    !fragchrg2 = chrgcont !mchrg ! 1.0_wp
+    fragchrg2 = mchrg 
     fragchrg3 = 0.0_wp 
-    !fragchrg3 = chrgcont
 
     !> get the relative ionization potentials, depending on charges 
     !> i.e. 1->2, 2->3 etc.
@@ -103,13 +103,19 @@ module qcxms_write_fragments
       do i = 1, nfrag
         fragip(i,0) = 0.0_wp
         do j = 1, abs(mchrg)
-
           ip_diff(i,j) = fragip(i,j) - fragip(i,j-1)
 
           !> H-Atoms have to be considerd seperately
-          if ( iatf(1,nfrag) == 1 ) ip_diff(i,j) = fragip(i,j)
+          !if ( iatf(natf(i),i) == 1 .and. j == 1 ) then
+          !  ip_diff(i,j) = fragip(i,j)
+          !  write(*,*) 'FRAG IP H-ATOM', ip_diff(i,j)
+          !elseif ( iatf(natf(i),i) == 1 .and. j > 1 ) then
+          !  ip_diff(i,j) = huge(0.0_wp)
+          !  write(*,*) 'FRAG IP 2nd H-ATOM', ip_diff(i,j)
+          !endif
 
         enddo
+
       enddo
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -151,14 +157,13 @@ module qcxms_write_fragments
       !> set 2nd IP value so it can be manipulated without losing info
       ip_diff2    = ip_diff 
 
-      !if (method == 2 .or. method ==4) ip_diff2 = -1.0_wp * ip_diff !neg.ion mode
-
       !> set the value with lowest IP to large number, so boltz will mostly
       !  ignore it -> important for correct values
       do count_ip = 1, abs(mchrg)-1
-         ip_diff2(save_fragID(count_ip),save_chrgID(count_ip)) = huge(0.0_wp)
+        ip_diff2(save_fragID(count_ip),save_chrgID(count_ip)) = huge(0.0_wp)
       enddo
 
+      !> for negative ions
       if ( mchrg < 0 ) ip_diff2    = -1.0_wp * ip_diff2 
 
       !> do boltzmann for the fragment IPs
@@ -178,12 +183,13 @@ module qcxms_write_fragments
 
 
     !> sum the charges to get overall value for the entire fragments
-    write(*,*) "fragchrg2s"
+    write(*,*) "fragchrg2"
     if ( nfrag > 1) then
       do i = 1, nfrag
         do j = 1, abs(mchrg)
-          write(*,*) i,j,fragchrg2(i,j) * (chrgcont / abs(mchrg))
-          fragchrg3(i) = fragchrg3(i) + fragchrg2(i,j) * (chrgcont / abs(mchrg))
+          write(*,*) i,j,fragchrg2(i,j) !* chrgcont !(chrgcont / abs(mchrg))
+          fragchrg3(i) = fragchrg3(i) + fragchrg2(i,j) !* chrgcont 
+            ! (chrgcont / abs(mchrg))
         enddo
       enddo
     else
@@ -195,7 +201,7 @@ module qcxms_write_fragments
     do i = 1, nfrag
       write(*,*) i, fragchrg3(i)
     enddo
-    write(*,*) 
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! continune trajectory for frag with largest positive charge
@@ -220,6 +226,52 @@ module qcxms_write_fragments
              tcont = i ! set the NUMBER of the frag with largest charge
           endif
       enddo
+    endif
+
+
+    write(*,*) 
+    write(*,*) 'Normalized charges per fragment'
+    do i = 1, nfrag
+      norm_chrg(i) = fragchrg3(i) / fragchrg3(tcont) 
+      write(*,*) i, norm_chrg(i)
+    enddo
+
+    chrgcont2 = chrgcont   ! <- normalized
+    chrgcont =  norm_chrg(tcont)
+
+    ! if not the first run, take charge from earlier run
+    !chrgcont2 = chrgcont / abs(mchrg)
+    !chrgcont2 = chrgcont   ! <- normalized
+
+  
+    ! do not continue if there are a) no frags or b) max reached
+    if ( nfrag == 1 .or. isec == maxsec + 1 ) then
+       tcont = 0
+
+    !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    elseif ( nfrag > 1 .and. mchrg > 1 ) then
+      write(*,*) 'Angepasste charges per fragment'
+      nearest_chrg = nint(fragchrg3(tcont))
+      if ( nearest_chrg == 0 ) nearest_chrg = 1
+      do i = 1, nfrag
+        fragchrg3(i) = norm_chrg(i) * nearest_chrg
+        write(*,*) i, fragchrg3(i)
+      enddo
+      write(*,*) 
+
+    !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    elseif ( nfrag > 1 .and. mchrg == 1 ) then
+      do i = 1, nfrag
+        fragchrg3(i) = fragchrg3(i) * chrgcont2 !/ abs(mchrg)
+      enddo
+      chrgcont = fragchrg3(tcont) 
+    endif
+    write(*,*) 
+
+    if ( nfrag > 1 )then
+      mchrg = nint(fragchrg3(tcont))
+      if ( mchrg == 1 ) chrgcont2 = fragchrg3(tcont) 
+      write(*,*)'NEW MCHRG', mchrg 
     endif
 
 
@@ -254,17 +306,6 @@ module qcxms_write_fragments
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-    ! if not the first run, take charge from earlier run
-    chrgcont2 = chrgcont / abs(mchrg)
-  
-    ! do not continue if there are a) no frags or b) max reached
-    if ( nfrag == 1 .or. isec == maxsec + 1 ) then
-       tcont = 0
-    else 
-       chrgcont = fragchrg3(tcont) !* chrgcont2
-    endif
-
-
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! save masses of fragments for mspec (->mass.agr)
     ! save all fragments
@@ -279,18 +320,28 @@ loop:do j = 1, nfrag
        if ( fragm(j) < 10 ) then
           write(*,'('' M='',F4.2,3x,a20,2x,4i4,3F8.3,f9.3,a)')        &
           &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
+!          &    fragspin(j),fragchrg3(j)*chrgcont,dtime,adum
+!          &    fragspin(j),norm_chrg(j),dtime,adum
+!          &    fragspin(j),fragchrg3(j)*chrgcont2,dtime,adum
+!          &    fragspin(j),fragchrg3(j),dtime,adum
           &    fragspin(j),fragchrg3(j),dtime,adum
        endif
 
        if( fragm(j) >= 10 .and. fragm(j) < 100 ) then
           write(*,'('' M='',F5.2,2x,a20,2x,4i4,3F8.3,f9.3,a)')        &
           &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
+!          &    fragspin(j),fragchrg3(j)*chrgcont,dtime,adum
+!          &    fragspin(j),norm_chrg(j),dtime,adum
+!         &    fragspin(j),fragchrg3(j)*chrgcont2,dtime,adum
           &    fragspin(j),fragchrg3(j),dtime,adum
        endif
 
        if (fragm(j) >= 100 .and. fragm(j) < 1000 ) then
           write(*,'('' M='',F6.2,1x,a20,2x,4i4,3F8.3,f9.3,a)')        &
           &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
+!          &    fragspin(j),fragchrg3(j)*chrgcont,dtime,adum
+!          &    fragspin(j),norm_chrg(j),dtime,adum
+!          &    fragspin(j),fragchrg3(j)*chrgcont2,dtime,adum
           &    fragspin(j),fragchrg3(j),dtime,adum
        endif
 
@@ -319,27 +370,15 @@ CIDEI: if ( method == 3 ) then !.or. method == 4 ) then
                 &             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
                 &             l,(idum2(m),idum1(m),m=1,l)
 
-                !> set the total charge to nearest integer of largest charge
-                !> or = 1 if too low
-                if (mchrg > 0 ) then
-                  if (fragchrg3(j) > 0.5_wp) then
-                    mchrg = nint(fragchrg3(j))
-                  else
-                    mchrg = 1
-                  endif
-                else
-                  if (fragchrg3(j) < -0.5_wp) then
-                    mchrg = nint(fragchrg3(j))! * -1
-                  else
-                    mchrg = -1
-                  endif
-                endif
 
 
              elseif (tcont /= j) then
-                 write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')       &
+               mz_chrg = nint( fragchrg3(j))
+               if ( mz_chrg == 0 ) mz_chrg = 1
+               write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')       &
                 !&             fragchrg3(j)*chrgcont2,itrj,icoll,isec,j,  &
-                &             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
+!>mchrg falschmuss nearest  !&             fragchrg3(j),mchrg,itrj,icoll,isec,j,  &
+                &             fragchrg3(j),mz_chrg,itrj,icoll,isec,j,  &
                 &             l,(idum2(m),idum1(m),m=1,l)
              endif
 
@@ -377,7 +416,11 @@ CIDEI: if ( method == 3 ) then !.or. method == 4 ) then
 
     enddo loop
 
-    deallocate (fragip, fragchrg2)
+    deallocate (fragip,     &
+                fragchrg2,  &
+                ip_diff,    &
+                ip_diff2,   &
+                fragchrg3 )
 
     write(*,*)
 

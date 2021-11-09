@@ -13,8 +13,8 @@ module qcxms_info
   contains
 
 
-  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg, &
-      mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, &
+  subroutine info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, &
+      mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl,  &
       CollNo, CollSec, ESI, tempESI, eTempin, maxsec, betemp, nfragexit, &
       iseed, iprog, edistri, legacy)
       
@@ -27,7 +27,7 @@ module qcxms_info
   integer  :: dumprint
   integer  :: iprog
   integer  :: edistri
-  integer  :: i
+  integer  :: i, simMD
 
   real(wp) :: tstep,tmax,etempin,betemp
   real(wp) :: Tinit,trelax
@@ -116,7 +116,8 @@ module qcxms_info
   write(*,'('' M+ Ion charge(charge) : '',i4  )')mchrg_prod
   write(*,'('' total traj.   (ntraj) : '',i4  )')ntraj
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep 
-  write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
+  if ( method == 1 )write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
+  if ( method == 3 ) write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')simmd/1000.0_wp
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
 
 
@@ -297,7 +298,7 @@ CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
 
   write(*,'('' total traj.   (ntraj) : '',i4  )')ntraj
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep * autofs
-  write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
+  if ( method == 1 ) write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
 
   !write out informations

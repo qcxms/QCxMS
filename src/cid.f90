@@ -104,7 +104,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: stopcid
   logical :: eExact
   logical :: gradfail
-  logical :: xstps
+  logical :: xstps = .false.
 
   interface
     function calc_ECOM(beta,e_kin) result(E_COM)
@@ -169,7 +169,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   iniok      = .True.
   stopcid    = .False.
   gradfail   = .False.
-  xstps      = .False.
   
   !------------------------------------------------------     
   

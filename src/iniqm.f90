@@ -271,9 +271,10 @@ module qcxms_iniqm
        endif
        stat=0
        energy=0
+!       write(*,*) 'SPPPPPPPPPPPPPPIIIIIIIINNN', spin
       ! no electrons 
       ! we do not want this for XTB since proton has 0.2 Ha energy in XTB
-       if(prog /= 7.and. prog /= 6.and. prog /= 8)then
+       if(prog < 6)then
           if(spin < 1) then
              energy=1.d-6
              return
