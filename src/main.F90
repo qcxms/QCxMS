@@ -247,6 +247,7 @@ program QCxMS
   stopcid = .false.
   starting_md=.false.
   legacy = .false.
+  No_ESI = .false.
   ! HS-UHF ini only for frag runs
   iniok  =.true.
   ! dump every dumpstep MD steps for MOLDEN movie (=4 fs as default)
@@ -399,6 +400,9 @@ program QCxMS
         betemp = etempin
      endif
   endif
+
+  !> Check if the sim. MD time has been manually set
+  if ( method == 3 .and. manual_simMD > 0 ) simMD = manual_simMD
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! printing runtype information and chosen parameters
@@ -554,13 +558,11 @@ prun: if(.not.prod) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Set the charge of the chosen method 
-    ! 0 = EI , 1 = CSC, 2 = DEA, 3 = CID+, 4 = CID-
+    ! 0 = EI , 1 = CSC, 2 = DEA, 3 = CID
     if     (method  ==  0 ) then !.or. method  ==  2) then
       mchrg = 0
-    elseif (method  ==  1 .or. method  ==  3) then ! Method = 4
+    elseif (method  ==  1 .or. method  ==  3) then 
       mchrg = mchrg_prod 
-!    elseif (method  ==  4) then
-!      mchrg = -1 * mchrg_prod
     endif
 
 
@@ -1198,8 +1200,6 @@ mCID:if ( method == 3 ) then !.or. method == 4 ) then
       !> Check if input (qcxms.in) makes sense
       call cidcheck(MaxColl, CollNo, CollSec)
 
-      !> Check if the sim. MD time has been manually set
-      if ( manual_simMD > 0 ) simMD = manual_simMD
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! Do ESI MD if ESI larger than 0

@@ -734,10 +734,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      ! increase number of steps to allow longer collision MD if fragmentation occured
      call fragment_structure(nuc,iat0(:nuc),xyz0(:,:nuc),3.0d0,1,0,list)
      call fragmass(nuc,iat0(:nuc),list,mass0(:nuc),imass(:nuc),nfrag,fragm,fragf,fragat)
-     if (nfrag > 1) then
-!        call intenergy(nuc,list,mass0(:nuc),velo0(:,:nuc),nfrag,fragT,E_int)
-        xstps=.true.
-     endif
  
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -831,7 +827,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
           m   = 0  !temp after the coll. is taken
        endif
 
-       if (xstps.and.step_counter == 50)then !500 steps (we need some time after frag)
+       if (nfrag > 1 .and.step_counter == 50)then !500 steps (we need some time after frag)
           xtra = 600  !should be made dependend on the velocity of fragment
                 
           write(*,'('' FRAGMENTATION occured!'')')

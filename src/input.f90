@@ -210,7 +210,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   !!!!!! CID !!!!!!!
   !!!           !!!! 
   ELAB       =  0.0_wp  ! The laboratory energy frame 
-  ECOM       = 11.0_wp  ! The center-of-mass energy frame 
+  ECOM       = 10.0_wp  ! The center-of-mass energy frame 
   gas%Iatom  = 0        ! Index of collision atom
   manual_dist  = 0
 
@@ -731,9 +731,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
           if(index(line,'ECOM') /= 0)then            
              call readl(line,xx,nn)
              ECOM=xx(1)
-          !> the negative ion need less energy
-          elseif ( mchrg_prod < 0 ) then
-            ECOM = 7.0_wp
           endif
           ! Set a maximum number collisions till fragmentation 
           ! This is for the CollAuto run, i.e. collision until
