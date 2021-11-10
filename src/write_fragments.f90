@@ -206,6 +206,8 @@ mult: if ( abs(mchrg) > 1 ) then
         enddo
 
 
+    !> set the correct charge for neg. ion mode
+    if (mchrg < 0 ) fragchrg2 = -1.0_wp * fragchrg2 
 
         !> for negative ions
         !if ( mchrg < 0 ) ip_diff2    = -1.0_wp * ip_diff2 
