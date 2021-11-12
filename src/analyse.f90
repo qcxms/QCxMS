@@ -422,7 +422,7 @@ mult_i:   do k=1,fiter         !ITER OVER MULTIPLICITES
                   ipok = .false.
                 endif
               elseif ( mchrg > 1 ) then
-                if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 100.0_wp) then !&
+                if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 100.0_wp) then 
                   ipok = .false.
                 endif
               endif
