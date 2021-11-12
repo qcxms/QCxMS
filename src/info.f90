@@ -157,10 +157,10 @@ CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
         write(*,'('' Collision Gas         : '',a)') trim(toSymbol(gas%IndAtom))
       endif
 
-      if ( ECOM > 0.0_wp ) then
-        write(*,'('' E (COM)               : '',f7.2,'' eV'')') ECOM
-      else
+      if ( ELAB > 0.0_wp ) then
         write(*,'('' E (LAB)               : '',f7.2,'' eV'')') ELAB
+      else
+        write(*,'('' E (COM)               : '',f7.2,'' eV'')') ECOM
       endif
 
     endif

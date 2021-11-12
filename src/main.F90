@@ -408,7 +408,8 @@ program QCxMS
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, mchrg_prod,  &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
+      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri,      &
+      & legacy)
 
 
   !if (method == 3 ) tmax = simMD < implement this
@@ -1319,12 +1320,15 @@ ESI_loop: do
             write(*,'(/,80(''=''))')
             write(*,*)'Heating  trajectory            ',isec
             write(*,'(80(''=''),/)')
-            write(*,*)'initial Cartesian coordinates:'
 
-            do i=1,nuc
-              write(*,'(i3,3f10.5,4x,a2,f10.3)')&
-              &  i,xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i)),mass(i)/amutoau
-            enddo
+            if ( verbose ) then
+              write(*,*)'initial Cartesian coordinates:'
+
+              do i=1,nuc
+                write(*,'(i3,3f10.5,4x,a2,f10.3)')&
+                &  i,xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i)),mass(i)/amutoau
+              enddo
+            endif
 
             write(*,'(/,'' statistical charge  = '',F10.4,/)')chrgcont
 
@@ -1612,12 +1616,19 @@ cidlp:  do
 
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          ! Write Coordinates
-          if ( icoll == 1 .or. verbose ) then
-            write(*,'(80(''=''))')
-            write(*,'(6x,a10,2x,i4,6x,a9,2x,i2,1x,a1,i2)')&
+          ! First collision
+          write(*,*)
+          write(*,'(80(''=''))')
+          write(*,'(a10,2x,i4,6x,a9,2x,i2,1x,a1,i2)')&
             & 'trajectory ',itrj, 'collision ',icoll,'/',collisions
-            write(*,'(80(''=''),/)')
+          write(*,'(80(''-''))')
+          write(*,*)
+          write(*,'('' total charge          : '',i3)')       mchrg
+          write(*,'('' statistical charge    : '',f8.5)')  chrgcont
+          write(*,'(80(''=''))')
+
+          ! If verbose, write Coordinates
+          if ( verbose ) then
             write(*,*)'initial Cartesian coordinates:'
 
             do i = 1, nuc
@@ -1626,10 +1637,6 @@ cidlp:  do
             enddo
           endif
 
-
-          ! First collision
-          write(*,'('' total charge                 : '',i3)')mchrg
-          write(*,'(/,'' statistical charge  = '',F10.4,/)')chrgcont
 
           ! set the direction for the CID module after the first coll
           if ( icoll /=  1 ) then
@@ -1761,7 +1768,7 @@ cidlp:  do
           ! the mean-free-path in between collisions
 
 
-          write(*,'(/,80(''-''))')
+          write(*,'(80(''=''))')
           write(*,'(a)') ' - Entering Mean-Free-Path simulation - '
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !!!!!        Mean-free-path MD                                       !!!!!
@@ -1776,12 +1783,15 @@ MFPloop:  do
             call cofmass(nuc,mass,xyz,cm)
             cm1(:) = cm(:) 
 
-            write(*,'(80(''-''),/)')
-            write(*,*)
-            write(*,'('' MD trajectory                : '',i2)') isec
+            !write(*,'(80(''-''),/)')
+            !write(*,'('' MFP trajectory               : '',i2)') isec - 1
+            write(*,'(/,80(''-''))')
+            write(*,'(a,i4,6x,a9,2x,i2,1x,a1,i2,a10,1x,i4)') &
+              & 'Run #',itrj, 'collision ',icoll,'/',collisions, 'MFP traj.', isec -1
             write(*,'('' total charge                 : '',i3)')mchrg
             write(*,'('' statistical charge           : '',F10.4)')chrgcont
             write(*,*)
+            write(*,'(80(''=''),/)')
             if ( verbose ) then
               write(*,'(''initial Cartesian coordinates :'')')
               write(*,*)
@@ -2214,13 +2224,15 @@ loop: do
         write(*,'(/,80(''=''))')
         write(*,*)'                      trajectory ',itrj,isec
         write(*,'(80(''=''),/)')
-        write(*,*)'initial Cartesian coordinates:'
+        if ( verbose ) then
+          write(*,*)'initial Cartesian coordinates:'
 
-        !> write out coordinates
-        do i = 1, nuc
-           write(*,'(i3,3f10.5,4x,a2,f10.3)')&
-           & i,xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i)),mass(i)/amutoau
-        enddo
+          !> write out coordinates
+          do i = 1, nuc
+             write(*,'(i3,3f10.5,4x,a2,f10.3)')&
+             & i,xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i)),mass(i)/amutoau
+          enddo
+        endif
 
         !> write out statistical charge
         write(*,'(/,'' statistical charge  = '',F10.4,/)')chrgcont

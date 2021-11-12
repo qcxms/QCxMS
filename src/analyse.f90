@@ -90,7 +90,7 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   !write fragments with average geometries      
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> CID
-  if(method == 3) then !.or.method == 4)then
+  if(method == 3) then 
     do i=1,nfrag
       cema(1:3,i) = 0
       z           = 0
@@ -375,7 +375,7 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
               fragip(i,lpchrg) = (E_ion - E_neut) * autoev
   
               ! the sign of EA is opposite to IP
-              if( mchrg < 0 ) fragip(i,lpchrg) = -1.0_wp * fragip(i,lpchrg)
+              !if( mchrg < 0 ) fragip(i,lpchrg) = -1.0_wp * fragip(i,lpchrg)
 
               if (boolm) then
                 write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
@@ -386,17 +386,17 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
                   &       IP/EA(eV)='',F8.2)') i,E_neut,E_ion,fragip(i,lpchrg)
               endif
    
-            !> 
-              if ( mchrg < 0 ) then !.or. method == 4) then
-                if (fragip(i,lpchrg) > 40.0_wp .or. fragip(i,lpchrg) < -35.0_wp)then! &
+              !> set some boundaries, but not sure how accurate these are
+              if ( mchrg < 0 ) then 
+                if (fragip(i,lpchrg) > 40.0_wp .or. fragip(i,lpchrg) < -35.0_wp)then 
                   ipok = .false.
                 endif
               elseif (mchrg == 1) then
-                if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 50.0_wp) then !&
+                if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 50.0_wp) then 
                   ipok = .false.
                 endif
               elseif ( mchrg > 1 ) then
-                if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 100.0_wp) then !&
+                if (fragip(i,lpchrg) < 0.0_wp  .or. fragip(i,lpchrg) > 100.0_wp) then 
                   ipok = .false.
                 endif
               endif

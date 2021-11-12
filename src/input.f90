@@ -205,6 +205,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   nfragexit = 3     
   ! unity scaling
   unity = .False.
+  ! Legacy IEE pseudo-randomized (default: YES)
+  legacy = .True.
   
   !!!           !!!! 
   !!!!!! CID !!!!!!!
@@ -472,7 +474,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
          if ( line == 'NO-ECP')       noecp=.true.    !Do not check for ECP
          if ( line == 'NO-METAL')     nometal=.true.  !Do not check for metal
          if ( line == 'PLASMA')       Plasma = .True.  ! switch off ESI energy distribution
-         if ( line == 'LEGACY')       Legacy = .True.  ! Legacy support (for IEE dist.)
+         if ( line == 'NOLEGACY')     Legacy = .False. ! Legacy support (for IEE dist.)
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          !! CID Logicals 
