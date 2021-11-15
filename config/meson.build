@@ -11,7 +11,6 @@ if fc_id == 'gcc'
     '-fbacktrace',
     language: 'fortran',
   )
-  error('This project does not support compilation with GCC yet')
 elif fc_id == 'intel'
   add_project_arguments(
     '-traceback',

@@ -37,8 +37,6 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
    logical :: ECP
    logical :: ok,gradfail
 
-   external system
-
    disp   = 0
    E    = 0
    grad = 0

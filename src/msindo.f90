@@ -24,8 +24,6 @@ module qcxms_use_msindo
   
      logical :: first
   
-     external system
-  
      if(spin.eq.0) call getspin(nat,ic,chrg,spin)
   
      cyc=200

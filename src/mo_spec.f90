@@ -50,12 +50,12 @@ module qcxms_mo_spec
           ! USE ORCA
            write(*,*) 'Not yet working'
            ! eps has to be rewritten; changed it in readpopmo to emo and focc
-           stop
+           error stop
            write(*,*) 'doing DFT for MO spectrum for M ...'
            call eqm(3,nat,xyz,iat,mchrg,-1,0.0_wp,.false.,idum,energy,nel,nb,ECP,spec_calc)
            call system('rm -f ORCA.INPUT.prop')
            call system('mv neutral.out qcxms.Mspec')
-           if(abs(energy).lt.1.d-8.or.idum.ne.1) stop'QC initialization error'
+           if(abs(energy).lt.1.d-8.or.idum.ne.1) error stop 'QC initialization error'
            call geteps('qcxms.Mspec',nat,iat,mchrg,eps,mopop,ncore,ihomo,nb)
            emo (1:ihomo) = eps(1,1:ihomo)
 
@@ -64,7 +64,7 @@ module qcxms_mo_spec
            write(*,*) 'doing XTB for MO spectrum for M ...'
            call eqm(7,nat,xyz,iat,mchrg,-1,0.0_wp,.false.,idum,energy,nel,nb,ECP,spec_calc)
            call system('mv neutral.out qcxms.Mspec.xtb')
-           if(abs(energy).lt.1.d-8.or.idum.ne.1) stop'QC initialization error'
+           if(abs(energy).lt.1.d-8.or.idum.ne.1) error stop 'QC initialization error'
            call readpopmo(nat,nao,ihomo,emo,focc,mopop)
            
         ! USE XTB2 (default for everything else)
@@ -72,7 +72,7 @@ module qcxms_mo_spec
            write(*,*) 'doing XTB2 for MO spectrum for M ...'
            call eqm(8,nat,xyz,iat,mchrg,-1,0.0_wp,.false.,idum,energy,nel,nb,ECP,spec_calc)
            call system('mv neutral.out qcxms.Mspec.xtb2')
-           if(abs(energy).lt.1.d-8.or.idum.ne.1) stop'QC initialization error'
+           if(abs(energy).lt.1.d-8.or.idum.ne.1) error stop 'QC initialization error'
            call readpopmo(nat,nao,ihomo,emo,focc,mopop)
         endif
 
@@ -107,7 +107,7 @@ module qcxms_mo_spec
         write(*,'('' alpha/beta '',10F8.2)')pmo(1:ihomo)
      endif
 
-     if (emo(ihomo)-emo(1).lt.1.0) stop 'weird epsilons'
+     if (emo(ihomo)-emo(1).lt.1.0) error stop 'weird epsilons'
 
      emo =(-1.0_wp) * emo * evtoau  ! convert to neg. and au
 

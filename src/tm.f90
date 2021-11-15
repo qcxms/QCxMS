@@ -13,7 +13,6 @@ module qcxms_use_turbomole
      integer  :: nat,i,j
      integer  :: nn,io_grad
      real(wp) :: g(3,nat),xx(10),edum,chrg(nat),spin(nat)
-     external :: system
   
      open(file='gradient',newunit=io_grad)
      i=0
@@ -53,7 +52,7 @@ module qcxms_use_turbomole
      open(file='job.last',newunit=io_grad)
      do 
        read(io_grad,'(a)',iostat=iocheck)line
-       if (iocheck > 0) stop 'Something is wrong in tm.f90. Exiting...'
+       if (iocheck > 0) error stop 'Something is wrong in tm.f90. Exiting...'
        if( iocheck < 0) exit
   
        if(index(line,'atomic populations from total density:').ne.0)then
@@ -107,7 +106,6 @@ module qcxms_use_turbomole
   subroutine setfermi(temp)
      real(wp) :: temp
      character(len=80) :: atmp
-     external :: system
   
   !      write(atmp,'(''$fermi tmstrt='',F8.1,'' tmend='',F8.1)')temp,temp
      write(atmp,'(''$fermi tmstrt='',F8.1,'' hlcrt=-1.0E0  stop=1.E-99 addTS noerf '')')temp
@@ -124,8 +122,6 @@ module qcxms_use_turbomole
   
   subroutine dscftm
 
-     external :: system
-  
      if(shell.eq.1) call system('( /usr/local/bin/ridft >  job.last ) > & /dev/null')
      if(shell.eq.2) call system('( ridft >  job.last  2>   /dev/null')
   
@@ -134,8 +130,6 @@ module qcxms_use_turbomole
   
   subroutine gradtm
 
-     external :: system
-  
   !     if(shell.eq.1) call system('( grad >> job.last ) > & /dev/null')
   !     if(shell.eq.2) call system('  grad >> job.last  2>   /dev/null')
   
@@ -157,8 +151,6 @@ module qcxms_use_turbomole
      character(len=30) :: basi
   
      logical :: strange_elem
-  
-     external :: system
   
   ! set strange element to false
      strange_elem=.false.
@@ -268,7 +260,7 @@ module qcxms_use_turbomole
         call system("echo '$end              '   >> control")
   !     PBE12 and PBE38 do not work
      elseif(func.eq.2.or.func.eq.3.or.func.eq.9.or.func.eq.13) then
-        stop'PBE12/PBE38/B3PW91/REVPBE not implemented with Turbomole.'
+        error stop 'PBE12/PBE38/B3PW91/REVPBE not implemented with Turbomole.'
   !     M062X without dispersion!
      elseif(func.eq.4) then
         call system("echo ' functional m062x'   >> control")
@@ -380,9 +372,8 @@ module qcxms_use_turbomole
   subroutine copytm(it)
      integer  :: it
      character(len=80) :: fname
-     external :: system
   
-     if(it.ge.10000)stop 'error 1 inside copytm'
+     if(it.ge.10000)error stop 'error 1 inside copytm'
   
      call system('cp coord coord.original')
   
@@ -458,7 +449,7 @@ module qcxms_use_turbomole
         return
      endif
   
-     stop 'error 2 inside copytm'
+     error stop 'error 2 inside copytm'
   
   end subroutine
   
@@ -470,9 +461,8 @@ module qcxms_use_turbomole
   
      integer  :: it
      character(len=80) :: fname
-     external :: system
   
-     if(it.ge.10000)stop 'error 1 inside copytm'
+     if(it.ge.10000)error stop 'error 1 inside copytm'
   
      call system('cp coord coord.original')
   
@@ -500,7 +490,7 @@ module qcxms_use_turbomole
         return
      endif
   
-     stop 'error 2 inside copytm'
+     error stop 'error 2 inside copytm'
   
   end subroutine
 
