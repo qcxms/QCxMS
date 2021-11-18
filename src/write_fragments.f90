@@ -147,14 +147,14 @@ mult: if ( abs(mchrg) > 1 ) then
           !  this accounts for the correct IP ranking
           if ( mchrg > 0 ) then
             mat_index = minloc(ip_diff, mask = ip_diff > ip_ranking(count_ip-1))
-            write(*,*) ip_diff
-            write(*,*) ip_ranking
+            !write(*,*) ip_diff
+            !write(*,*) ip_ranking
             !write(*,*) mat_index
           else
             !mat_index = maxloc(ip_diff, mask = ip_diff < ip_ranking(count_ip-1))
             mat_index = minloc(ip_diff, mask = ip_diff > ip_ranking(count_ip-1))
-            write(*,*) ip_diff
-            write(*,*) ip_ranking
+            !write(*,*) ip_diff
+            !write(*,*) ip_ranking
             !write(*,*) mat_index
           endif
 
@@ -270,13 +270,8 @@ mult: if ( abs(mchrg) > 1 ) then
       write(*,*)
       !> save the largest charge for consecutive runs
       chrgcont = fragchrg3(tcont) 
-    endif
 
-
-    !write(*,*) 
-    !write(*,*) 'CHARGE CONT', chrgcont
-
-    if ( nfrag > 1 )then
+      !> change total charge to nearest integer or at least 1
       nearest_charge = nint(fragchrg3(tcont))
       !> pos. Ion
       if ( nearest_charge > 0 .and. mchrg > 0 )  mchrg = nearest_charge
