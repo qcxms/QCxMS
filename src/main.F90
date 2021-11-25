@@ -413,6 +413,10 @@ program QCxMS
         betemp = etemp_in
      endif
   endif
+  if (No_eTemp) then
+    betemp = etempGS
+    etempin = etempGS
+  endif
 
   !> Check if the sim. MD time has been manually set
   if ( method == 3 .and. manual_simMD > 0 ) simMD = manual_simMD
