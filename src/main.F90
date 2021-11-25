@@ -88,6 +88,7 @@ program QCxMS
   real(wp) :: direc(3),cm(3),cm1(3),cm2(3)
   !real(wp) :: cm_out
   real(wp) :: randx
+  real(wp) :: x
   real(wp) :: lowerbound,upperbound
   real(wp) :: ELAB, ECOM
   real(wp) :: gaus(1000)
@@ -127,7 +128,10 @@ program QCxMS
   !character*80 solvent
 
   ! logicals
-  logical :: ex,mdok,check,takempop
+  logical :: ex
+  logical :: md_ok
+  logical :: nfrag_ok = .true.
+  logical :: check,takempop
   logical :: prod,noeq,iniok
   logical :: eonly,eonly0,eonly1
   logical :: unity ! scales velocities uniformly 
@@ -246,7 +250,6 @@ program QCxMS
   ! check if cid was OK
   stopcid = .false.
   starting_md=.false.
-  legacy = .false.
   No_ESI = .false.
   ! HS-UHF ini only for frag runs
   iniok  =.true.
@@ -286,7 +289,7 @@ program QCxMS
   call input(tstep,tmax,ntraj,iseed(1),etempin,Tinit, mchrg_prod,           &
   &          iee_a,iee_b,eimp0,eimpw,fimp,iprog,                            &
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
-  &          scani,lowerbound,upperbound,metal3d,                           &
+  &          scani,lowerbound,upperbound,                                   &
   &          ELAB,ECOM,eExact,ECP,unity,noecp,nometal,                      &
   &          vScale,CollNo,CollSec,ConstVelo,                               &
   &          minmass,manual_simMD,convetemp,set_coll,MaxColl,               &
@@ -395,10 +398,16 @@ program QCxMS
   ! Test etemp for CID - hardcoded for XTB for now
   if (method == 3 .and. prod)then
      if(etempin <= 0)then
-        betemp = 5000.0_wp
+        betemp = 5000.0_wp 
+        !betemp = 2500.0_wp !5000
+        !etempin = 2500.0_wp
      else
         betemp = etempin
      endif
+  endif
+  if (No_eTemp) then
+    betemp = etempGS
+    etempin = etempGS
   endif
 
   !> Check if the sim. MD time has been manually set
@@ -464,16 +473,6 @@ program QCxMS
      do i=1,nuc
         if(iat(i) <= 86.and.iat(i) >= 37) ECP=.true.
      enddo
-  endif
-  if (.not. nometal)then
-     do i=1,nuc
-        if(iat(i) <= 30.and.iat(i) >= 22) metal3d=.true.
-     enddo
-  endif
-  if(metal3d) then
-     write(*,*)
-     write(*,*)'* 3d metal found, check for multiplicities:&
-     & ',metal3d,'*'
   endif
 
   ! convert SV,SV(P),SVP,TZVP to same-size def2 basis set if ECP is on
@@ -606,7 +605,7 @@ GS: if(.not.ex)then
          call md(-1,0,0,nuc,nmax0/2,xyz,iat,mass,imass,mchrg,grad,     &
          &       velo,velof,list,tstep,ndumpGS,99,                     &
          &       fragm,fragf,fragat,dumpstep,etempGS,                  &
-         &       mdok,chrg,spin,axyz,                             &
+         &       md_ok,chrg,spin,axyz,                             &
          &       Tinit,0.0d0,0.0d0,.false.,Tav,Epav,Ekav,ttime,aTlast, &
          &       fragstate,dtime,ECP,.false.,0.0d0)
 
@@ -620,7 +619,7 @@ GS: if(.not.ex)then
          call md(0,0,0,nuc,nmax0,xyz,iat,mass,imass,mchrg,             &
          &       grad,velo,velof,list,tstep,ndumpGS,99,                &
          &       fragm,fragf,fragat,dumpstep,etempGS,                  &
-         &       mdok,chrg,spin,axyz,                             &
+         &       md_ok,chrg,spin,axyz,                             &
          &       Tinit,0.0d0,0.0d0,.false.,Tav,Epav,Ekav,ttime,aTlast, &
          &       fragstate,dtime,ECP,.false.,0.0d0)
 
@@ -679,7 +678,7 @@ GS: if(.not.ex)then
          call md(0,0,0,nuc,nmax0,xyz,iat,mass,imass,mchrg,             &
          &       grad,velo,velof,list,tstep,ndumpGS,99,          &
          &       fragm,fragf,fragat,dumpstep,etempGS,                  &
-         &       mdok,chrg,spin,axyz,                             &
+         &       md_ok,chrg,spin,axyz,                             &
          &       Tinit,0.0d0,0.0d0,.false.,Tav,Epav,Ekav,ttime,aTlast, &
          &       fragstate,dtime,ECP,.false.,0.0d0)
 
@@ -794,25 +793,25 @@ iee0: if (method /= 3 ) then !.and. method /= 4)then ! Not important for CID
       ! user input
 iee1: if ( iee_a > 0 .and. iee_b > 0 ) then
         call getmaxiee(iee_a,iee_b,ieeel,edistri,exc,dum,pmax,dums)
-        write(*,'('' IEE a (eV) [set]               : '',f8.2)')  iee_a
-        write(*,'('' IEE b (eV) [set]               : '',f8.2)')  iee_b
+        write(*,'('' IEE a (eV) [set]               : '',f8.3)')  iee_a
+        write(*,'('' IEE b (eV) [set]               : '',f8.3)')  iee_b
 
       ! automatic
       else
          call getieeab (iee_a,iee_b,ieeel,edistri,exc,nuc,ieeatm)
          call getmaxiee(iee_a,iee_b,ieeel,edistri,exc,dum,pmax,dums)
-         write(*,'('' IEE a (eV) [determined]        : '',f8.2)') iee_a
-         write(*,'('' IEE b (eV) [determined]        : '',f8.2)') iee_b
+         write(*,'('' IEE a (eV) [determined]        : '',f8.3)') iee_a
+         write(*,'('' IEE b (eV) [determined]        : '',f8.3)') iee_b
 
       endif iee1 ! EI
 
       if (scani  ==  0) then
-         write(*,'('' maximum IEE (eV)               : '',f8.2)') exc
-         write(*,'('' maximum of P(E) at (eV)        : '',f8.2)') dum
-         write(*,'('' average E for P(E) (eV)        : '',f8.2)') dums
+         write(*,'('' maximum IEE (eV)               : '',f8.3)') exc
+         write(*,'('' maximum of P(E) at (eV)        : '',f8.3)') dum
+         write(*,'('' average E for P(E) (eV)        : '',f8.3)') dums
       elseif (scani  ==  1) then
-         write(*,'('' minimum IEE (eV)               : '',f8.2)') lowerbound
-         write(*,'('' maximum IEE (eV)               : '',f8.2)') upperbound
+         write(*,'('' minimum IEE (eV)               : '',f8.3)') lowerbound
+         write(*,'('' maximum IEE (eV)               : '',f8.3)') upperbound
       endif
       write(*,*)
 
@@ -844,6 +843,7 @@ iee2:  do i = 1, ndumpGS
           !> DEFAULT: vary by normal distributed boxmuller random number
           else
             Edum = vary_energies(eimp0,eimpw)
+            !Edum = vary_energies(eimp0,0.1)
           endif
 
           if ( Edum >= ehomo ) exit
@@ -929,9 +929,10 @@ iee2:  do i = 1, ndumpGS
         nrun = nrun + 1
 
         if (.not.check) then
-           call setetemp(1,Edum,etemp)
-           write(*,'('' Run: '',i4,'', step on M trj: '',i5,'' MOs '',2i3,'' IEE (eV)  = '',F6.1,    &
-             & '' heating time ='',F6.0,'' eTemp ='',F6.0)')nrun,i,mo1,mo2,Edum*autoev,dum,etemp
+          call setetemp(1,Edum,etemp)
+          write(*,'('' Run: '',i4,'', step on M trj: '',i5,'' MOs '',2i3,'' IEE &
+            & (eV)  = '',F6.1,'' heating time ='',F6.0,'' eTemp ='',F6.0)')     &
+            & nrun,i,mo1,mo2,Edum*autoev,dum,etemp
         endif
         Tav = Tav + Tsoll
         tta = tta + dum
@@ -1369,7 +1370,7 @@ ESI_loop: do
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             call md(itrj,icoll,isec,nuc,prestep,xyz,iat,mass,imass,mchrg,     &
             & grad,velo,velof,list,tstep,j,nfragexit,fragm,fragf,             &
-            & fragat,dumpstep,etempin,mdok,chrg,spin,axyz,tscale,tadd,        &
+            & fragat,dumpstep,etempin,md_ok,chrg,spin,axyz,tscale,tadd,        &
             & eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,fragstate,dtime,        &
             & ECP,starting_MD,0.0d0)
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1388,12 +1389,12 @@ ESI_loop: do
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! printout and count
-            if(mdok)then
+            if(md_ok)then
 
               !> do IP calc and write out fragment files
               call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, &
-                &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont,       &
-                &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res )
+                &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont, nfrag_ok,&
+                &  tcont, nfrag, nometal, ECP, btf, maxsec, dtime, asave, io_res )
 
               write(*,*)
 
@@ -1408,6 +1409,9 @@ ESI_loop: do
               !exit
               stop
             endif
+
+            if (.not. nfrag_ok) exit ESI_loop !exit if too many frags
+
 
             ! Save the new coordinates
             k=0
@@ -1664,9 +1668,10 @@ cidlp:  do
 
           !> do IP calc and write out fragment files
           call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, &
-            &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
-            &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res)
+            &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont, nfrag_ok, &
+            &  tcont, nfrag, nometal,  ECP, btf, maxsec, dtime, asave, io_res)
 
+          if (.not. nfrag_ok) exit cidlp !exit if too many frags
 
           ! still have to figure out how to calculate the avg. xyz coords
            !write(*,*) 'AVG XYZ'
@@ -1827,6 +1832,7 @@ MFPloop:  do
             if ( manual_simMD == 0 ) then
               simMD = icoll * 0.6 * nuc * 100
               if ( simMD > 8000 .and. coll_counter <= 2 ) simMD = 8000
+              if ( simMD < 2000 ) simMD = 2000
             !  if ( simMD > 8000 .and. coll_counter > 2  ) simMD = 8000 / coll_counter
             endif
 
@@ -1844,7 +1850,7 @@ MFPloop:  do
             call md(itrj,icoll,isec,nuc,simMD,xyz,iat,mass,imass,mchrg,grad,&
             &       velo,velof,list,tstep,j,nfragexit,                      &
             &       fragm,fragf,fragat,dumpstep,etempin,                    &
-            &       mdok,chrg,spin,axyz,                                    &
+            &       md_ok,chrg,spin,axyz,                                    &
             &       Tdum,tadd,eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,      &
             &       fragstate,dtime,ECP,.false.,new_velo)
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1878,11 +1884,11 @@ MFPloop:  do
 
 
             ! printout and count
-            if(mdok)then
+            if(md_ok)then
               !> do IP calc and write out fragment files
               call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, &
-                &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
-                &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res )
+                &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont, nfrag_ok, &
+                &  tcont, nfrag, nometal, ECP, btf, maxsec, dtime, asave, io_res )
 
                !If MD fails
               write(*,*)
@@ -1891,8 +1897,11 @@ MFPloop:  do
               write(*,*)'something went wrong! Dont worry, the run'
               write(*,*)'is just not further counted.'
               write(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-              stop
+              !stop
+              exit cidlp 
             endif
+
+            if (.not. nfrag_ok) exit cidlp !exit if too many frags
 
             ! Save the new coordinates
             k    = 0
@@ -2265,7 +2274,7 @@ loop: do
         call md(itrj,0,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
         &       velo,velof,list,tstep,j,nfragexit,                  &
         &       fragm,fragf,fragat,dumpstep,etempin,                &
-        &       mdok,chrg,spin,axyz,                                &
+        &       md_ok,chrg,spin,axyz,                                &
         &       Tdum,tadd,eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,  &
         &       fragstate,dtime,ECP,.false.,0.0_wp)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2278,21 +2287,22 @@ loop: do
         write(*,'('' average last T'',F12.1)')aTlast
 
         ! printout and count
-okmd:   if(mdok)then
+okmd:   if(md_ok)then
           !> do IP calc and write out fragment files
           call manage_fragments(nuc, iat, xyz, axyz, mchrg, chrg, spin, mass, imass, &
-          &  iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
-          &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res )
+          &  iprog, aTlast, itrj, icoll, isec, list, chrgcont, nfrag_ok,  &
+          &  tcont, nfrag, nometal, ECP, btf, maxsec, dtime, asave, io_res )
 
+          if (.not. nfrag_ok) exit !exit if too many frags
 
           ! this is likely to be wrong (too many fragmnets for EI)
-          if ( nfrag > 5 ) then
-            write(*,*)'    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-            write(*,*)'    !! something went wrong! Dont worry, the run !!'
-            write(*,*)'    !! is just not counted.                      !!'
-            write(*,*)'    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-            exit
-          endif
+          !if ( nfrag > 5 ) then
+          !  write(*,*)'    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+          !  write(*,*)'    !! something went wrong! Dont worry, the run !!'
+          !  write(*,*)'    !! is just not counted.                      !!'
+          !  write(*,*)'    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+          !  exit
+          !endif
 
 frag:     if(tcont > 0 .and. maxsec > 0)then
             ! because IEE decreases, we can reduce the max length of

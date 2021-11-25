@@ -61,11 +61,11 @@ module qcxms_use_orca
 
      ! hybrid vs other funcs.... nat is number of atoms
         if ( func <= 4 .and. nat < 60 .and. noconv ==  .false. ) then
-         !if ( orca_version == 5 ) then
-         !  write(io_orca,'(''! CONV SMALLPRINT NOSOSCF RIJK DEF2/JK'')')
-         !else 
+         if ( orca_version == 5 ) then
+           write(io_orca,'(''! CONV SMALLPRINT NOSOSCF RIJK DEF2/JK'')')
+         else 
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
-         !endif
+         endif
 
           
 
@@ -98,8 +98,8 @@ module qcxms_use_orca
      
         ! Set mayer and finalgrid
         if ( orca_version == 4 ) write(io_orca,'(''! NOFINALGRID NOMAYER'')')
-        if ( orca_version == 5 ) write(io_orca,'(''! NOFINALGRIDX NOMAYER'')')
-        !if ( orca_version == 5 ) write(io_orca,'(''! NOMAYER'')')
+        !if ( orca_version == 5 ) write(io_orca,'(''! NOFINALGRIDX NOMAYER'')')
+        if ( orca_version == 5 ) write(io_orca,'(''! NOMAYER'')')
      
         write(io_orca,'(''! UHF'')')
 
@@ -206,9 +206,9 @@ module qcxms_use_orca
      
         write(io_orca,'(''%scf'')')
         !> test if fermi-smearing is even important
-        !if ( orca_version == 4 ) then
-          if(etemp > 10.0) write(io_orca,'('' SmearTemp '',F7.0)') etemp
-        !endif
+        if ( orca_version == 4 ) then
+         if(etemp > 10.0) write(io_orca,'('' SmearTemp '',F7.0)') etemp
+        endif
         write(io_orca,'('' maxcore   '',i6  )') qcmem
         write(io_orca,'('' MaxIter  400''     )')
 

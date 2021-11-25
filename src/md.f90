@@ -129,6 +129,11 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   else
      etemp=etempin
   endif
+  if (No_etemp) etemp=etempin
+
+
+
+
   ! CID mopac-pm6 behaves better without huge Electronic Temp.
   !if(prog == 1.and.method == 3.and.temprun == .false.)then
   !   write(*,*) 'NOTE:In MOPAC CID runs the electronic T. is set to constant 300 K' 

@@ -29,6 +29,7 @@ module common1
   logical  ::  noconv
   logical  ::  slowconv
   logical  ::  XTBMO
+  logical  ::  No_eTemp
   !!!!!!!!!!!!!!!!!!!!!!!!!
 
 end module common1

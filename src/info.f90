@@ -204,7 +204,7 @@ CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
        write(*,'('' Run - Type            : '',(a) )') 'Thermal'
        if( verbose ) write(*,*) ' Scale internal energy/temperature '
        if ( ESI > 0 )write(*,'('' Scaling to E(int)     : '', f7.2, '' eV'')') ESI
-       if ( tempESI > 0 )write(*,'('' Scaling to Temp.      : '', f7.2,'' K'')') tempESI
+       if ( tempESI > 0 )write(*,'('' Scaling to Temp.      : '', f8.1,'' K'')') tempESI
     endif
         
   endif CHOSE
@@ -328,10 +328,10 @@ info: if ( method /= 3 ) then !.and. method /= 4 )then
       write(*,*)
       write(*,'(11(''-''),(a),11(''-''))') ' CID settings '
       write(*,'('' Collision Gas         : '',a2)')      toSymbol(gas%IndAtom)
-      if (ECOM > 0.0_wp) then
-        write(*,'('' E (COM)               : '',f7.2,'' eV'')') ECOM
-      else
+      if (ELAB > 0.0_wp) then
         write(*,'('' E (LAB)               : '',f7.2,'' eV'')') ELAB
+      else
+        write(*,'('' E (COM)               : '',f7.2,'' eV'')') ECOM
       endif
     endif
 

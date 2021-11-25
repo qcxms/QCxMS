@@ -1,7 +1,7 @@
 subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                  &
         iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
         edistri,btf,ieeatm,                                                       &
-        scanI,lowerbound,upperbound,metal3d,ELAB,ECOM, eExact,ECP,unity,noecp,    &
+        scanI,lowerbound,upperbound,ELAB,ECOM, eExact,ECP,unity,noecp,    &
         nometal,vScale,CollNo,CollSec,ConstVelo,                                  & 
         minmass,manual_simMD,convetemp,set_coll,MaxColl,                          & 
         MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
@@ -53,11 +53,11 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   end interface
   
   logical :: ex
-  logical :: metal3d,ECP
+  logical :: ECP
   logical :: unity
   logical :: noecp,nometal
   logical :: Plasma
-  logical  :: legacy
+  logical :: legacy
   ! logical gbsa
   
   !-----------------------------------
@@ -126,7 +126,9 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   etemp = -1        
   ! neutral MD temperature 
   Tinit = 500
-  
+   !> switch on etemp 
+   No_eTemp = .false.
+
   !!!             !!!! 
   !!! QC Settings !!!!
   !!!             !!!! 
@@ -156,8 +158,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   scanI = 0
   lowerbound = 0.0d0
   upperbound = 20.0d0
-  ! if metal3d then check for spin multiplicites in IP calculations
-  metal3d = .false.
   ! ECP
   ECP = .false.
   
@@ -205,8 +205,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   nfragexit = 3     
   ! unity scaling
   unity = .False.
-  ! Legacy IEE pseudo-randomized (default: YES)
-  legacy = .True.
+  ! Legacy IEE pseudo-randomized (default: NO)
+  legacy = .false.
   
   !!!           !!!! 
   !!!!!! CID !!!!!!!
@@ -474,7 +474,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
          if ( line == 'NO-ECP')       noecp=.true.    !Do not check for ECP
          if ( line == 'NO-METAL')     nometal=.true.  !Do not check for metal
          if ( line == 'PLASMA')       Plasma = .True.  ! switch off ESI energy distribution
-         if ( line == 'NOLEGACY')     Legacy = .False. ! Legacy support (for IEE dist.)
+         if ( line == 'LEGACY')       Legacy = .True. ! Legacy support (for IEE dist.)
+         if ( line == 'NOETEMP')      No_eTemp = .True. ! Shut off etemp (test for CID)
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          !! CID Logicals 

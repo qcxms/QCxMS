@@ -393,7 +393,7 @@ module qcxms_utility
          j = j + ic(i)
       enddo
    
-      j = j - chrg
+      j = j - abs(chrg)
       isp = 1 + mod(j,2)
       
       if ( j < 1 ) isp = -1

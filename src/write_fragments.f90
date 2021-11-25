@@ -10,8 +10,8 @@ module qcxms_write_fragments
   contains
     
   subroutine manage_fragments(nuc, iat, xyz, axyz, mchrg, qat, spin, mass, &
-    &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont,  &
-    &  tcont, nfrag, metal3d, ECP, btf, maxsec, dtime, asave, io_res)
+    &  imass, iprog, aTlast, itrj, icoll, isec, list, chrgcont, nfrag_ok, &
+    &  tcont, nfrag, nometal, ECP, btf, maxsec, dtime, asave, io_res)
 
     integer, intent(in) :: nuc,  iprog
     integer  :: iat(nuc)
@@ -33,6 +33,8 @@ module qcxms_write_fragments
     integer  :: mat_index(2)
     integer  :: MATsize
     integer  :: iatf(nuc,10)
+    integer  :: cnt
+
     integer, allocatable :: save_fragID(:), save_chrgID(:)
     
     real(wp),intent(inout) :: xyz(3, nuc) 
@@ -54,9 +56,11 @@ module qcxms_write_fragments
     real(wp), allocatable :: ip_diff(:,:),ip_diff2(:,:)
     real(wp), allocatable :: ip_ranking(:)
     real(wp), allocatable :: fragchrg3(:)
-    logical :: ipok
-    logical :: metal3d 
+
+    logical :: ip_ok
+    logical :: nfrag_ok 
     logical :: ECP 
+    logical :: nometal 
 
     character(len=:), allocatable :: adum
     character(len=120) :: asave
@@ -65,10 +69,23 @@ module qcxms_write_fragments
 
     l=0
     frag_number = 0
+    cnt = 0
 
-    ! calculate fragement structure, atoms, masses
+    !> calculate fragement structure, atoms, masses
     call fragment_structure(nuc,iat,xyz,3.0_wp,1,0,list)
     call fragmass(nuc,iat,list,mass,imass,nfrag,fragm,fragf,fragat)
+
+    !> if the number of frags are too high, something in the QC prog.
+    !  went (probably) wrong
+    if ( nfrag > 5 ) then
+      nfrag_ok = .false.
+      write(*,*)'    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+      write(*,*)'    !! something went wrong! Dont worry, the run !!'
+      write(*,*)'    !! is just not counted.                      !!'
+      write(*,*)'    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    endif
+
+ok: if ( nfrag_ok ) then !only do the following if nfrags are reasonable
 
     nfrag=maxval(list)
 
@@ -83,10 +100,10 @@ module qcxms_write_fragments
     !> compute fragment IP/EA per frag. and chrg.
     if ( method == 3 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
          call analyse(iprog,nuc,iat,iatf,xyz,list,nfrag,aTlast,fragip, mchrg, &
-                  natf,ipok,icoll,isec,metal3d,ECP)
+                  natf,ip_ok,icoll,isec,nometal,ECP)
     else
        call analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,aTlast,fragip, mchrg, &
-                  natf,ipok,icoll,isec,metal3d,ECP)
+                  natf,ip_ok,icoll,isec,nometal,ECP)
     endif
 
     ! compute charge from IPs at finite temp.
@@ -169,17 +186,35 @@ mult: if ( abs(mchrg) > 1 ) then
 
         enddo
 
+        ! CHECK FÜR NEG
+        do count_ip = abs(mchrg), MATsize
+          ip_diff2(save_fragID(count_ip),save_chrgID(count_ip)) =  &
+            ip_diff(save_fragID(count_ip),save_chrgID(count_ip)) -  &
+            ip_diff(save_fragID(abs(mchrg)-1),save_chrgID(abs(mchrg)-1))
+          write(*,*) ip_diff2(save_fragID(count_ip),save_chrgID(count_ip))
+        enddo
+
         !> set the value with lowest IP to large number, so boltz will mostly
         !  ignore it -> important for correct values
         do count_ip = 1, abs(mchrg)-1
-          ip_diff(save_fragID(count_ip),save_chrgID(count_ip)) = huge(0.0_wp)
+          !write(*,*) 'jop',ip_diff(save_fragID(count_ip),save_chrgID(count_ip))
+          ip_diff2(save_fragID(count_ip),save_chrgID(count_ip)) = huge(0.0_wp)
         enddo
+
+
+        do count_ip = abs(mchrg), MATsize
+          !write(*,*) '--',ip_diff(save_fragID(count_ip),save_chrgID(count_ip))
+        enddo
+
+
 
         !> for negative ions
         !if ( mchrg < 0 ) ip_diff2    = -1.0_wp * ip_diff2 
 
         !> do boltzmann for the fragment IPs
-        call boltz(2,nfrag,abs(mchrg),aTlast*btf,ip_diff,fragchrg2)
+        call boltz(2,nfrag,abs(mchrg),aTlast*btf,ip_diff2,fragchrg2)
+        !write(*,*) 'FRAGCHG2'
+        write(*,*) fragchrg2
 
         !> set all charges to = 1 for all strucs that have to be ignored 
         !> higher charges will be considered as not fractional
@@ -279,7 +314,7 @@ mult: if ( abs(mchrg) > 1 ) then
       !> neg.Ion
       if ( nearest_charge < 0 .and. mchrg < 0 )  mchrg = nearest_charge
       if ( nearest_charge == 0 .and. mchrg < 0 ) mchrg = -1
-      write(*,*)'NEW MCHRG', mchrg 
+      !write(*,*)'NEW MCHRG', mchrg 
     endif
 
 
@@ -322,42 +357,48 @@ mult: if ( abs(mchrg) > 1 ) then
 
 loop:do j = 1, nfrag
 
-       adum=''
-       if( j == tcont ) adum = ' ~'
+      adum=''
+      if( j == tcont ) adum = ' ~'
 
-       if ( fragm(j) < 10 ) then
-          write(*,'('' M='',F4.2,3x,a20,2x,4i4,3F8.3,f9.3,a)')        &
-          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
-          &    fragspin(j),fragchrg3(j),dtime,adum
-       endif
+      if ( fragm(j) < 10 ) then
+        write(*,'('' M='',F4.2,3x,a20,2x,4i4,3F8.3,f9.3,a)')        &
+         &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
+         &    fragspin(j),fragchrg3(j),dtime,adum
+      endif
 
-       if( fragm(j) >= 10 .and. fragm(j) < 100 ) then
-          write(*,'('' M='',F5.2,2x,a20,2x,4i4,3F8.3,f9.3,a)')        &
-          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
-          &    fragspin(j),fragchrg3(j),dtime,adum
-       endif
+      if( fragm(j) >= 10 .and. fragm(j) < 100 ) then
+        write(*,'('' M='',F5.2,2x,a20,2x,4i4,3F8.3,f9.3,a)')        &
+         &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
+         &    fragspin(j),fragchrg3(j),dtime,adum
+      endif
 
-       if (fragm(j) >= 100 .and. fragm(j) < 1000 ) then
-          write(*,'('' M='',F6.2,1x,a20,2x,4i4,3F8.3,f9.3,a)')        &
-          &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
-          &    fragspin(j),fragchrg3(j),dtime,adum
-       endif
+      if (fragm(j) >= 100 .and. fragm(j) < 1000 ) then
+        write(*,'('' M='',F6.2,1x,a20,2x,4i4,3F8.3,f9.3,a)')        &
+         &    fragm(j),trim(fragf(j)),itrj,icoll,isec,j,fragchrg(j), &
+         &    fragspin(j),fragchrg3(j),dtime,adum
+      endif
 
-       l = 0
+      l = 0
 
-       do k = 1, 200
-          if(fragat(k,j) /= 0)then
-             l = l + 1
-             idum1(l) = fragat(k,j)
-             idum2(l) = k
-          endif
-       enddo
+      do k = 1, 200
+        if(fragat(k,j) /= 0)then
+          l = l + 1
+          idum1(l) = fragat(k,j)
+          idum2(l) = k
+        endif
+      enddo
 
-       ! write into .res file:
-       ! charge(qat), trajectory(itrj), number of collision event(icoll), 
-       ! numbers of fragments (isec,j),
-       ! types of atoms in fragment (l), atomic number (idum2), amount of this 
-       ! atom typ (idum1) from m = 1 to l
+      if (tcont /= j) then
+        mz_chrg = nint( fragchrg3(j))
+        if ( mz_chrg == 0 .and. mchrg > 0 ) mz_chrg = 1
+        if ( mz_chrg == 0 .and. mchrg < 0 ) mz_chrg = -1
+      endif
+
+      ! write into .res file:
+      ! charge(qat), trajectory(itrj), number of collision event(icoll), 
+      ! numbers of fragments (isec,j),
+      ! types of atoms in fragment (l), atomic number (idum2), amount of this 
+      ! atom typ (idum1) from m = 1 to l
 
 !CIDEI: if ( method == 3 .or. method == 4 ) then
 CIDEI: if ( method == 3 ) then !.or. method == 4 ) then
@@ -369,11 +410,8 @@ CIDEI: if ( method == 3 ) then !.or. method == 4 ) then
 
 
              elseif (tcont /= j) then
-               mz_chrg = nint( fragchrg3(j))
-               if ( mz_chrg == 0 .and. mchrg > 0 ) mz_chrg = 1
-               if ( mz_chrg == 0 .and. mchrg < 0 ) mz_chrg = -1
                write(io_res,'(F10.7,i3,2i5,2i2,2x,i3,2x,20(i4,i3))')       &
-                &             fragchrg3(j),mz_chrg,itrj,icoll,isec,j,  &
+                &             fragchrg3(j),mz_chrg,itrj,icoll,isec,j,      &
                 &             l,(idum2(m),idum1(m),m=1,l)
              endif
 
@@ -418,6 +456,8 @@ CIDEI: if ( method == 3 ) then !.or. method == 4 ) then
                 fragchrg3 )
 
     write(*,*)
+
+    endif ok 
 
   end subroutine manage_fragments
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

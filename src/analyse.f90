@@ -12,7 +12,7 @@ module qcxms_analyse
 
 
 subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
-      natf,ipok,icoll,isec,metal3d,ECP)
+      natf,ipok,icoll,isec,nometal,ECP)
     
   integer :: nuc  
   integer :: iprog 
@@ -27,6 +27,7 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   integer :: iatf(nuc,10)
   integer :: idum(nuc,10)
   integer :: neutfspin,ionfspin !fragment spin (for metals etc.)
+  integer :: spin_neut,spin_ion !save these spins 
   integer :: fiter !Number of spin iterations 
   integer :: sp(3),sn(3),sn0,sp0
   integer :: nb,nel
@@ -41,13 +42,14 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   real(wp) :: t2,t1,w2,w1
   real(wp) :: gsen(3),gsep(3)
   real(wp) :: dsave
+  real(wp) :: lowest_neut, lowest_ion 
   
   character(len=80) :: fname
   character(len=20) :: line, line2
   
   logical :: ipok
-  logical :: metal3d,ECP
-  logical :: boolm !if fragment has metal
+  logical :: nometal, ECP
+  logical :: metal = .false. !if fragment has metal
   logical :: ipcalc
   logical :: spec_calc = .false.
   
@@ -276,6 +278,8 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
     endif
   
     fragip  = 0
+    lowest_neut = 0.0_wp
+    lowest_ion  = 0.0_wp
     
     sn = 0
     sp = 0
@@ -283,26 +287,24 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
 frg:do i = 1,nfrag
       gsen  = 0.0d0
       gsep  = 0.0d0
-      boolm = .False.
+      metal = .False.
   
-      ! if metal3d is true, check if fragment i has a metal atom.
-      if (metal3d) then
+      !> check for metal 
+      if ( .not. nometal ) then
         do k = 1, natf(i)
-          if (iatf(k,i) <= 30.and.iatf(k,i) >= 22) then
-            boolm = .True.
-          endif
+          if ( iatf(k,i) >= 22 .and. iatf(k,i) <= 30 ) metal = .True.
         enddo
       endif
     
       ! find spin for ion and neutral of metal              
-      if (boolm) then
+      if (metal) then
         fiter = 3
         call getspin(natf(i),iatf(1,i),0,neutfspin)
         call getspin(natf(i),iatf(1,i),mchrg,ionfspin)
    
       ! no metal (That means eqm (iniqm.f), will assign spin by itself)
       else  
-        boolm = .False.
+        metal = .False.
         fiter = 1
         neutfspin = -1
         ionfspin = -1                  
@@ -322,65 +324,85 @@ frg:do i = 1,nfrag
       !> For everything else than MOPAC
       !> Calculate the netr. and ion energies to get IPs/EAs
       if ( progi /= 1 )then
-lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
-          if (k > 1 .and. boolm) then
-            neutfspin = neutfspin + 2
-            ionfspin  = ionfspin  + 2
-          endif
-  
+
+mult_n: do k = 1, fiter         !ITER OVER MULTIPLICITES
+
+          if (metal) neutfspin = neutfspin + 2
+
           !> 1. Calculate Neutral energy (mcharge=0)
           call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),0,neutfspin, &
             etemp,.true.,ipok,E_neut,nel,nb,ECP,spec_calc)
     
-          if(boolm)then
-             gsen(k) = E_neut
-             sn(k)   = neutfspin
+          if(metal .and. lowest_neut > E_neut)then
+            !gsen(k) = E_neut
+            !sn(k)   = neutfspin
+            spin_neut   = neutfspin
+            lowest_neut = E_neut
           endif
+          if (metal) then
+            write(*,*) 'E-Neut',E_neut 
+              write(*,*) 'neut spin', neutfspin
+            endif
+        enddo mult_n
   
           !> 2. Calculate Ion energies (mcharg= +/- mchrg)
-          do lpchrg = 1, abs(mchrg)
-            if (mchrg < 0 ) then
-              dump_chrg = -1 * lpchrg
-            else
-              dump_chrg = lpchrg
-            endif
+chrg:   do lpchrg = 1, abs(mchrg)
+          if (mchrg < 0 ) then
+            dump_chrg = -1 * lpchrg
+          else
+            dump_chrg = lpchrg
+          endif
+
+mult_i:   do k=1,fiter         !ITER OVER MULTIPLICITES
+
+            if (metal) ionfspin  = ionfspin  + 2
 
             call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),dump_chrg,ionfspin,  &
-                etemp,.true.,ipok,E_ion,nel,nb,ECP,spec_calc)
+              etemp,.true.,ipok,E_ion,nel,nb,ECP,spec_calc)
 
-
-            if (boolm)then
-              gsep(k) = E_ion
-              sp(k)   = ionfspin
+            if (metal .and. lowest_ion > E_ion )then
+              spin_ion    = ionfspin
+              lowest_ion  = E_ion
+            endif
+            if (metal) then
+              write(*,*) 'E-ION', E_ion 
+              write(*,*) 'ION SPin', ionfspin
             endif
 
-  
+          enddo mult_i
+
     
             ! Select lowest values - calculate vertical IP/EA from groundstate neutral to groundstate ion
             ! in regards to spin multiplicity
-            if(boolm) then
-              E_neut = minval(gsen)
-              E_ion  = minval(gsep)
-              ! save neutral-ion (of metal) lowest energy spin
-              sn0 = 0
-              sp0 = 0
+            !if(metal) then
+            !  E_neut = minval(gsen)
+            !  E_ion  = minval(gsep)
+            !  ! save neutral-ion (of metal) lowest energy spin
+            !  sn0 = 0
+            !  sp0 = 0
+            !  lowest_neut  = E_neut
+            !  lowest_ion   = E_ion
   
-              do j=1,3
-                if (gsen(j)  ==  E_neut)  sn0 = sn(j)              
-                if (gsep(j)  ==  E_ion)   sp0 = sp(j)
-              enddo
-            endif
+            !    if (gsen(j)  ==  E_neut)  sn0 = sn(j)              
+            !    if (gsep(j)  ==  E_ion)   sp0 = sp(j)
+            !  enddo
+            !endif
     
             if (E_ion /= 0 .and. E_neut /= 0) then
               fragip(i,lpchrg) = (E_ion - E_neut) * autoev
+            
+              if(metal) then
+              fragip(i,lpchrg) = (lowest_ion - lowest_neut) * autoev
+              endif
   
               ! the sign of EA is opposite to IP
               !if( mchrg < 0 ) fragip(i,lpchrg) = -1.0_wp * fragip(i,lpchrg)
 
-              if (boolm) then
+              if (metal) then
                 write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
                   &       IP/EA(eV)='',F8.2,5x,'' Mult.:'',i2,'' (N) and '',i2,'' (I)'')') &
-                  &       i,E_neut,E_ion,fragip(i,lpchrg),sn0,sp0
+                  &       i,lowest_neut,lowest_ion,fragip(i,lpchrg),spin_neut,spin_ion
+                  !&       i,E_neut,E_ion,fragip(i,lpchrg),sn0,sp0
               else
                 write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
                   &       IP/EA(eV)='',F8.2)') i,E_neut,E_ion,fragip(i,lpchrg)
@@ -403,8 +425,8 @@ lpiter: do k=1,fiter         !ITER OVER MULTIPLICITES
             endif
 
           !!!!!
-          enddo ! chrgs
-        enddo lpiter
+          !enddo mult
+        enddo chrg
       !!!!!
       endif 
     enddo frg
