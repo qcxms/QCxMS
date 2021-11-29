@@ -17,11 +17,12 @@ Untar the zipped archive:
 tar -xvzf QCxMS.vX.X.tar.xz
 ```
 
-The following files are being extracted: `qcxms` `pqcxms` `q-batch` `getres` `.mass_raw.agr` `.XTBPARAM` `EXAMPLE`
+The following files are being extracted: `qcxms` `pqcxms` `q-batch` `getres` `.XTBPARAM` `EXAMPLE`
 
 Place the executables into your ``$HOME/bin/`` directory or path. Place the `.XTBPARAM` folder and `.mass_raw.arg` file into your `$HOME` directory (these files can appear to be hidden). 
-To evaluate the results and create a spectrum, download and use the [PlotMS](https://github.com/qcxms/PlotMS) program. For visualization of the calculated spectra, we recommend the usage of the **xmgrace** program. Examples for an input file and coordinate file can found in the `EXAMPLES` folder.
 
+### Spectra Plotting
+To evaluate the results and create a spectrum, download and use the [PlotMS](https://github.com/qcxms/PlotMS) program. For visualization of the calculated spectra, we recommend the usage of the **xmgrace** program. Furthermore, *JCAMP-DX* and *.csv* are plotted. Versions PlotMS v.6.0 and higher now provide **exact masses**. The `.mass_raw.agr` file was moved to the [PlotMS](https://github.com/qcxms/PlotMS) repository. 
 
 ### Meson
 
@@ -37,7 +38,8 @@ Copy the binary from the `build/qcxms` file into a directory in your path, e.g. 
 
 **Documentation**
 
-A more detailed documentation on topics like installation and input settings can be fond at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/qcxms_doc/qcxms.html).
+A more detailed documentation on topics like installation and input settings can be fond at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/qcxms_doc/qcxms.html). Examples to test QCxMS can be found in the `EXAMPLES` folder. Here, input and coordinate files are provided for either EI or CID run modes. 
+
 
 
 **From QCEIMS to QCxMS:**
