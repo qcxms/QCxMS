@@ -1,4 +1,4 @@
-subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                  &
+subroutine input(tstep,tmax,ntraj,iseed,etemp_in,Tinit, mchrg_prod,                  &
         iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
         edistri,btf,ieeatm,                                                       &
         scanI,lowerbound,upperbound,ELAB,ECOM, eExact,ECP,unity,noecp,    &
@@ -29,7 +29,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   
   real(wp) :: tstep
   real(wp) :: tmax 
-  real(wp) :: etemp
+  real(wp) :: etemp_in
   real(wp) :: Tinit
   real(wp) :: eimp0
   real(wp) :: eimpw
@@ -123,7 +123,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   iseed = 42
   ! electronic temperature (Fermi smearing) and used for IP/Boltzmann
   ! -1 means automatic      
-  etemp = -1        
+  etemp_in = -1        
   ! neutral MD temperature 
   Tinit = 500
   !> switch on etemp 
@@ -626,7 +626,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   !       ELECTRONIC TEMP. (Fermi Smearing) in prod runs
           if(index(line,'ETEMP') /= 0)then            
              call readl(line,xx,nn)
-             if(nn.gt.0)  etemp=xx(1)
+             if(nn.gt.0)  etemp_in=xx(1)
           endif
           ! set etemp in equilibration MD
           if(index(line,'CONVETEMP') /= 0)then            

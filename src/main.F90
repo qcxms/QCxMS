@@ -76,7 +76,7 @@ program QCxMS
   integer,allocatable  :: imass(:)
 
   real(wp) :: etemp
-  real(wp) :: tstep,edum,tmax,etempin,exc,dums,betemp
+  real(wp) :: tstep,edum,tmax,etemp_in,exc,dums,betemp
   real(wp) :: t,Tsoll,Tdum,Tinit,trelax,ttime,ehomo
   real(wp) :: Epav,Ekav,Tav,dum,t1,t2,w1,w2,eimpw,pmax,tta
   real(wp) :: tadd,fimp,aTlast
@@ -286,7 +286,7 @@ program QCxMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Read the INPUT file
   ! input, all defaults are set here
-  call input(tstep,tmax,ntraj,iseed(1),etempin,Tinit, mchrg_prod,           &
+  call input(tstep,tmax,ntraj,iseed(1),etemp_in,Tinit, mchrg_prod,           &
   &          iee_a,iee_b,eimp0,eimpw,fimp,iprog,                            &
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
   &          scani,lowerbound,upperbound,                                   &
@@ -397,12 +397,12 @@ program QCxMS
 
   ! Test etemp for CID - hardcoded for XTB for now
   if (method == 3 .and. prod)then
-     if(etempin <= 0)then
+     if(etemp_in <= 0)then
         betemp = 5000.0_wp 
         !betemp = 2500.0_wp !5000
-        !etempin = 2500.0_wp
+        !etemp_in = 2500.0_wp
      else
-        betemp = etempin
+        betemp = etemp_in
      endif
   endif
 
@@ -413,7 +413,7 @@ program QCxMS
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, mchrg_prod,  &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri,      &
+      & ESI, tempESI, etemp_in, maxsec, betemp, nfragexit, iseed, iprog, edistri,     &
       & legacy)
 
 
@@ -710,7 +710,8 @@ GS: if(.not.ex)then
     mchrg = mchrg_prod ! set to at least 1 (normal) or higher (input)
 
     write(*,'(''--- Checking QC method for ions ---'')')
-    call iniqm(nuc,xyz,iat,mchrg,mspin,betemp,edum,iniok,ECP)
+    if (etemp_in < 0 ) call iniqm(nuc,xyz,iat,mchrg,mspin,betemp,edum,iniok,ECP)
+    if (etemp_in > 0 ) call iniqm(nuc,xyz,iat,mchrg,mspin,etemp_in,edum,iniok,ECP)
     if (iniok) then 
       write(*,'(''--- QC method okay ---'')')
     else
@@ -1366,7 +1367,7 @@ ESI_loop: do
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             call md(itrj,icoll,isec,nuc,prestep,xyz,iat,mass,imass,mchrg,     &
             & grad,velo,velof,list,tstep,j,nfragexit,fragm,fragf,             &
-            & fragat,dumpstep,etempin,md_ok,chrg,spin,axyz,tscale,tadd,        &
+            & fragat,dumpstep,etemp_in,md_ok,chrg,spin,axyz,tscale,tadd,        &
             & eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,fragstate,dtime,        &
             & ECP,starting_MD,0.0d0)
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1647,7 +1648,7 @@ cidlp:  do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           ! Call CID module
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          call cid(nuc, iat, mass, xyz, velo, tstep, mchrg, eTempin,     &
+          call cid(nuc, iat, mass, xyz, velo, tstep, mchrg, etemp_in,    &
           & stopcid, ELAB, ECOM, axyz, ttime, eExact, ECP, manual_dist,  &
           & vScale, MinPot, ConstVelo, cross,                            &
           & mfpath, rtot, chrg, icoll, collisions, direc, new_velo,      &
@@ -1807,12 +1808,12 @@ MFPloop:  do
             ! HS-UHF ini for closed-shells allowed
             mspin=0
 
-            call iniqm(nuc,xyz,iat,mchrg,mspin,betemp,edum,iniok,ECP)
+            call iniqm(nuc,xyz,iat,mchrg,mspin,etemp_in,edum,iniok,ECP)
 
             ! a second attempt if this fails
             if ( .not. iniok ) then
               iniok=.false.
-              call iniqm(nuc,xyz,iat,mchrg,mspin,betemp,edum,iniok,ECP)
+              call iniqm(nuc,xyz,iat,mchrg,mspin,etemp_in,edum,iniok,ECP)
               if ( .not. iniok ) stop 'fatal QC error. Must stop!'
             endif
 
@@ -1845,7 +1846,7 @@ MFPloop:  do
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             call md(itrj,icoll,isec,nuc,simMD,xyz,iat,mass,imass,mchrg,grad,&
             &       velo,velof,list,tstep,j,nfragexit,                      &
-            &       fragm,fragf,fragat,dumpstep,etempin,                    &
+            &       fragm,fragf,fragat,dumpstep,etemp_in,                    &
             &       md_ok,chrg,spin,axyz,                                    &
             &       Tdum,tadd,eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,      &
             &       fragstate,dtime,ECP,.false.,new_velo)
@@ -2269,7 +2270,7 @@ loop: do
         Tdum=0
         call md(itrj,0,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
         &       velo,velof,list,tstep,j,nfragexit,                  &
-        &       fragm,fragf,fragat,dumpstep,etempin,                &
+        &       fragm,fragf,fragat,dumpstep,etemp_in,                &
         &       md_ok,chrg,spin,axyz,                                &
         &       Tdum,tadd,eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,  &
         &       fragstate,dtime,ECP,.false.,0.0_wp)

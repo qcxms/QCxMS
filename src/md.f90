@@ -124,7 +124,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   !endif !method /= 3
   
   ! in frag runs the electronic temp is set 
-  if(it > 0.and.it < 9999)then
+  if( it > 0 .and. it < 9999 .and. etempin < 0)then
      call setetemp(nfrag,eimp,etemp)
   else
      etemp=etempin
