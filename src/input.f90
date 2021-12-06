@@ -126,8 +126,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit, mchrg_prod,                
   etemp = -1        
   ! neutral MD temperature 
   Tinit = 500
-   !> switch on etemp 
-   No_eTemp = .false.
+  !> switch on etemp 
+  No_eTemp = .false.
 
   !!!             !!!! 
   !!! QC Settings !!!!
