@@ -1518,7 +1518,7 @@ ESI_loop: do
 
           enddo ESI_loop ! ENDDO loop the MD module
 
-          if ( TempRun .and. small .or. littlemass ) then
+          if ( small .or. littlemass ) then
             if( index(asave,'NOT USED') == 0 ) then
               write(io_res,'(a)')asave
             endif
@@ -1528,6 +1528,9 @@ ESI_loop: do
 
       endif noESI ! ENDIF No_ESI
 
+      !Give info for not ESI runs and then no Coll. either
+      if (.not. TempRun .and. small ) write(*,*) &
+        ' Simulation stopped - too small molecule for collisions '
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
