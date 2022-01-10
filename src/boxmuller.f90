@@ -5,6 +5,7 @@
 ! DOI: https://doi.org/10.1214/aoms/1177706645
 
 module qcxms_boxmuller
+  use common1 
   use xtb_mctc_accuracy
   use xtb_mctc_constants, only: pi
   implicit none
@@ -21,8 +22,11 @@ module qcxms_boxmuller
       real(wp) :: z0,z1
       real(wp), intent(in) :: calc_collisions
       integer  :: box_coll
-      
-      call random_seed()
+     
+      ! initiate random numbers
+      if (iseed(1) == 0) then
+        call random_seed()
+      endif
       call random_number(dum)
       call random_number(dum2)
       sigma = calc_collisions * dble (0.12_wp)  !dble(0.25)
@@ -47,7 +51,11 @@ module qcxms_boxmuller
       real(wp) :: E_Distr ! How strongly the energy is distributed
       real(wp) :: z0,z1
       
-      call random_seed()
+      !call random_seed()
+      !call random_seed(put=iseed)
+      if (iseed(1) == 0) then
+        call random_seed()
+      endif
       call random_number(dum)
       call random_number(dum2)
 

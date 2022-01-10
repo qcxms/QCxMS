@@ -1,4 +1,4 @@
-subroutine input(tstep,tmax,ntraj,iseed,etemp_in,Tinit, mchrg_prod,                  &
+subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
         iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
         edistri,btf,ieeatm,                                                       &
         scanI,lowerbound,upperbound,ELAB,ECOM, eExact,ECP,unity,noecp,    &
@@ -17,7 +17,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp_in,Tinit, mchrg_prod,             
     
   integer  :: iprog
   integer  :: ntraj
-  integer  :: iseed 
   integer  :: nfragexit
   integer  :: maxsec      
   integer  :: edistri     
@@ -120,7 +119,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp_in,Tinit, mchrg_prod,             
   ! # of frag traject 
   ntraj = -1  
   ! rand ini
-  iseed = 42
+  !iseed = 42
+  iseed = 0
   ! electronic temperature (Fermi smearing) and used for IP/Boltzmann
   ! -1 means automatic      
   etemp_in = -1        

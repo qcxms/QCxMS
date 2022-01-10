@@ -15,6 +15,7 @@ module common1
   integer  :: grid_orca
   !integer  ::  grid_tmol
   integer  :: nproc_orca
+  integer  :: iseed(1)
 
   real(wp) ::  a1,a2,s8
   real(wp) ::  ax

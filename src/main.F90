@@ -46,7 +46,7 @@ program QCxMS
 
   integer  :: nmax,nmax0,dumpstep
   integer  :: nfrag,ndumpGS
-  integer  :: ntraj,iseed(1)
+  integer  :: ntraj
   integer  :: i,j,k,m
   integer  :: nrun,nfragexit
   integer  :: mspin,iprog,tcont
@@ -286,7 +286,7 @@ program QCxMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Read the INPUT file
   ! input, all defaults are set here
-  call input(tstep,tmax,ntraj,iseed(1),etemp_in,Tinit, mchrg_prod,           &
+  call input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,           &
   &          iee_a,iee_b,eimp0,eimpw,fimp,iprog,                            &
   &          trelax,hacc,nfragexit,maxsec,edistri,btf,ieeatm,               &
   &          scani,lowerbound,upperbound,                                   &
@@ -350,13 +350,21 @@ program QCxMS
   ! get for the QC method used the eTemp as info
   call setetemp(1,-1.0d0,betemp)
 
-  ! ini RNDs
+  !> inialize random numbers
+  !>> if not exlicitly set, use true random
 #ifdef __INTEL_COMPILER
+  if (iseed(1) == 0) then
+    call random_seed()
+  else
+  !>> if explicitly set, use seed number from input
+    call random_seed(put=iseed)
+  endif
   call random_seed (put=iseed)
 #else
   ! FIXME: this is probably not the right way to do this
   call random_seed (put=spread(iseed(1), 1, 8))
 #endif
+
   call random_number(randx)
 
   ! for GS every n steps a struc. is used later for production, i.e.
@@ -413,7 +421,7 @@ program QCxMS
   ! printing runtype information and chosen parameters
   call info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, mchrg_prod,  &
       & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, etemp_in, maxsec, betemp, nfragexit, iseed, iprog, edistri,     &
+      & ESI, tempESI, etemp_in, maxsec, betemp, nfragexit, iprog, edistri,     &
       & legacy)
 
 
@@ -1218,7 +1226,12 @@ noESI: if (.not. No_ESI )then
 
         !> if not set manually, determine automatically and distribute
         if (ESI == 0 .and. tempESI == 0 ) then
-          call random_seed()
+          !> set random seed and number 
+          !> else the random seed from start is taken
+          if (iseed(1) == 0) then
+            call random_seed()
+          endif
+
           call random_number(a)
 
           b    = nuc / 10.0
@@ -2088,7 +2101,13 @@ Coll:     if (CollAuto .and. coll_counter > frag_counter) then
             &    calc_collisions)
 
             if ( collisions > 0 )then
-              call random_seed(numb)
+              !> set random seed and number 
+              !> else the random seed from start is taken
+              if (iseed(1) == 0) then
+                !call random_seed()
+                call random_seed(numb)
+              endif
+
               call random_number(a)
 
               b = nuc / 10.0

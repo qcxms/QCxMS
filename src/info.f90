@@ -16,9 +16,9 @@ module qcxms_info
   subroutine info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, &
       mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl,  &
       CollNo, CollSec, ESI, tempESI, eTempin, maxsec, betemp, nfragexit, &
-      iseed, iprog, edistri, legacy)
+      iprog, edistri, legacy)
       
-  integer  :: ntraj,iseed(1)
+  integer  :: ntraj
   integer  :: MaxColl
   integer  :: CollSec(3),CollNo(3)
   integer  :: mchrg, mchrg_prod
@@ -223,7 +223,12 @@ CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
     write(*,'('' base eTemp            : '',f7.2,'' K'')')betemp
     write(*,'('' # ion tracks          : '',i4  )')maxsec
     write(*,'('' nfragexit             : '',i4  )')nfragexit
-    write(*,'('' iseed                 : '',i4  )')iseed
+  endif
+  !> write out if iseed is manually set
+  if (iseed(1) > 0) then
+    write(*,'(44(''!''))')
+    write(*,'('' iseed                 : '',i4  )')iseed(1)
+    write(*,'(44(''!''))')
   endif
 
   write(*,'(44(''-''))')
@@ -357,6 +362,13 @@ info: if ( method /= 3 ) then !.and. method /= 4 )then
   endif info
 
   if (verbose) write(*,'('' nfragexit             : '',i8  )')nfragexit
+
+  !> write out if iseed is manually set
+  if (iseed(1) > 0) then
+    write(*,'(44(''!''))')
+    write(*,'('' iseed                 : '',i4  )')iseed(1)
+    write(*,'(44(''!''))')
+  endif
 
 
   !open(file='qcxms.log',unit=io_log,status='old')

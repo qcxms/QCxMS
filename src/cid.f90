@@ -118,7 +118,9 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   end interface
 
   ! initiate random numbers
-  call random_seed()
+  if (iseed(1) == 0) then
+    call random_seed()
+  endif
 
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -650,7 +652,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
              achrg0,aspin0,ECP,gradfail)
   
   write(*,*)
-  write(*,'('' Est. no. steps (collision): '',i4,3x,'' Distance (A): '',f9.6)') &
+  write(*,'('' Est. no. steps (collision): '',i4,3x,'' Distance (A): '',f12.6)') &
     & step_dist, start_dist
   write(*,*)
   write(*,'(''   step  time [fs]'',4x,''Epot'',7x,''Ekin'',7x, &
