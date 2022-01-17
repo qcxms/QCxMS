@@ -304,21 +304,21 @@ module qcxms_use_orca
         if(.not.ex) return
      
         open(file='ORCA.INPUT.engrad', newunit=io_orca, status='old' )
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,*) i
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,*) edum
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,*) i       !no. of atms
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,*) edum    !The current total energy in Eh
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
         do j=1,nat
-           read(io_orca,*)g(1,j)
-           read(io_orca,*)g(2,j)
-           read(io_orca,*)g(3,j)
+           read(io_orca,*)g(1,j) ! The current gradient in Eh/bohr
+           read(io_orca,*)g(2,j) ! The current gradient in Eh/bohr
+           read(io_orca,*)g(3,j) !  The current gradient in Eh/bohr
         enddo
         close(io_orca)
      

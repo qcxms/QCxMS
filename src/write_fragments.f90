@@ -214,7 +214,7 @@ mult: if ( abs(mchrg) > 1 ) then
         !> do boltzmann for the fragment IPs
         call boltz(2,nfrag,abs(mchrg),aTlast*btf,ip_diff2,fragchrg2)
         !write(*,*) 'FRAGCHG2'
-        write(*,*) fragchrg2
+        !write(*,*) fragchrg2
 
         !> set all charges to = 1 for all strucs that have to be ignored 
         !> higher charges will be considered as not fractional
@@ -249,14 +249,14 @@ mult: if ( abs(mchrg) > 1 ) then
       fragchrg3 = chrgcont
     endif
 
-    if (verbose) then
+    !if (verbose) then
       write(*,*) 
       write(*,*) 'Summed charges per fragment'
       do i = 1, nfrag
         write(*,*) i, fragchrg3(i)
       enddo
       write(*,*) 
-    endif
+    !endif
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

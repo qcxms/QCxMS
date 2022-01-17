@@ -162,7 +162,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
   open(file=fname,newunit=io_cid,status='replace')
   
- open(file='avgxyz.xyz',newunit=io_test,status='replace')
+  !open(file='avgxyz.xyz',newunit=io_test,status='replace')
   
   
   !---------------------------------------------------------
@@ -628,6 +628,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 !  !   call ekinet(nuc0,velo0,mass0,edum,t)
 !     call init_gbsa(nuc0,iat0,solvent,gsolvstate,T_GBSA)
 !  endif
+
+  if ( prog == 3 ) then
+    call system('rm ORCA.INPUT.*')
+  endif
   
   spin = 0
   call iniqm(nuc0,xyz0,iat0,mchrg,spin,etemp,edum,iniok,ECP)
@@ -680,7 +684,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
   lowestCOM = new_dist
   distcrit = 1.05d0 * lowestCOM  !say at which point the sim ends (by distance)
-  
+ 
+  !> start the leapfrog algorithm loop
   do istep = 1, ntot
      ! increase the step coutners
      ttime = ttime + time_step * autofs 
