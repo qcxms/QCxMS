@@ -305,6 +305,7 @@ CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep * autofs
   if ( method == 1 ) write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
+  write(*,'('' M+ Ion charge(charge) : '',i4  )')mchrg_prod
 
   !write out informations
 info: if ( method /= 3 ) then !.and. method /= 4 )then
