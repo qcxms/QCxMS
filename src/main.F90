@@ -1479,10 +1479,10 @@ ESI_loop: do
             endif
 
             ! do not continue with low masses/resolution of instrument (user)
-            if ( sum(mass(1:nuc)) / amutoau <=  minmass ) then
-              littlemass = .true.
-              exit
-            endif
+            !if ( sum(mass(1:nuc)) / amutoau <=  minmass ) then
+            !  littlemass = .true.
+            !  exit
+            !endif
 
             ! reallocate the variables, as they change for smaller systemsizes
             deallocate(xyz,axyz,grad,velo,velof,chrg,spin,iat,list,mass,imass)
