@@ -1845,8 +1845,18 @@ MFPloop:  do
             if ( manual_simMD == 0 ) then
               simMD = icoll * 0.6 * nuc * 100
               if ( simMD > 8000 .and. coll_counter <= 2 ) simMD = 8000
+              
+              !>> make some timing adjustments
+              if ( simMD > 8000 .and. coll_counter > 2  ) then
+                simMD = 8000 * 0.75_wp
+              elseif ( simMD > 8000 .and. coll_counter > 3  ) then
+                simMD = 8000 * 0.6_wp
+              elseif ( simMD > 8000 .and. coll_counter >= 4  ) then
+                simMD = 8000 * 0.5_wp
+              endif
+
+              !>> not too short simulations
               if ( simMD < 2000 ) simMD = 2000
-            !  if ( simMD > 8000 .and. coll_counter > 2  ) simMD = 8000 / coll_counter
             endif
 
             !> reduce the MD time if fragmentation in MFP occurs
