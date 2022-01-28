@@ -129,7 +129,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   else
      etemp=etempin
   endif
-  if (No_etemp) etemp=etempin
+  !if (No_etemp) etemp=etempin
 
 
 
