@@ -827,7 +827,6 @@ iee2:  do i = 1, ndumpGS
           read(io_gs,*, iostat = iocheck)(xyz(j,k),j=1,3),(velo(j,k),j=1,3)
           if (iocheck>0)then     !Fail
             write(*,*) 'Something is wrong in the input structure.'
-            if (method == 3 ) write(*,*) 'Did you protonate the structure correctly?'
             write(*,*) ' --- Exiting --- '
             stop
            ! End-of-file
@@ -841,7 +840,7 @@ iee2:  do i = 1, ndumpGS
 
         !> 1. generate an e- that can ionize any MO and vary it by boxuller
         do
-          !> Legacy support. Do runs with SAME random seed for each run (pseudo-random)
+          !> Legacy support. 
           if ( legacy ) then
             Edum = eimp0 + eimpw * eimp0 * snorm() 
 
@@ -998,6 +997,8 @@ iee2:  do i = 1, ndumpGS
       !---- CID part --- 
       !no need for EIMP or TADD
       elseif ( method == 3 ) then !.or. method == 4 )then ! iee0
+          call calctrelax(nuc,emo,ihomo,mo2,trelax,tadd)
+          dum = dum+tadd
 
         do i = 1, ndumpGS
 
@@ -1013,8 +1014,8 @@ iee2:  do i = 1, ndumpGS
           xyzr (1:3,1:nuc,nrun)=xyz (1:3,1:nuc)
           velor(1:3,1:nuc,nrun)=velo(1:3,1:nuc)
           velofr(   1:nuc,nrun)=velof(   1:nuc)
-          eimpr (         nrun)=0.0_wp
-          taddr (         nrun)=0.0_wp 
+          eimpr (         nrun)=  0.0_wp
+          taddr (         nrun)=  0.0_wp 
         enddo
 
         close(io_gs)
@@ -1023,9 +1024,6 @@ iee2:  do i = 1, ndumpGS
         write(*,*) nrun,' done.'
         write(*,*)
 
-        !Take out the taddr and eimp for CID
-        taddr = 0.0d0
-        eimpr = 0.0d0
 
     endif iee0 !CID
     !----
@@ -1188,9 +1186,9 @@ iee2:  do i = 1, ndumpGS
 ! Go into CID module
 mCID:if ( method == 3 ) then !.or. method == 4 ) then
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      tadd  = 0.0_wp !should be 0 anyway.
-      eimp  = 0.0_wp !should be 0 anyway.
-      velof = 0.0_wp
+      !tadd  = 0.0_wp !should be 0 anyway.
+      !eimp  = 0.0_wp !should be 0 anyway.
+      !velof = 0.0_wp
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       !if ( method == 3 ) mchrg =  mchrg_prod
@@ -1257,7 +1255,8 @@ noESI: if (.not. No_ESI )then
           !>> scale depending on random number (or not, if value too low)
           edum = rand_int - edum
           if (edum > 0) then
-            E_Scale = vary_energies(edum, 0.1_wp)
+            !E_Scale = vary_energies(edum, 0.1_wp)
+            E_Scale = vary_energies(edum, eimpw)
             if (rand_int  == 0) E_Scale = 0
             write(*,'('' Scaling to inner Energy      : '', f14.6,a3)') E_Scale+ENe(1),' eV'
           else

@@ -684,6 +684,11 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
              call readl(line,xx,nn)
              ieeatm=xx(1)
           endif
+
+          if(index(line,'EIMPW') /= 0)then !IEE PER ATOM
+             call readl(line,xx,nn)
+             eimpw=xx(1)
+          endif
           !     POISSON OR GAUSSIAN DISTRI.  !
           if(index(line,'POISSON') /= 0)   then
              edistri=1                                       
