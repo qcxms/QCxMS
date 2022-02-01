@@ -1,19 +1,28 @@
-subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
-        iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
-        edistri,btf,ieeatm,                                                       &
-        scanI,lowerbound,upperbound,ELAB,ECOM, eExact,ECP,unity,noecp,    &
-        nometal,vScale,CollNo,CollSec,ConstVelo,                                  & 
-        minmass,manual_simMD,convetemp,set_coll,MaxColl,                          & 
-        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
-!  use gbobc, only: lgbsa
+module qcxms_input
   use readcommon
   use cidcommon
   use common1 
   use newcommon
   use qcxms_info, only: qcstring
+  use mctc_env, only : error_type, get_argument!, fatal_error
+  use mctc_io, only : structure_type, read_structure, write_structure, &
+      & filetype, get_filetype, to_symbol
   use xtb_mctc_accuracy, only: wp
   use xtb_mctc_convert
+
+  use get_settings, only: collision_type
   implicit none
+
+  contains
+
+subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
+        iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,       &
+        edistri,btf,ieeatm,                                                    &
+        scanI,lowerbound,upperbound,ELAB,ECOM, eExact,ECP,unity,noecp,         &
+        nometal,vScale,CollNo,CollSec,ConstVelo,                               & 
+        minmass,manual_simMD,convetemp, coll,                       & 
+        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
+!  use gbobc, only: lgbsa
     
   integer  :: iprog
   integer  :: ntraj
@@ -43,13 +52,13 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   real(wp) :: upperbound
   
   
-  interface
-    function to_upper(strIn) result(strOut)
-      implicit none
-      character(len=*), intent(in) :: strIn
-      character(len=len(strIn)) :: strOut
-    end function
-  end interface
+!  interface
+!    function to_upper(strIn) result(strOut)
+!      implicit none
+!      character(len=*), intent(in) :: strIn
+!      character(len=len(strIn)) :: strOut
+!    end function
+!  end interface
   
   logical :: ex
   logical :: ECP
@@ -62,13 +71,13 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   !-----------------------------------
   !----- CID related parameters ------
   
-  integer  :: MaxColl
+  !integer  :: MaxColl
   integer  :: CollNo(3)
   integer  :: CollSec(3)
   integer  :: minmass
   integer  :: manual_simMD
   integer  :: convetemp
-  integer  :: set_coll
+  !integer  :: set_coll
   integer  :: manual_dist
   
   real(wp) :: ELAB,ECOM
@@ -79,6 +88,8 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   logical  :: No_ESI
   logical  :: NoScale
   logical  :: eExact
+
+  type(collision_type) :: coll
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!! DEFAULTS: !!!!!!!!!!!!!!!!!!!
@@ -223,7 +234,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
 
   ! 1) Forced activation run-type
   CollAuto   = .False.    ! Coll. until Fragmentation
-  set_coll   = 10         ! set_coll max. collisions 
+  coll%set_coll   = 10         ! set_coll max. collisions 
 
   ! 2) General activation run-type using coll. cell parameters
   FullAuto        = .False.     
@@ -240,7 +251,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   ! More control / different run-types 
   ! Manual run-types
   Manual = .false.
-  MaxColl    = 0        ! Max coll.          -> only M+ + Gas (no fgc)
+  coll%max_coll    = 0        ! Max coll.          -> only M+ + Gas (no fgc)
 
   ! Max overall coll.  -> all coll. (fgc) 
   CollNo(1)  = 0        ! 3 Values can be set, that determine how many 
@@ -684,11 +695,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
              call readl(line,xx,nn)
              ieeatm=xx(1)
           endif
-
-          if(index(line,'EIMPW') /= 0)then !IEE PER ATOM
-             call readl(line,xx,nn)
-             eimpw=xx(1)
-          endif
           !     POISSON OR GAUSSIAN DISTRI.  !
           if(index(line,'POISSON') /= 0)   then
              edistri=1                                       
@@ -744,7 +750,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
           ! fragmentation with maximum of 'SetColl' collisions
           if(index(line,'SETCOLL') /= 0)then           
              call readl(line,xx,nn)
-             Set_Coll=xx(1)
+             coll%set_coll=xx(1)
           endif
           !  Vary the different collision number parameters
           if(index(line,'COLLNO') /= 0)then           
@@ -770,7 +776,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
           ! maximum number of Collisions (in FullColl)
           if(index(line,'MAXCOLL') /= 0)then            
              call readl(line,xx,nn)
-             MaxColl=xx(1)
+             coll%max_coll=xx(1)
              Manual = .True.
           endif
           ! Minimum e-field potential for re-acceleration 
@@ -1050,19 +1056,109 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   
   
 end subroutine input
+ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+
+subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, input_file)
+
+
+  integer :: iarg, narg
+  integer, allocatable :: input_format
+
+  character(len=:), allocatable :: arg
+  character(len=:), allocatable :: input_file
+  logical :: check,eonly,eonly0,eonly1,noeq, prod
+
+  type(error_type), allocatable :: error
+   type(structure_type) :: mol
+
+  iarg = 0
+  narg = command_argument_count()
+
+
+  write(*,*) 'COMM LINE ARGS: ', narg
+  call read_structure(mol, 'coord', error, 2 ) !input_format)
+
+  do while(iarg < narg)
+    iarg = iarg + 1
+    call get_argument(iarg, arg)
+
+    select case(arg)
+    case("--check","-c")
+      check = .true.
+    case("--prod","-p")
+      prod = .true.
+    case("--verbose","-v")
+      verbose = .true.
+    case("-e0")
+      eonly0 = .true.
+    case("-e1")
+      eonly1 = .true.
+    case("-eonly")
+      eonly = .true.
+    case("-qcp", "--qcpath")
+      iarg = iarg + 1
+      call get_argument(iarg, arg)
+      if (.not.allocated(arg)) then
+        write(*,*)
+        write(*,'(60(''-''))')
+        write(*,'("No QC-Path provided! - Using default: ", a)') &
+        & , path
+        write(*,'(60(''-''))')
+        write(*,*)
+        exit
+      end if
+      path = arg 
+
+    case("-i", "--input")
+      iarg = iarg + 1
+      call get_argument(iarg, arg)
+      if (.not.allocated(arg)) then
+        write(*,*)
+        write(*,'(60(''-''))')
+        write(*,'("No input file provided")')
+        write(*,'(60(''-''))')
+        write(*,*)
+        stop
+      else
+        input_format = get_filetype("."//arg)
+        call read_structure(mol, arg, error, input_format)
+        input_file = arg
+      end if
+
+    case default
+      write(*,*) 'DEFAULT'
+
+    end select
+  enddo
+
+
+     !if(arg == '-check'   ) check  =.true. !Check IEE settings
+     !if(arg == '-c'       ) check  =.true. !Check IEE settings
+     !if(arg == '-prod'    ) prod   =.true. !Do production run
+     !if(arg == '-p'       ) prod   =.true. !Do production run
+     !!if(arg == '-noeq'    ) noeq   =.false. !Skip equilibration MD
+     !!if(arg == '-e0'      ) eonly0 =.true. !Only calc. energy chrg = 0
+     !!if(arg == '-e1'      ) eonly1 =.true. !Only calc. energy chrg = 1
+     !!if(arg == '-eonly'   ) eonly  =.true. !Only calc. energy chrg = .CHRG file
+     !if(arg == '-v'       ) verbose  =.true.   ! more infos 
+     !if(arg == '-verbose' ) verbose  =.true.   ! more infos 
+
+     !if(index(arg(i),'-qcp'     ) /= 0)path=arg(i+1)  !Set QC path
+     !if(index(arg(i),'-qcpath'  ) /= 0)path=arg(i+1)  !Set QC path
+
+
+
+
+  end subroutine command_line_args
   
-  
-  !-----------------------------------------------------------------------
-  ! isotopes are read in subroutine read_isotopes using the option (in qcxms.in):
-  ! isotope <atom_numer> <mass>(integer) <atom_numer> <mass>(integer) ...
-  !-----------------------------------------------------------------------
-  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
   
 function to_upper(strIn) result(strOut)
 ! Adapted from http://www.star.le.ac.uk/~cgp/fortran.html (25 May 2012)                                         
 ! Original author: Clive Page 
 
-implicit none
+!implicit none
 
 character(len=*), intent(in) :: strIn
 character(len=len(strIn)) :: strOut
@@ -1079,3 +1175,4 @@ end do
 
 end function to_upper
 
+end module qcxms_input

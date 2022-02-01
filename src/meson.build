@@ -41,6 +41,7 @@ srcs += files(
   'readl.f90',
   'rotation.f90',
   'mo_spec.f90',
+  'settings.f90',
   'snorm.f90',
   'tblite.f90',
   'timing.f90',

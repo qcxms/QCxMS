@@ -360,7 +360,7 @@ module qcxms_use_orca
    integer :: line
    character(len=80) :: command
    
-   if(line >= 10000)stop 'error 1 inside copyorc'
+   if(line >= 10000)stop 'Too many folders. Please reduce size'
    
    if(line >= 1000)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')line

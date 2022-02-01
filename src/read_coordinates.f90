@@ -197,46 +197,6 @@ exst: if ( ex ) then
 
   end subroutine rd
   
-  
-  
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! read qcxms.start file
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine rdstart(itrj,nat,xyz,velo,velof,tadd,eimp)
-     use xtb_mctc_accuracy, only: wp
-     implicit none
-  
-     integer  :: itrj,nat
-     integer  :: j,ndum
-     integer  :: io_start, ierror
-
-     real(wp) :: xyz (3,nat)
-     real(wp) :: velo(3,nat)
-     real(wp) :: velof   (nat)
-     real(wp) :: tadd,eimp
-  
-     character(len=80) :: fname
-  
-     fname='qcxms.start'
-  
-     open(file=fname,newunit=io_start,status='old', &
-       action='read',iostat=ierror)
-
-     if(ierror > 0) stop ' - Missing qcxms.start file! -'
-
-     read (io_start,*) itrj,ndum
-     read (io_start,'(2D22.14)') eimp,tadd
-  
-     if (ndum /= nat) stop '- error in rdstart -'
-  
-     do j = 1, nat
-        read (io_start,'(7D22.14)') xyz(1:3,j), velo(1:3,j), velof(j)
-     enddo
-  
-     close(io_start)
-  
-  end subroutine rdstart
-
 
 end module qcxms_read_coordinates
    

@@ -1,6 +1,10 @@
 module qcxms_utility
    use common1
    use newcommon
+   use mctc_io, only : to_symbol, read_structure, write_structure
+   use mctc_io_filetype, only : filetype
+   use mctc_io_structure, only : structure_type
+   use mctc_env_error, only : error_type
    use xtb_mctc_accuracy, only: wp
    use xtb_mctc_constants, only: kB
    use xtb_mctc_convert
@@ -149,10 +153,10 @@ module qcxms_utility
       integer  :: it
       character(len=80) :: fname
    
-      if(it.lt.10000)write(fname,'(''mkdir TMPQCXMS/TMP.'',i4)')it
-      if(it.lt.1000) write(fname,'(''mkdir TMPQCXMS/TMP.'',i3)')it
-      if(it.lt.100)  write(fname,'(''mkdir TMPQCXMS/TMP.'',i2)')it
-      if(it.lt.10)   write(fname,'(''mkdir TMPQCXMS/TMP.'',i1)')it
+      if (it < 10000) write(fname,'(''mkdir TMPQCXMS/TMP.'',i4)') it
+      if (it < 1000)  write(fname,'(''mkdir TMPQCXMS/TMP.'',i3)') it
+      if (it < 100)   write(fname,'(''mkdir TMPQCXMS/TMP.'',i2)') it
+      if (it < 10)    write(fname,'(''mkdir TMPQCXMS/TMP.'',i1)') it
    
       call execute_command_line(fname)
    end
@@ -314,48 +318,120 @@ module qcxms_utility
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! writing routine
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   subroutine wrstart(it,nat,xyzr,velor,velofr,eimpr,taddr)
-      use xtb_mctc_accuracy, only: wp
-   ! it is # traj
+   subroutine wrstart(traj,mol,nat,xyzr,velor,velofr,eimpr,taddr)
+
+   ! traj is # traj
    ! "nat" is # atoms
    ! xyz coords
    ! velor velocity
    ! velofr is scaling factor
    ! eimpr is energy impact electron ! eimp
    ! taddr is temp add
-   
-      implicit none
-   
-      integer  :: it,nat
+      integer  :: traj,nat
       integer  :: j
-      integer  :: io_wr
+      integer  :: io_wr_xyz, io_wr_info
    
       real(wp) :: xyzr (3,nat)
       real(wp) :: velor(3,nat)
       real(wp) :: velofr    (  nat)
       real(wp) :: eimpr,taddr
    
-      character(len=80) :: fname
+      character(len=80) :: fname_xyz, fname_info
    
-      if(it.lt.10000) write(fname,'(''TMPQCXMS/TMP.'',i4,''/qcxms.start'')')it
-      if(it.lt.1000)  write(fname,'(''TMPQCXMS/TMP.'',i3,''/qcxms.start'')')it
-      if(it.lt.100)   write(fname,'(''TMPQCXMS/TMP.'',i2,''/qcxms.start'')')it
-      if(it.lt.10)    write(fname,'(''TMPQCXMS/TMP.'',i1,''/qcxms.start'')')it
-   
-      open(file=fname, newunit= io_wr)
+      type(error_type), allocatable :: error
+      type(structure_type) :: mol
 
-      write(io_wr,'(2i4)') it,nat
-      write(io_wr,'(2D22.14)') eimpr,taddr
+      mol%xyz = xyzr
+      mol%nat = nat
+
+      if(traj < 10000) write(fname_xyz,'(''TMPQCXMS/TMP.'',i4,''/start.xyz'')')traj
+      if(traj < 1000)  write(fname_xyz,'(''TMPQCXMS/TMP.'',i3,''/start.xyz'')')traj
+      if(traj < 100)   write(fname_xyz,'(''TMPQCXMS/TMP.'',i2,''/start.xyz'')')traj
+      if(traj < 10)    write(fname_xyz,'(''TMPQCXMS/TMP.'',i1,''/start.xyz'')')traj
    
+      call write_structure(mol, fname_xyz, error, filetype%xyz) 
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      if(traj < 10000) write(fname_info,'(''TMPQCXMS/TMP.'',i4,''/qcxms.start'')')traj
+      if(traj < 1000)  write(fname_info,'(''TMPQCXMS/TMP.'',i3,''/qcxms.start'')')traj
+      if(traj < 100)   write(fname_info,'(''TMPQCXMS/TMP.'',i2,''/qcxms.start'')')traj
+      if(traj < 10)    write(fname_info,'(''TMPQCXMS/TMP.'',i1,''/qcxms.start'')')traj
+
+      open(file=fname_info, newunit= io_wr_info)
+      write(io_wr_info,'(i4)') traj
+      write(io_wr_info,'(2D22.14)') eimpr,taddr
+
       do j=1,nat
-         write(io_wr,'(7D22.14)') xyzr (1:3,j),velor(1:3,j),velofr(j)
+         write(io_wr_info,'(7D22.14)') velor(1:3,j),velofr(j)
       enddo
-   
-      close(io_wr)
+
+      close(io_wr_info)
    
    end subroutine wrstart
    
-   
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! read qcxms.start file
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine rdstart(itrj,mol,nat,xyz,velo,velof,tadd,eimp)
+  
+     integer  :: itrj,nat
+     integer  :: j,ndum
+     integer  :: io_info, io_xyz
+     integer  :: ierror
+      integer,allocatable  :: iat (:)
+
+     real(wp) :: xyz (3,nat)
+     real(wp) :: velo(3,nat)
+     real(wp) :: velof   (nat)
+     real(wp) :: tadd,eimp
+  
+     character(len=80) :: fname
+
+     type(error_type), allocatable :: error
+     type(structure_type), intent(out) :: mol
+
+     call read_structure(mol, 'start.xyz', error, filetype%xyz)
+
+     ndum = mol%nat
+     if (ndum /= nat) stop '- error in rdstart -'
+     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+     fname='qcxms.start'
+  
+     open(file=fname, newunit=io_info, status='old', &
+       action='read', iostat=ierror)
+
+     if(ierror > 0) stop ' - Missing qcxms.start file! -'
+
+     read (io_info,*) itrj
+     read (io_info,'(2D22.14)') eimp, tadd
+
+     do j = 1, nat
+        read (io_info,'(7D22.14)') velo(1:3,j), velof(j)
+     enddo
+ 
+     close(io_info)
+
+     !fname='qcxms.start'
+  
+     !open(file=fname,newunit=io_start,status='old', &
+     !  action='read',iostat=ierror)
+
+     !if(ierror > 0) stop ' - Missing qcxms.start file! -'
+
+     !read (io_start,*) itrj,ndum
+     !read (io_start,'(2D22.14)') eimp,tadd
+  
+     !if (ndum /= nat) stop '- error in rdstart -'
+  
+     !do j = 1, nat
+     !   read (io_start,'(7D22.14)') xyz(1:3,j), velo(1:3,j), velof(j)
+     !enddo
+  
+     !close(io_start)
+
+  end subroutine rdstart
    
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! calculate # of valence electrons in mopac and dftb
@@ -377,8 +453,7 @@ module qcxms_utility
       endif
    
    end subroutine valel
-   
-   
+
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! spin value of molecule
    ! returns -1 if no electrons are found (e.g. H+)

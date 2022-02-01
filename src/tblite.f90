@@ -1,6 +1,5 @@
 ! This file is part of qcxms.
 
-!> This module defines the bridge between QCxMS and the tblite library.
 module qcxms_tblite
    use mctc_env, only : error_type
    use mctc_io, only : structure_type, new

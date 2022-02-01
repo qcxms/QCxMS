@@ -5,13 +5,13 @@ module qcxms_iee
   contains
 
 ! determine automatically the two parameters in the P(E)
-! function for given energy range exc, the number of atoms
-! (nuc) and the input parameter ieeatm (av energy/per bond in eV,
+! function for given energy range exc, the number of bonds
+! nbnd and the input parameter ieeatm (av energy/per bond in eV,
 ! normally 0.5 eV/bond)
 
-  subroutine getieeab(iee_a,iee_b,ieeel,ityp,exc,nuc,ieeatm)
+  subroutine getieeab(iee_a,iee_b,ieeel,ityp,exc,nbnd,ieeatm)
   
-     integer  :: ityp,nuc,k
+     integer  :: ityp,nbnd,k
   
      real(wp) :: iee_a,iee_b,ieeel,pmax,ieemax,exc,E_avg,st,ieeatm
 
@@ -31,7 +31,7 @@ module qcxms_iee
        call getmaxiee(iee_a,iee_b,ieeel,ityp,exc,ieemax,pmax,E_avg)
 
        if (k > 10000) stop 'internal error inside getieeab'
-       if (E_avg / nuc >= ieeatm) exit 
+       if (E_avg / nbnd >= ieeatm) exit 
 
 
      enddo

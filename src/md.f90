@@ -129,7 +129,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   else
      etemp=etempin
   endif
-  !if (No_etemp) etemp=etempin
+  if (No_etemp) etemp=etempin
 
   ! CID mopac-pm6 behaves better without huge Electronic Temp.
   !if(prog == 1.and.method == 3.and.temprun == .false.)then
@@ -187,8 +187,11 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   ! add the e-hit energy in the first MD steps linearly     
   if(it > 0.and.it < 9999)then
      write(*,'(''Eimp (eV) = '',F6.1,5x,''tauIC (fs) = '',F6.0,6x,''nstep = '',i7,/)')eimp*autoev,tadd/fstoau,nmax
-     nadd=(tadd+tstep)/tstep-1             
+
+     nadd=(tadd+tstep)/tstep-1   
      fadd=tstep/(tadd+tstep)
+     
+
      write(*,'(''avcycle = '',i4,''    more = '',i4,/)')avdump,more
   else   
      nadd =0
@@ -218,6 +221,8 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      Tav =Tav+T
      Epav=Epav+Epot
      Ekav=Ekav+Ekin
+     !> if no. of steps exceed ~2x tadd (which is nadd roughly)
+     !> the average energy is divided by nstep - nadd 
      if(nstep > nadd)then
         Edum=Edum+Epot+Ekin
         Eav =Edum/float(nstep-nadd)
