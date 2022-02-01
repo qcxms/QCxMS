@@ -454,7 +454,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
          if ( line == 'TPSS')         func=12
          if ( line == 'REVPBE')       func=13
          if ( line == 'PBEH3C')       func=14
-         !func=14 (according to orca.f) is supposed to be PBEh-3c ASK CHRISTOPH!
          if ( line == 'BHLYP')        func=15
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

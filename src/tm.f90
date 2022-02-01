@@ -334,6 +334,15 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$rij              '   >> control")
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$end              '   >> control")
+  !     PBEh-3c
+     elseif(func.eq.14) then
+        call execute_command_line("echo ' functional pbeh-3c'  >> control")
+        call execute_command_line("echo ' gridsize m4      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        !call execute_command_line("echo '$disp4            '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     BH-LYP-D3BJ
      elseif(func.eq.15) then
         call execute_command_line("echo ' functional bh-lyp'   >> control")
