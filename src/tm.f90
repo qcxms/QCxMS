@@ -125,34 +125,20 @@ module qcxms_use_turbomole
   
   subroutine dscftm
 
-<<<<<<< HEAD
-     if(shell.eq.1) &
+     if(shell == 1) &
        call execute_command_line('( /usr/local/bin/ridft >  job.last ) > & /dev/null')
-     if(shell.eq.2) &
+     if(shell == 2) &
        call execute_command_line('( ridft >  job.last  2>   /dev/null')
-=======
-  
-     if(shell == 1) call system('( /usr/local/bin/ridft >  job.last ) > & /dev/null')
-     if(shell == 2) call system('( ridft >  job.last  2>   /dev/null')
->>>>>>> bcc28cf (init ReBuild)
   
   end subroutine dscftm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
   
   subroutine gradtm
 
-<<<<<<< HEAD
-  !     if(shell.eq.1) call execute_command_line('( grad >> job.last ) > & /dev/null')
-  !     if(shell.eq.2) call execute_command_line('  grad >> job.last  2>   /dev/null')
-  
-     if(shell.eq.1) &
+     if(shell == 1) &
        call execute_command_line('( /usr/local/bin/rdgrad >> job.last ) > & /dev/null')
-     if(shell.eq.2) &
+     if(shell == 2) &
        call execute_command_line('  rdgrad >> job.last  2>   /dev/null')
-=======
-     if(shell == 1) call system('( /usr/local/bin/rdgrad >> job.last ) > & /dev/null')
-     if(shell == 2) call system('  rdgrad >> job.last  2>   /dev/null')
->>>>>>> bcc28cf (init ReBuild)
   
   end subroutine gradtm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
@@ -268,7 +254,6 @@ module qcxms_use_turbomole
      call execute_command_line('kdg dft    ')
      call execute_command_line("echo '$dft' >> control")
   !     PBE0
-<<<<<<< HEAD
      if(func.eq.0) then
         call execute_command_line("echo ' functional pbe0'   >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
@@ -277,22 +262,10 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$extol 2.500      '   >> control")
         call execute_command_line("echo '$end              '   >> control")
-=======
-     if(func == 0) then
-        call system("echo ' functional pbe0'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$extol 2.500      '   >> control")
-        call system("echo '$end              '   >> control")
->>>>>>> bcc28cf (init ReBuild)
   !     PBE12 and PBE38 do not work
      elseif(func == 2.or.func == 3.or.func == 9.or.func == 13) then
         error stop 'PBE12/PBE38/B3PW91/REVPBE not implemented with Turbomole.'
   !     M062X without dispersion!
-<<<<<<< HEAD
      elseif(func.eq.4) then
         call execute_command_line("echo ' functional m062x'   >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
@@ -358,80 +331,6 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$rij              '   >> control")
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$end              '   >> control")
-=======
-     elseif(func == 4) then
-        call system("echo ' functional m062x'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$extol 2.500      '   >> control")
-        call system("echo '$end              '   >> control")
-  !     PBE-D3BJ
-     elseif(func == 5) then
-        call system("echo ' functional pbe'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$end              '   >> control")
-  !     B97-D3BJ. CAB 27.10.15
-     elseif(func == 6) then
-        call system("echo ' functional b97-d'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$end              '   >> control")
-  !     B3LYP-D3BJ
-     elseif(func == 7)  then
-        call system("echo ' functional b3-lyp'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$extol 2.500      '   >> control")
-        call system("echo '$end              '   >> control")
-  !     PW6B95-D3BJ
-     elseif(func == 8)  then
-        call system("echo ' functional pw6b95'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$extol 2.500      '   >> control")
-        call system("echo '$end              '   >> control")
-  !     BLYP-D3BJ
-     elseif(func == 10)  then
-        call system("echo ' functional b-lyp'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$end              '   >> control")
-  !     BP86-D3BJ
-     elseif(func == 11)  then
-        call system("echo ' functional b-p'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$end              '   >> control")
-  !     TPSS-D3BJ
-     elseif(func == 12) then
-        call system("echo ' functional tpss'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$end              '   >> control")
->>>>>>> bcc28cf (init ReBuild)
   !     PBEh-3c
      elseif(func.eq.14) then
         call execute_command_line("echo ' functional pbeh-3c'  >> control")
@@ -442,7 +341,6 @@ module qcxms_use_turbomole
         !call execute_command_line("echo '$disp4            '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     BH-LYP-D3BJ
-<<<<<<< HEAD
      elseif(func.eq.15) then
         call execute_command_line("echo ' functional bh-lyp'   >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
@@ -450,16 +348,6 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$rij              '   >> control")
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$end              '   >> control")
-=======
-     elseif(func == 15) then
-        call system("echo ' functional bh-lyp'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        !call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$disp4            '   >> control")
-        call system("echo '$end              '   >> control")
->>>>>>> bcc28cf (init ReBuild)
      endif
   
   
@@ -503,16 +391,13 @@ module qcxms_use_turbomole
      logical  :: file_exists = .false.
   
      if(it >= 10000)error stop 'Too many folders! Reduce size!'
-  
-<<<<<<< HEAD
-     call execute_command_line('cp coord coord.original')
-=======
+
      inquire(file='coord', exist =file_exists)
 
-     if ( .not. file_exists) stop 'There is no coord file!'
+     if ( .not. file_exists) error stop 'There is no coord file!'
+  
+     call execute_command_line('cp coord coord.original')
 
-     call system('cp coord coord.original')
->>>>>>> bcc28cf (init ReBuild)
   
      if(it >= 1000)then
         write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')it
@@ -600,18 +485,13 @@ module qcxms_use_turbomole
      character(len=80) :: fname
      logical  :: file_exists = .false.
   
-     if(it >= 10000) error stop 'error 1 inside copytm'
-  
-<<<<<<< HEAD
-     call execute_command_line('cp coord coord.original')
-=======
+     if(it >= 10000) error stop 'Too many folders, reduce size!'
+
      inquire(file='coord', exist =file_exists)
-
      if ( .not. file_exists) stop 'There is no coord file!'
-
-     call system('cp coord coord.original')
->>>>>>> bcc28cf (init ReBuild)
   
+     call execute_command_line('cp coord coord.original')
+
      if(it >= 1000)then
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i4)')it
         call execute_command_line(fname)

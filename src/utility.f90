@@ -376,7 +376,6 @@ module qcxms_utility
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! read qcxms.start file
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !subroutine rdstart(itrj,mol,nat,xyz,velo,velof,tadd,eimp)
   subroutine rdstart(itrj,nat,velo,velof,tadd,eimp)
   
      integer  :: itrj,nat
