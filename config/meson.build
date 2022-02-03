@@ -11,6 +11,9 @@ if fc_id == 'gcc'
     '-fbacktrace',
     language: 'fortran',
   )
+  if fc.version().version_compare('<8')
+    error('GCC version 8 or higher is required.')
+  endif
 elif fc_id == 'intel'
   add_project_arguments(
     '-traceback',
