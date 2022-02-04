@@ -90,8 +90,6 @@ module qcxms_utility
       character(len=* ) :: fout
       character(len=80) :: atmp
    
-      external system
-   
       calls = calls + 1
    
    ! DFTB+
@@ -150,7 +148,6 @@ module qcxms_utility
    
       integer  :: it
       character(len=80) :: fname
-      external :: system
    
       if(it.lt.10000)write(fname,'(''mkdir TMPQCXMS/TMP.'',i4)')it
       if(it.lt.1000) write(fname,'(''mkdir TMPQCXMS/TMP.'',i3)')it
@@ -167,7 +164,6 @@ module qcxms_utility
    
       integer :: it
       character(len=80) :: fname
-      external system
    
       if(it.ge.10000)stop 'error 1 inside copytb'
    
@@ -214,7 +210,6 @@ module qcxms_utility
    
       integer :: it
       character(len=80) :: fname
-      external system
    
       if(it.ge.10000)stop 'error 1 inside copymop'
    
@@ -269,7 +264,6 @@ module qcxms_utility
    
       integer :: it
       character(len=80) :: fname
-      external system
    
       if(it.ge.10000)stop 'error 1 inside copymsindo'
    

@@ -11,7 +11,9 @@ if fc_id == 'gcc'
     '-fbacktrace',
     language: 'fortran',
   )
-  error('This project does not support compilation with GCC yet')
+  if fc.version().version_compare('<8')
+    error('GCC version 8 or higher is required.')
+  endif
 elif fc_id == 'intel'
   add_project_arguments(
     '-traceback',
@@ -95,46 +97,26 @@ else
   exe_deps += blas_dep
 endif
 
-# Look for tool-chain library as external dependency
-mctc_dep = dependency('mctc-lib', required: false, static: static)
-if not mctc_dep.found()
-  # Create the tool chain library as subproject
-  mctc_prj = subproject(
-    'mctc-lib',
-    version: '>=0.2',
-    default_options: [
-      'default_library=static',
-    ],
-  )
-  mctc_dep = mctc_prj.get_variable('mctc_dep')
-
-  if install
-    install_data(
-      mctc_prj.get_variable('mctc_lic'),
-      install_dir: get_option('datadir')/'licenses'/meson.project_name()/'mctc-lib'
-    )
-  endif
-endif
+# Create the tool chain library as subproject
+mctc_dep = dependency(
+  'mctc-lib',
+  version: '>=0.2',
+  fallback: ['mctc-lib', 'mctc_dep'],
+  default_options: ['default_library=static'],
+  static: static,
+)
 exe_deps += mctc_dep
 
-# Look tight-binding framework as external dependency
-tblite_dep = dependency('tblite', required: false, static: static)
-if not tblite_dep.found()
-  # Create the tight-binding framework as subproject
-  tblite_prj = subproject(
-    'tblite',
-    version: '>=0.1',
-    default_options: [
-      'default_library=static',
-    ],
-  )
-  tblite_dep = tblite_prj.get_variable('tblite_dep')
-
-  if install
-    install_data(
-      tblite_prj.get_variable('tblite_lic'),
-      install_dir: get_option('datadir')/'licenses'/meson.project_name()/'tblite'
-    )
-  endif
-endif
+# Create the tight-binding framework as subproject
+tblite_dep = dependency(
+  'tblite',
+  version: '>=0.1',
+  fallback: ['tblite', 'tblite_dep'],
+  default_options: ['default_library=static'],
+  static: static,
+)
 exe_deps += tblite_dep
+
+if tblite_dep.version().version_compare('>=0.2')
+  error('tblite version 0.2 or higher is not supported yet.')
+endif

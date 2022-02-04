@@ -141,7 +141,6 @@ program QCxMS
   !logical gbsa ! set solvation model
 
   intrinsic :: get_command_argument
-  external  :: system
 
   interface
     function calc_ECOM(beta,e_kin) result(E_COM)
@@ -338,7 +337,12 @@ program QCxMS
   call setetemp(1,-1.0d0,betemp)
 
   ! ini RNDs
+#ifdef __INTEL_COMPILER
   call random_seed (put=iseed)
+#else
+  ! FIXME: this is probably not the right way to do this
+  call random_seed (put=spread(iseed(1), 1, 8))
+#endif
   call random_number(randx)
 
   ! for GS every n steps a struc. is used later for production, i.e.

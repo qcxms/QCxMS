@@ -60,28 +60,28 @@ module qcxms_use_orca
         open(file='ORCA.INPUT', newunit=io_orca)
 
      ! hybrid vs other funcs.... nat is number of atoms
-        if ( func <= 4 .and. nat < 60 .and. noconv ==  .false. ) then
+        if ( func <= 4 .and. nat < 60 .and. .not.noconv ) then
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
 
-        elseif ( func  ==  7 .and. nat < 60 .and. noconv ==  .false.) then
+        elseif ( func  ==  7 .and. nat < 60 .and. .not.noconv ) then
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
 
-        elseif ( func  ==  8 .and. nat < 60 .and. noconv  ==  .false.) then
+        elseif ( func  ==  8 .and. nat < 60 .and. .not.noconv ) then
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
 
-        elseif ( func  ==  9 .and. nat < 60 .and. noconv  ==  .false.) then
+        elseif ( func  ==  9 .and. nat < 60 .and. .not.noconv ) then
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
 
-        elseif ( func <= 4 .and. noconv ==  .True.)then
+        elseif ( func <= 4 .and. noconv)then
            write(io_orca,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
 
-        elseif ( func  ==  7 .and. noconv ==  .True.) then
+        elseif ( func  ==  7 .and. noconv) then
            write(io_orca,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
 
-        elseif ( func  ==  8 .and. noconv ==  .True.) then
+        elseif ( func  ==  8 .and. noconv) then
            write(io_orca,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
 
-        elseif ( func  ==  9 .and. noconv ==  .True.) then
+        elseif ( func  ==  9 .and. noconv) then
            write(io_orca,'(''! DIRECT SMALLPRINT NORI NOSOSCF'')')
 
         ! RI
@@ -104,9 +104,9 @@ module qcxms_use_orca
         endif
 
         ! IF ECP true
-        if (ecp  ==  .true. .and. func /= 14)then
+        if (ecp .and. func /= 14)then
            write(io_orca,'(''! ecp('',a,'')'')')trim(basis(bas))
-        elseif(ecp  ==  .true. .and. func  ==  14)then
+        elseif(ecp .and. func  ==  14)then
            write(io_orca,'(''! ecp(def2-mSVP)'')')
         endif
 
@@ -344,7 +344,6 @@ module qcxms_use_orca
    
    integer :: line
    character(len=80) :: command
-   external :: system
    
    if(line >= 10000)stop 'error 1 inside copyorc'
    

@@ -80,8 +80,6 @@ module qcxms_iniqm
     
        character(len=20) :: atmp
     
-       external :: system
-    
        stat=0
        edum=0
     
@@ -258,8 +256,6 @@ module qcxms_iniqm
        integer :: stat
        character(len=:), allocatable :: output_name
     
-       external :: system
-    
        call electrons_amount(nat, iat, chrg, nel, nb, z)
     
     ! spec.f and regular IP/EA evaluations will use this input option
@@ -294,7 +290,7 @@ module qcxms_iniqm
           if(chrg == 0)then
              call qccall(0,'neutral.out')
           else
-             call system(0,'ion.out')
+             call qccall(0,'ion.out')
           endif
           call dftbenergy(energy)
        endif
