@@ -60,7 +60,7 @@ module qcxms_use_orca
         open(file='ORCA.INPUT', newunit=io_orca)
 
      ! hybrid vs other funcs.... nat is number of atoms
-        if ( func <= 4 .and. nat < 60 .and. noconv ==  .false. ) then
+        if ( func <= 4 .and. nat < 60 .and. .not. noconv ) then
          if ( No_eTemp ) then
            write(io_orca,'(''! CONV SMALLPRINT NOSOSCF RIJK DEF2/JK'')')
          else 

@@ -256,7 +256,7 @@ module qcxms_iniqm
        integer :: stat
        character(len=:), allocatable :: output_name
     
-       call electrons_amount(nat, iat, chrg, nel, nb, z)
+       call electrons_amount(nat, iat, mchrg, nel, nb, z)
     
     ! spec.f and regular IP/EA evaluations will use this input option
     ! where the algorithm assigns the spin automatically
