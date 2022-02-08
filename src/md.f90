@@ -81,6 +81,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   logical gradfail
   logical starting_md
   logical mdok,restart
+!  logical avg_struc = .false.
  
 
 
