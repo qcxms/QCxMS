@@ -61,6 +61,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   real(wp), intent(out) :: axyz(3,nuc)
   real(wp) :: avxyz(3,nuc)
   real(wp) :: avxyz2(3,nuc)
+  real(wp) :: store_avxyz(3,nuc)
   real(wp) :: ttime
   real(wp) :: mass(nuc)
   real(wp) :: new_velo,velo_diff,velo_cm
@@ -785,12 +786,14 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
     if (nfrag > check_fragmented) then
       cnt = cnt + 1
-      !avxyz2  = avxyz2  + xyz0(:,:nuc)
+      avxyz2  = avxyz2  + xyz0(:,:nuc)
       if (cnt == 50) then
-        avxyz2  = avxyz / xyzavg_dump
+        store_avxyz  = avxyz2 / cnt
+        !avxyz2  = avxyz / xyzavg_dump
         check_fragmented = nfrag
+        write(*,*) 'Count', cnt
         cnt = 0
-            write(*,*) 'KDUMP', xyzavg_dump
+        avxyz2 = 0
       endif
     endif
 
@@ -993,7 +996,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   velo_cm         = new_velo
 
   if (check_fragmented > 1 ) then 
-    axyz (1:3,1:nuc) = avxyz2  (1:3,1:nuc) 
+    !axyz (1:3,1:nuc) = avxyz2  (1:3,1:nuc) 
+    axyz (1:3,1:nuc) = store_avxyz  (1:3,1:nuc) 
   else
    axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) / xyzavg_dump
   endif

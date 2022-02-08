@@ -59,6 +59,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   real(wp) :: Epot,Eerror,Ekin,Edum,dum,etemp,Eav,fadd
   real(wp) :: Ekinstart
   real(wp) :: avspin(nuc),avchrg(nuc),avxyz(3,nuc)
+  real(wp) :: store_avxyz(3,nuc)
   real(wp) ::  sca
   !!! CID Stuff
   real(wp) :: diff_cm(3),cm_out
@@ -78,6 +79,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   logical gradfail
   logical starting_md
   logical mdok,restart
+!  logical avg_struc = .false.
  
   !!!!!!!!!!!
   !> count steps after frag
@@ -430,13 +432,17 @@ ifit:if(it > 0)then
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (nfrag > check_fragmented) then
           cnt = cnt + 1
-          !avxyz2  = avxyz2  + xyz0(:,:nuc)
+          !avg_struc = .true.
+          avxyz2  = avxyz2  + xyz
+          !> after 
           if (cnt == 50) then
-            avxyz2  = avxyz / kdump !cnt
+            !avxyz2  = avxyz / kdump !cnt
+            store_avxyz  = avxyz2 / cnt
             check_fragmented = nfrag
-            write(*,*) 'KDUMP', kdump
+            !avg_struc = .false.
+            write(*,*) 'Count', cnt
             cnt = 0
-            !avg_struc = .true.
+            avxyz2 = 0
           endif
         endif
 
@@ -495,7 +501,8 @@ ifit:if(it > 0)then
   achrg  = avchrg / kdump
   !axyz   = avxyz  / kdump
   if (check_fragmented > 1 ) then 
-    axyz (1:3,1:nuc) = avxyz2  (1:3,1:nuc) 
+    !axyz (1:3,1:nuc) = avxyz2  (1:3,1:nuc) 
+    axyz (1:3,1:nuc) = store_avxyz  (1:3,1:nuc) 
   else
    axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) / kdump
   endif
