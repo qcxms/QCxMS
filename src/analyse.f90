@@ -47,46 +47,47 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   character(len=80) :: fname
   character(len=20) :: line, line2
   
-  logical :: ipok
+  logical :: ipok 
   logical :: nometal, ECP
   logical :: metal = .false. !if fragment has metal
   logical :: ipcalc
   logical :: spec_calc = .false.
   
-
+  ipok = .true.
   ! timings
   t1 = 0.0_wp
   t2 = 0.0_wp
   w1 = 0.0_wp
   w2 = 0.0_wp
 
-  write(*,'('' computing average fragment structures ...'')')
-  
-  ipok=.true.
-  xyzf = 0
-  iatf = 0
-  do i=1,nuc
-    j=list(i)
-    xyzf(1:3,i,j)=axyz(1:3,i)
-    iatf(    i,j)=iat(    i)
-  enddo   
+  call avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf)
 
-  dum  = xyzf
-  idum = iatf
-  
-  xyzf = 0
-  iatf = 0 
-  do i=1,nfrag
-    k=0
-    do j=1,nuc
-      if(idum(j,i) /= 0)then
-        k=k+1
-        xyzf(1:3,k,i)=dum(1:3,j,i)     
-        iatf(    k,i)=idum(   j,i)     
-      endif
-    enddo   
-    natf(i)=k
-  enddo    
+  !write(*,'('' computing average fragment structures ...'')')
+  !
+  !xyzf = 0
+  !iatf = 0
+  !do i=1,nuc
+  !  j=list(i)
+  !  xyzf(1:3,i,j)=axyz(1:3,i)
+  !  iatf(    i,j)=iat(    i)
+  !enddo   
+
+  !dum  = xyzf
+  !idum = iatf
+  !
+  !xyzf = 0
+  !iatf = 0 
+  !do i=1,nfrag
+  !  k=0
+  !  do j=1,nuc
+  !    if(idum(j,i) /= 0)then
+  !      k=k+1
+  !      xyzf(1:3,k,i)=dum(1:3,j,i)     
+  !      iatf(    k,i)=idum(   j,i)     
+  !    endif
+  !  enddo   
+  !  natf(i)=k
+  !enddo    
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !write fragments with average geometries      
@@ -471,6 +472,53 @@ mult_i:   do k=1,fiter         !ITER OVER MULTIPLICITES
     
     
 end subroutine analyse
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf)
+
+  integer :: nuc  
+  integer :: natf(10)
+  integer :: iat (nuc)
+  integer :: nfrag
+  integer :: list(nuc)
+  integer :: iatf(nuc,10)
+  integer :: idum(nuc,10)
+  integer :: i,j,k
+
+  real(wp) :: axyz(3,nuc)
+  real(wp) :: xyzf(3,nuc,10)
+  real(wp) :: dum (3,nuc,10)
+    
+  write(*,'('' computing average fragment structures ...'')')
+  
+  xyzf = 0
+  iatf = 0
+  do i=1,nuc
+    j=list(i)
+    xyzf(1:3,i,j)=axyz(1:3,i)
+    iatf(    i,j)=iat(    i)
+  enddo   
+
+  dum  = xyzf
+  idum = iatf
+  
+  xyzf = 0
+  iatf = 0 
+  do i=1,nfrag
+    k=0
+    do j=1,nuc
+      if(idum(j,i) /= 0)then
+        k=k+1
+        xyzf(1:3,k,i)=dum(1:3,j,i)     
+        iatf(    k,i)=idum(   j,i)     
+      endif
+    enddo   
+    natf(i)=k
+  enddo    
+  
+
+end subroutine avg_frag_struc 
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!       
 ! FUNCTION FOR ATOM IP (USED ONLY FOR MOPAC)

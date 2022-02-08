@@ -99,7 +99,7 @@ ok: if ( nfrag_ok ) then !only do the following if nfrags are reasonable
 
     !> compute fragment IP/EA per frag. and chrg.
     if ( method == 3 .and. .not. Temprun ) then ! fix average geometry for CID (axyz)
-         call analyse(iprog,nuc,iat,iatf,xyz,list,nfrag,aTlast,fragip, mchrg, &
+         call analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,aTlast,fragip, mchrg, &
                   natf,ip_ok,icoll,isec,nometal,ECP)
     else
        call analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,aTlast,fragip, mchrg, &

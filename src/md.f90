@@ -39,6 +39,10 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   integer :: screendump,nadd,morestep,more,spin,fconst
   integer :: mchrg
   integer :: io_GS, io_OUT
+  integer :: step
+
+  integer :: check_fragmented
+  integer :: cnt
   
   real(wp) :: xyz (3,nuc)
   real(wp) :: grad(3,nuc)
@@ -64,6 +68,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   real(wp) :: Ekin_new,tinit
   real(wp) :: E_int(10)
 !  real(wp), allocatable :: E_int(:)
+  real(wp) :: avxyz2(3,nuc)
   
   character(len=20) :: fname
   character(len=80) :: fragf(10)     
@@ -73,7 +78,11 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   logical gradfail
   logical starting_md
   logical mdok,restart
-  
+ 
+  !!!!!!!!!!!
+  !> count steps after frag
+  step = 1
+  !!!!!!!!!!!
   
   
   write(*,'(/13x''E N T E R I N G   M D   M O D U L E'',/)')
@@ -162,6 +171,10 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   dtime   =0
   new_temp=0
   summass =0
+
+  check_fragmented = 1
+  cnt = 0
+  avxyz2 = 0
   
   ndump=dumpstep
   kdump=avdump     
@@ -278,9 +291,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      avspin = avspin + aspin
      avxyz  = avxyz  + xyz 
   
-     !if(method == 3.or.method == 4 .and. icoll > 0)   aTlast = aTlast + new_temp    
      if(method == 3.and. icoll > 0)   aTlast = aTlast + new_temp    
-     !if(method /= 3 .or. method /= 4 .or. icoll == 0)  aTlast = aTlast + T    
      if(method /= 3 .or. icoll == 0)  aTlast = aTlast + T    
   
      ! print out every screendump steps
@@ -328,37 +339,14 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      kdump=kdump+1
      vdump=vdump+1
   
-  ! rescale to get Tsoll (NVT ensemble) for equilibration
-  ! the GS sampling is done in NVE      
+     ! rescale to get Tsoll (NVT ensemble) for equilibration
      dum=100.*abs(Tav/k-Tsoll)/Tsoll
+
+     ! the GS sampling is done in NVE      
      if(dum > 5.0d0.and.it < 0.and.k > 50)then
         velo = velo/sqrt(Tav/k/Tsoll)
      endif
      
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     ! Berendsen Thermostat ! Only if not fragmented
-     if(method == 3.and.k > 10.and.starting_md.and. nfrag == 1)then
-         sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
-         velo= sca * (velo) 
-     endif
-     !if(method == 4.and.k > 10.and.starting_md .and. nfrag == 1)then
-     !    sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
-     !    velo= sca * (velo) 
-     !endif
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
-     ! add the IEE but only if not already fragmented
-     !if(method /= 3 .and. method /= 4)then
-     if(method /= 3 ) then ! .and. method /= 4)then
-       if(it > 0.and.nstep <= nadd.and.nfrag == 1)then
-          call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
-       endif        
-  
-       ! reduce eTemp when system is heated up (but only for nfrag=1)        
-       dum=eimp-eimp*float(nstep)/float(nadd)
-       call setetemp(nfrag,dum,etemp)
-     endif        
-  
      ! Etemp for mopac is not performing well! Set it to fixed 300
      if(prog == 1.and.method == 3)then
         etemp=5000.0d0
@@ -371,9 +359,33 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   
      ! check for fragmentation, EXIT section for frag runs
 ifit:if(it > 0)then
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! Berendsen Thermostat ! Only if not fragmented
+        if(method == 3.and.k > 10.and.starting_md.and. nfrag == 1)then
+            sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
+            velo= sca * (velo) 
+        endif
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
+        ! add the IEE but only if not already fragmented
+        if(method /= 3 ) then 
+          if(nstep <= nadd.and.nfrag == 1)then
+             call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
+          endif        
+  
+          ! reduce eTemp when system is heated up (but only for nfrag=1)        
+          dum=eimp-eimp*float(nstep)/float(nadd)
+          call setetemp(nfrag,dum,etemp)
+        endif        
+
+
+        !> check if structure is fragmented
         call fragment_structure(nuc,iat,xyz,3.0d0,1,0,list)
         call fragmass(nuc,iat,list,mass,imass,nfrag,fragm,fragf,fragat)
-        if(nfrag > 1) call intenergy(nuc,list,mass,velo,nfrag,fragT,E_int)
+        if(nfrag > 1) then
+          call intenergy(nuc,list,mass,velo,nfrag,fragT,E_int)
+        endif
 
   
         ! probably an error
@@ -412,6 +424,22 @@ ifit:if(it > 0)then
           Ekin = E_kin_diff
         endif
 
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! Check out the fragments. If > 2, do 1000 steps. If more, do 250 steps. 
+        ! If nfragexit (can be user-set), exit immidiately
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if (nfrag > check_fragmented) then
+          cnt = cnt + 1
+          !avxyz2  = avxyz2  + xyz0(:,:nuc)
+          if (cnt == 50) then
+            avxyz2  = avxyz / kdump !cnt
+            check_fragmented = nfrag
+            !avg_struc = .true.
+            cnt = 0
+            !avxyz  = 0
+          endif
+        endif
+
         ! exit always immidiately if we have > nfragexit frags
         if(nfrag > nfragexit) then
            write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
@@ -419,19 +447,22 @@ ifit:if(it > 0)then
            fragstate=1
            exit
         endif   
-        if(nfrag == 2)then
+
+        ! if fragmented, start counting steps
+        if(nfrag >= 2)then
            fconst=fconst+1
         else
            fconst=0          
         endif
-  ! exit if nfrag=2 is constant for some time  
+        ! exit if nfrag=2 is constant for some time  
         if(fconst > 1000) then
            write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
            write(*,9002)
            fragstate=2       
            exit
         endif   
-  ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
+
+        ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
         if(nfrag >= nfragexit) then
            morestep=morestep+1
            if(morestep > more) then
@@ -462,7 +493,12 @@ ifit:if(it > 0)then
   Ekav   = Ekav   / k
   aspin  = avspin / kdump
   achrg  = avchrg / kdump
-  axyz   = avxyz  / kdump
+  !axyz   = avxyz  / kdump
+  if (check_fragmented > 1 ) then 
+    axyz (1:3,1:nuc) = avxyz2  (1:3,1:nuc) 
+  else
+   axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) / kdump
+  endif
   aTlast = aTlast / kdump
 
 8000  format(i7,f8.0,F13.5,F9.4,F12.5,F8.4,1x,I1,F9.0,2x,5F7.0,5F3.3) 

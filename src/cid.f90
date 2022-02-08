@@ -6,6 +6,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
   use common1 
   use cidcommon
+  use rmsd_ls, only : get_rmsd
+  use qcxms_analyse, only: avg_frag_struc 
   use qcxms_boxmuller, only: vary_energies
   use qcxms_cid_rotation
   use qcxms_fragments
@@ -39,11 +41,26 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer  :: imass(nuc)
   integer  :: istep, step_dist, manual_dist
   integer  :: io_cid, io_rotate, io_test
+  integer  :: morestep , fconst
+
+  !
+  integer :: iatf(nuc,10)
+  integer :: idum(nuc,10)
+  real(wp) :: xyzf(3,nuc,10)
+  real(wp) :: dum (3,nuc,10)
+  integer :: natf(10)
+  integer :: cnt 
+  integer :: check_fragmented
+
+
+  !
 
   real(wp) :: calc_collisions
   real(wp) :: etemp,E,ke
   real(wp) :: xyz(3,nuc),velo(3,nuc),grad(3,nuc)
-  real(wp) :: avxyz(3,nuc),axyz(3,nuc)
+  real(wp), intent(out) :: axyz(3,nuc)
+  real(wp) :: avxyz(3,nuc)
+  real(wp) :: avxyz2(3,nuc)
   real(wp) :: ttime
   real(wp) :: mass(nuc)
   real(wp) :: new_velo,velo_diff,velo_cm
@@ -105,6 +122,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: eExact
   logical :: gradfail
   logical :: xstps = .false.
+  logical :: avg_struc 
 
   interface
     function calc_ECOM(beta,e_kin) result(E_COM)
@@ -171,6 +189,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   iniok      = .True.
   stopcid    = .False.
   gradfail   = .False.
+  avg_struc =  .False.
   
   !------------------------------------------------------     
   
@@ -191,6 +210,11 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   step_counter = 0
   
   avxyz = 0
+  avxyz2 = 0
+
+  cnt = 0
+
+
   set_grad = huge(0.0_wp)
 
   !velo_rot(3,3) = 0.0d0
@@ -200,6 +224,12 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   gsolvstate=0
   !------------------------------------------------------     
   nfrag = 1 
+  !!!!!!!!!!!
+  !> count steps after frag
+  morestep = 0
+  fconst = 0
+  check_fragmented = 1
+  !!!!!!!!!!!
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
@@ -670,7 +700,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   Tav   = 0.0d0
   m     = 0
   xtra  = 0
-  
+ 
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! MD loops
@@ -687,61 +717,118 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
  
   !> start the leapfrog algorithm loop
   do istep = 1, ntot
-     ! increase the step coutners
-     ttime = ttime + time_step * autofs 
-     screen_dump   = screen_dump   + 1 ! counter for screen dump
-     coord_dump    = coord_dump    + 1 ! counter for coord dump
-     distance_dump = distance_dump + 1 ! counter for distance criterion
-     xyzavg_dump   = xyzavg_dump   + 1 ! counter for average xyz structure
-     average_dump   = average_dump   + 1 ! counter for average 
+
+    !> re-set xyz_avg structures
+    if (xyzavg_dump == dumpavg) then
+      xyzavg_dump = 0
+      avxyz = 0
+    endif
+
+    ! increase the step counters
+    ttime = ttime + time_step * autofs 
+    screen_dump   = screen_dump   + 1 ! counter for screen dump
+    coord_dump    = coord_dump    + 1 ! counter for coord dump
+    distance_dump = distance_dump + 1 ! counter for distance criterion
+    xyzavg_dump   = xyzavg_dump   + 1 ! counter for average xyz structure
+    average_dump   = average_dump   + 1 ! counter for average 
  
-     ! Do the leap frog step 
-     call leapfrog(nuc0,grad0,mass0,time_step,xyz0,velo0,ke,nstp)
+
+    ! Do the leap frog step 
+    call leapfrog(nuc0,grad0,mass0,time_step,xyz0,velo0,ke,nstp)
 
     ! Calculate Grad for entire system
-     call egrad(.False.,nuc0,xyz0,iat0,mchrg,spin,etemp,E,grad0,achrg0,aspin0,ECP,gradfail)
+    call egrad(.False.,nuc0,xyz0,iat0,mchrg,spin,etemp,E,grad0,achrg0,aspin0,ECP,gradfail)
   
-     if (gradfail)then !If 'grad seems to be bogus!' in egrad
-        stopcid=.true.
-        exit
-     endif
+    if (gradfail)then !If 'grad seems to be bogus!' in egrad
+       stopcid=.true.
+       exit
+    endif
 
-     ! Calculate center-of-mass
-     call cofmass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
+    ! Calculate center-of-mass
+    call cofmass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
   
-     diff_cm(:) = cm(:) - old_cm(:)
-     cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 +  diff_cm(3)**2)
-     old_cm(:) = cm(:)
+    diff_cm(:) = cm(:) - old_cm(:)
+    cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 +  diff_cm(3)**2)
+    old_cm(:) = cm(:)
   
-     ! compute new velocity and convert to m/s
-     if (istep /= 1)then
-       new_velo = (cm_out / time_step ) / mstoau 
-     else !i.e. in the first step: 
-       new_velo = 0
-     endif
+    ! compute new velocity and convert to m/s
+    if (istep /= 1)then
+      new_velo = (cm_out / time_step ) / mstoau 
+    else !i.e. in the first step: 
+      new_velo = 0
+    endif
 
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     ! Calculate different energies/temperatures 
-     call ekinet(nuc,velo0(:,:nuc),mass0(:nuc),Ekin,T)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Calculate different energies/temperatures 
+    call ekinet(nuc,velo0(:,:nuc),mass0(:nuc),Ekin,T)
   
-     E_velo = 0.5 * summass * ((new_velo*mstoau)**2) 
-     E_kin_diff = Ekin - E_velo
+    E_velo = 0.5 * summass * ((new_velo*mstoau)**2) 
+    E_kin_diff = Ekin - E_velo
   
-     new_temp = (2*E_kin_diff) / (3 * kB * nuc)
-     if (istep == 1) new_temp = tinit
-     Tav = Tav + new_temp
+    new_temp = (2*E_kin_diff) / (3 * kB * nuc)
+    if (istep == 1) new_temp = tinit
+    Tav = Tav + new_temp
   
-     m    = m + 1
-     avgT = Tav / m
+    m    = m + 1
+    avgT = Tav / m
 
-     !set collision energy (eV)
-     E_COM_calc = calc_ECOM(beta,E_velo)  !(beta * E_velo)/evtoau
+    !set collision energy (eV)
+    E_COM_calc = calc_ECOM(beta,E_velo)  !(beta * E_velo)/evtoau
 
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     ! increase number of steps to allow longer collision MD if fragmentation occured
-     call fragment_structure(nuc,iat0(:nuc),xyz0(:,:nuc),3.0d0,1,0,list)
-     call fragmass(nuc,iat0(:nuc),list,mass0(:nuc),imass(:nuc),nfrag,fragm,fragf,fragat)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! increase number of steps to allow longer collision MD if fragmentation occured
+    call fragment_structure(nuc,iat0(:nuc),xyz0(:,:nuc),3.0d0,1,0,list)
+    call fragmass(nuc,iat0(:nuc),list,mass0(:nuc),imass(:nuc),nfrag,fragm,fragf,fragat)
  
+     !> get the average structure of the ion/fragments
+    avxyz  = avxyz  + xyz0(:,:nuc)
+
+    if (nfrag > check_fragmented) then
+      cnt = cnt + 1
+      !avxyz2  = avxyz2  + xyz0(:,:nuc)
+      if (cnt == 50) then
+        avxyz2  = avxyz / cnt
+        check_fragmented = nfrag
+        !avg_struc = .true.
+        cnt = 0
+        !avxyz  = 0
+      endif
+    endif
+
+    if(nfrag > 3) then ! nfragexit) then
+       !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+       !write(*,9001)
+       !fragstate=1
+       write(*,*) 'Too many frags'
+       exit
+    endif   
+
+    ! if fragmented, start counting steps
+    if(nfrag >= 2)then
+       fconst=fconst+1
+    else
+       fconst=0          
+    endif
+    ! exit if nfrag=2 is constant for some time  
+    if(fconst > 1000) then
+    !   write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+    !   write(*,9002)
+       write(*,*) 'NOTHING HAPPNENS'
+       !fragstate=2       
+       exit
+    endif   
+
+    ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
+    if(nfrag >= 3 ) then !nfragexit) then
+       morestep=morestep+1
+       if(morestep > 250) then !more) then
+          !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+          !write(*,9003)
+          write(*,*) 'three or more frags'
+          !fragstate=1
+          exit
+       endif 
+    endif        
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! D U M P s
@@ -775,31 +862,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     end if
 
     aTlast = avgT    
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! WORK IN PROGRESS
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !if (xyzavg_dump == dumpavg) then
-    !  xyzavg_dump = 0
-    !  avxyz =0
-    !  ! hier muss ich die average xyz coords rausfinden
-    !  set_grad = huge(0.0_wp)
-    !end if
-
-    !save_grad = sum(grad0(:,:nuc))
-    !if (save_grad < set_grad)then
-    !  set_grad = save_grad
-    !  avxyz  = xyz0(:,:nuc)
-    !endif
-    
-    !do j = 1, nuc
-    !   avxyz(1,j)  = avxyz(1,j)  + (xyz(1,j)) ! - cm(1)) 
-    !   avxyz(2,j)  = avxyz(2,j)  + (xyz(2,j)) ! - cm(2)) 
-    !   avxyz(3,j)  = avxyz(3,j)  + (xyz(3,j)) ! - cm(3)) 
-    !enddo
-   !!! CID muss angepasst werden, die rotationsgeschwindigkeit der einzelnen
-   !!! atome von den xyz coords abzeihen um average xyz zu bekommen
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
@@ -839,6 +901,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
                 
           write(*,'('' FRAGMENTATION occured!'')')
           write(*,'('' Do '',i3,a12)') xtra, ' extra steps'
+
+
        endif
   
       ! Stop if either the dist-criterion...
@@ -924,11 +988,17 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   write(*,*) 'E X I T - the CID module is finished'
   write(*,*) ''
   xyz (1:3,1:nuc) = xyz0  (1:3,1:nuc) 
-  axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) !/ dumpavg
   velo(1:3,1:nuc) = velo0(1:3,1:nuc)
   grad(1:3,1:nuc) = grad0(1:3,1:nuc)
   achrg(1:nuc)    = achrg0(1:nuc)
   velo_cm         = new_velo
+
+  if (check_fragmented > 1 ) then 
+    axyz (1:3,1:nuc) = avxyz2  (1:3,1:nuc) 
+  else
+   axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) / xyzavg_dump
+  endif
+
   deallocate(xyz0,velo0,grad0,mass0,iat0,achrg0,aspin0)
   
   close(io_cid)

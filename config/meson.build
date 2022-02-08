@@ -124,3 +124,13 @@ exe_deps += tblite_dep
 if tblite_dep.version().version_compare('>=0.3')
   error('tblite version 0.3 or higher is not supported yet.')
 endif
+ 
+# Create the rmsd tool as subproject
+rmsd_dep = dependency(
+  'rmsd-tool',
+  version: '>=0.1',
+  fallback: ['rmsd-tool', 'rmsd_dep'],
+  default_options: ['default_library=static'],
+  static: static,
+)
+exe_deps += rmsd_dep
