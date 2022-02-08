@@ -787,11 +787,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
       cnt = cnt + 1
       !avxyz2  = avxyz2  + xyz0(:,:nuc)
       if (cnt == 50) then
-        avxyz2  = avxyz / cnt
+        avxyz2  = avxyz / xyzavg_dump
         check_fragmented = nfrag
-        !avg_struc = .true.
         cnt = 0
-        !avxyz  = 0
+            write(*,*) 'KDUMP', xyzavg_dump
       endif
     endif
 

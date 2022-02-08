@@ -434,9 +434,9 @@ ifit:if(it > 0)then
           if (cnt == 50) then
             avxyz2  = avxyz / kdump !cnt
             check_fragmented = nfrag
-            !avg_struc = .true.
+            write(*,*) 'KDUMP', kdump
             cnt = 0
-            !avxyz  = 0
+            !avg_struc = .true.
           endif
         endif
 
