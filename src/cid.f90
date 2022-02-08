@@ -26,7 +26,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     mfpath, r_mol, achrg, icoll, collisions, direc, velo_cm,        &
     aTlast, calc_collisions,imass)
 
-  
   ! note that xyz from main code is in bohr
   real(wp),parameter :: kB_eV  = kB*autoev
   real(wp),parameter :: kB_J   = 1.38064852E-23
