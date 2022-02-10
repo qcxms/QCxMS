@@ -35,6 +35,7 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   integer :: io_xyz 
   
   real(wp) :: axyz(3,nuc)
+  real(wp) :: nxyz(3,nfrag) 
   real(wp) :: fragip(nfrag,abs(mchrg)),etemp
   real(wp) :: xyzf(3,nuc,10)
   real(wp) :: dum (3,nuc,10)
@@ -60,7 +61,8 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   w1 = 0.0_wp
   w2 = 0.0_wp
 
-  call avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf)
+  write(*,'('' computing average fragment structures ...'')')
+  call avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf, nxyz)
 
   !write(*,'('' computing average fragment structures ...'')')
   !
@@ -331,7 +333,7 @@ mult_n: do k = 1, fiter         !ITER OVER MULTIPLICITES
           if (metal) neutfspin = neutfspin + 2
 
           !> 1. Calculate Neutral energy (mcharge=0)
-          call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),0,neutfspin, &
+          call eqm(progi,natf(i),xyzf(1:3,1,i),iatf(1,i),0,neutfspin, &
             etemp,.true.,ipok,E_neut,nel,nb,ECP,spec_calc)
     
           if(metal .and. lowest_neut > E_neut)then
@@ -358,7 +360,7 @@ mult_i:   do k=1,fiter         !ITER OVER MULTIPLICITES
 
             if (metal) ionfspin  = ionfspin  + 2
 
-            call eqm(progi,natf(i),xyzf(1,1,i),iatf(1,i),dump_chrg,ionfspin,  &
+            call eqm(progi,natf(i),xyzf(1:3,1,i),iatf(1,i),dump_chrg,ionfspin,  &
               etemp,.true.,ipok,E_ion,nel,nb,ECP,spec_calc)
 
             if (metal .and. lowest_ion > E_ion )then
@@ -475,7 +477,7 @@ end subroutine analyse
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf)
+subroutine avg_frag_struc(nuc,iat,iatf,axyz,list, nfrag, natf, xyzf, nxyz)
 
   integer :: nuc  
   integer :: natf(10)
@@ -487,10 +489,10 @@ subroutine avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf)
   integer :: i,j,k
 
   real(wp) :: axyz(3,nuc)
+  real(wp) :: nxyz(3,nfrag) 
   real(wp) :: xyzf(3,nuc,10)
   real(wp) :: dum (3,nuc,10)
     
-  write(*,'('' computing average fragment structures ...'')')
   
   xyzf = 0
   iatf = 0
@@ -517,6 +519,13 @@ subroutine avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf)
     natf(i)=k
   enddo    
   
+  do i = 1, nfrag
+    do j = 1, natf(i)
+      nxyz(1:3,i) = xyzf(1:3,j,i)
+!      write(*,*)  nxyz(:,i) 
+    enddo
+ !   write(*,*)  
+  enddo
 
 end subroutine avg_frag_struc 
     

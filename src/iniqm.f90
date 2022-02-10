@@ -257,7 +257,7 @@ module qcxms_iniqm
        character(len=:), allocatable :: output_name
     
        call electrons_amount(nat, iat, mchrg, nel, nb, z)
-    
+
     ! spec.f and regular IP/EA evaluations will use this input option
     ! where the algorithm assigns the spin automatically
     ! However, because metals need to vary the spin, it needs to be an

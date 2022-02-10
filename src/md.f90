@@ -20,6 +20,8 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
               fragstate,dtime,ECP,starting_md,new_velo)
   use common1
   use cidcommon
+  use rmsd, only : get_rmsd
+  use qcxms_analyse, only: avg_frag_struc!, fragment_info 
   use qcxms_impact, only: impactscale
   use qcxms_fragments
   use qcxms_mdinit, only: ekinet
@@ -39,11 +41,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   integer :: screendump,nadd,morestep,more,spin,fconst
   integer :: mchrg
   integer :: io_GS, io_OUT
-  integer :: step
 
-  integer :: check_fragmented
-  integer :: cnt
-  
   real(wp) :: xyz (3,nuc)
   real(wp) :: grad(3,nuc)
   real(wp) :: velo(3,nuc)
@@ -79,12 +77,22 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   logical gradfail
   logical starting_md
   logical mdok,restart
-!  logical avg_struc = .false.
  
-  !!!!!!!!!!!
-  !> count steps after frag
-  step = 1
-  !!!!!!!!!!!
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Stuff for checking RMSD
+  integer :: check_fragmented
+  integer :: cnt
+  integer :: iatf(nuc,10)
+  integer :: natf(10)
+  real(wp) :: nxyz(3,10)
+  real(wp) :: xyzf(3,nuc,10)
+  real(wp) :: rmsd_check (3,10,50)
+   real(wp) :: root_msd
+  !type(fragment_info) :: frag
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   
   
   write(*,'(/13x''E N T E R I N G   M D   M O D U L E'',/)')
@@ -430,20 +438,45 @@ ifit:if(it > 0)then
         ! Check out the fragments. If > 2, do 1000 steps. If more, do 250 steps. 
         ! If nfragexit (can be user-set), exit immidiately
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
         if (nfrag > check_fragmented) then
+
           cnt = cnt + 1
-          !avg_struc = .true.
           avxyz2  = avxyz2  + xyz
-          !> after 
-          if (cnt == 50) then
-            !avxyz2  = avxyz / kdump !cnt
+
+          !store_avxyz  = avxyz2 / cnt
+
+          !call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf, nxyz)
+          call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf, nxyz)
+
+          do i = 1, nfrag
+            rmsd_check(:,i,cnt) = nxyz(:,i)
+            call get_rmsd(rmsd_check(:,i,1), rmsd_check(:,i,cnt), root_msd)
+            write(*,*) root_msd
+          enddo
+
+          if (cnt == 5) then
             store_avxyz  = avxyz2 / cnt
             check_fragmented = nfrag
-            !avg_struc = .false.
+            call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf, nxyz)
             write(*,*) 'Count', cnt
+            !do i = 1, nfrag
+            !  do j = 1, natf(i)
+            !    rmsd_check(:,j,cnt,i) = xyzf(:,j,i)
+            !    write(*,*)  rmsd_check(:,j,cnt,i) 
+            !  enddo
+            !    write(*,*)  
+
+            !enddo
+
+            !call get_rmsd CHARGES_avg_MDs
             cnt = 0
             avxyz2 = 0
           endif
+        elseif (nfrag < check_fragmented) then
+          cnt = 0
+          rmsd_check = 0
         endif
 
         ! exit always immidiately if we have > nfragexit frags

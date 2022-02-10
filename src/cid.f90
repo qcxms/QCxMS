@@ -783,6 +783,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
  
      !> get the average structure of the ion/fragments
     avxyz  = avxyz  + xyz0(:,:nuc)
+     
 
     if (nfrag > check_fragmented) then
       cnt = cnt + 1
@@ -795,6 +796,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
         cnt = 0
         avxyz2 = 0
       endif
+    elseif (nfrag < check_fragmented) then
+        cnt = 0
     endif
 
     if(nfrag > 3) then ! nfragexit) then
