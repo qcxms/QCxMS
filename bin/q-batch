@@ -1,0 +1,114 @@
+#!/bin/bash
+
+############################################################
+###                                                      ###
+###             q - batch Version 2.1                    ###
+###                 Stefan Grimme                        ###
+###                 Jeroen Koopman                       ###
+###                                                      ###
+### q-batch script for parallel run on computer clusters ###
+###              - updated for QCxMS -                   ###
+############################################################
+
+d=`pwd`
+bname=`basename $d`
+
+DIR=`pwd`/TMPQCXMS
+if [ ! -d "$DIR" ]; then 
+    echo "run mpspred first!"
+    exit 
+fi
+
+#########################################
+echo 'starting parallel qcxms run on'
+
+rm -f qcxms.out
+cd $DIR        
+
+for vz in *
+ do
+   cd $vz 
+   rm -f ready
+#   rm -f *_*.[eo]*
+   cd ..
+   let TOTAL=TOTAL+1
+   last=$vz
+ done
+
+echo TOTAL = $TOTAL directories
+
+#########################################
+# outer loop (runs until all is done)
+#########################################
+
+ for vz in *
+ do
+   cd $vz 
+VZ_NUM=`echo $vz | awk -F . '{print $2}'`
+VZ_DIR=`pwd`
+# Put everything following this line into the "command file" until EOF
+cat > ${bname}_${VZ_NUM} <<EOF 
+#!/bin/bash
+
+set -x
+echo hostname: \`hostname\`
+export OMP_NUM_THREADS=1
+
+# Label for the run
+#PBS -N qcxms
+#PBS -j oe
+
+cd $VZ_DIR
+mkdir /tmp1/\$USER
+tdir=\$(mktemp -d /tmp1/\$USER/${vz}__XXXXXX)
+cp $VZ_DIR/* \$tdir
+cd \$tdir
+
+qcxms -prod > qcxms.out 2>&1 
+touch ready
+
+cp * $VZ_DIR
+cd $VZ_DIR
+rm -rf \$tdir
+
+if [ $vz = $last ]
+then
+     cd ..
+
+     DONE=\`ls */ready | wc -l\`
+     while [ \$DONE -ne $TOTAL ]
+     do
+       sleep 5
+       DONE=\`ls */ready | wc -l\`
+     done
+
+     
+     for dir in *
+     do
+       if [ -f \$dir/"qcxms.res" ] && [ -f \$dir/"qcxms_cid.res" ]; then
+         echo "S T O P - EI and CID .res files" 
+         stop
+       elif [ -f \$dir/"qcxms.res" ]; then
+         cat \$dir/qcxms.res >> ../qcxms.res
+         cat \$dir/qcxms.out >> ../qcxms.out
+       elif [ -f \$dir/"qcxms_cid.res" ]; then
+         cat \$dir/qcxms_cid.res >> ../qcxms_cid.res
+         cat \$dir/qcxms.out >> ../qcxms.out
+       fi
+
+
+
+     done
+fi
+
+
+EOF
+#  this is the job (qcxms calls dscf/grad, mopac or dftb+)
+# VERY VERY IMPORTANT: termination of this job should produce
+# a file <ready> in the subdir (e.g. by 'touch ready')
+        qsub -q batch ${bname}_${VZ_NUM}  #run the command file on cluster 
+#
+        echo "JOB  "${bname}_${VZ_NUM}"  STARTED"
+   cd ..
+ done  # stop outer loop
+exit

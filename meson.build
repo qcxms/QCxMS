@@ -46,4 +46,16 @@ qcxms_exe = executable(
   install: install,
 )
 
+if install
+  install_data(
+    files(
+      'bin/pqcxms',
+      'bin/q-batch',
+      'bin/getres',
+    ),
+    install_mode: 'rwxr-xr-x',
+    install_dir: get_option('bindir'),
+  )
+endif
+
 #  link_args: '-static'

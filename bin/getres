@@ -1,0 +1,46 @@
+#!/bin/bash
+
+DIR=TMPQCXMS
+
+if [ ! -d "$DIR" ]; then
+    echo "run qcxms first!"
+    exit
+fi
+
+# remove old files
+rm -f tmpqcxms.res
+rm -f tmpqcxms.out
+
+# change into workdir
+cd $DIR
+
+let DONE=0
+
+ # loop through all DIRs and process all files
+for vz in *
+ do
+	cd $vz
+	# test for finished job
+		if [ -e ready ]
+    	then
+      # check for EI data
+      if [ -e qcxms.res ]
+      	then
+        cat qcxms.res >> ../../tmpqcxms.res
+        cat qcxms.out >> ../../tmpqcxms.out
+        let DONE=DONE+1
+      fi
+      if [ -e qcxms_cid.res ]
+        then
+        cat qcxms_cid.res >> ../../tmpqcxms_cid.res
+        cat qcxms.out >> ../../tmpqcxms.out
+        let DONE=DONE+1
+      fi
+    fi
+   cd ..
+done
+
+cd ..
+
+echo $DONE' runs done and written to tmpqcxms.res/out'
+
