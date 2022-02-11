@@ -1986,29 +1986,29 @@ MFPloop:  do
           & grad(3,nuc),        &
           & velo(3,nuc),        &
           & velof(nuc),         &
-          & atm_charge(nuc),          &
-            & spin(nuc),          &
-            & iat (nuc),          &
-            & list(nuc),          &
-            & imass(nuc),         &
-            & mass(nuc))
+          & atm_charge(nuc),    &
+          & spin(nuc),          &
+          & iat (nuc),          &
+          & list(nuc),          &
+          & imass(nuc),         &
+          & mass(nuc))
 
-            do i = 1, 3
-              xyz(i, 1:nuc) = xyzn (i,1:nuc) - cema(i)
-            enddo
+          do i = 1, 3
+            xyz(i, 1:nuc) = xyzn (i,1:nuc) - cema(i)
+          enddo
 
-            velo(1:3,1:nuc) = velon(1:3,1:nuc)
-            iat (    1:nuc) = iatn (    1:nuc)
-            mass(    1:nuc) = massn(    1:nuc)
-            imass(   1:nuc) = imassn(   1:nuc)
+          velo(1:3,1:nuc) = velon(1:3,1:nuc)
+          iat (    1:nuc) = iatn (    1:nuc)
+          mass(    1:nuc) = massn(    1:nuc)
+          imass(   1:nuc) = imassn(   1:nuc)
 
 
-            ! chose what to do
-            if ( tcont > 0 ) then
-              cycle MFPloop ! CYCLE the MD loop if fragmentation happend
-            else
-              exit MFPloop  ! EXIT the MD loop if nothing happend
-            endif
+          ! chose what to do
+          if ( tcont > 0 ) then
+            cycle MFPloop ! CYCLE the MD loop if fragmentation happend
+          else
+            exit MFPloop  ! EXIT the MD loop if nothing happend
+          endif
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           enddo MFPloop ! ENDDO loop the MD module

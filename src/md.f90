@@ -470,6 +470,7 @@ ifit:if(it > 0)then
           check_fragmented = nfrag
         endif
 
+<<<<<<< HEAD
         if (nfrag < check_fragmented .and. count_average) then
           write(*,*) 'ReSet'
           cnt = 0
@@ -483,11 +484,14 @@ ifit:if(it > 0)then
 
 
         if ( count_average ) then 
+=======
+>>>>>>> 9661d5b (rmsd completely implemented; errors with changing frag size)
           cg = 0
           cnt = cnt + 1
           avxyz2  = avxyz2  + xyz
 
           store_avxyz  = avxyz2 / cnt
+<<<<<<< HEAD
 
           call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
           !call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf)
@@ -507,6 +511,25 @@ cntfrg:   do i = 1, nfrag
               cg = 0
               exit cntfrg
             endif
+=======
+
+          call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
+          !call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf)
+
+
+          do i = 1, nfrag
+
+          if (cnt == 1) then
+            save_natf(i) = natf(i)
+          endif
+
+          if(natf(i) /= save_natf(i))then
+            write(*,*) 'Fragment changed. Re-started count'
+            cnt = 0
+            store_avxyz  = 0 ! avxyz2 / cnt
+            exit
+          endif
+>>>>>>> 9661d5b (rmsd completely implemented; errors with changing frag size)
 
             allocate(nxyz1(3,natf(i)), &
                     nxyz2(3,natf(i)))
@@ -585,18 +608,32 @@ cntfrg:   do i = 1, nfrag
 
 
             deallocate(nxyz1, nxyz2)
+<<<<<<< HEAD
           enddo cntfrg
+=======
+          enddo
+>>>>>>> 9661d5b (rmsd completely implemented; errors with changing frag size)
 
 
           if (cnt == 50) then
             store_avxyz  = avxyz2 / cnt
+<<<<<<< HEAD
+=======
+            check_fragmented = nfrag
+>>>>>>> 9661d5b (rmsd completely implemented; errors with changing frag size)
             call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
             write(*,*) 'Count', cnt
 
             do i = 1, nfrag
+<<<<<<< HEAD
               write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
             enddo
              
+=======
+          write(*,*) 'Higest RMSD',i, highest_rmsd(i)*aatoau
+          enddo
+           
+>>>>>>> 9661d5b (rmsd completely implemented; errors with changing frag size)
             !call get_rmsd CHARGES_avg_MDs
             avxyz2 = 0
             cnt = 0
@@ -604,7 +641,14 @@ cntfrg:   do i = 1, nfrag
             cg = 0
             count_average = .false.
           endif
+<<<<<<< HEAD
 
+=======
+        elseif (nfrag < check_fragmented) then
+          cnt = 0
+          rmsd_check = 0
+          store_avxyz  = 0!avxyz2 / cnt
+>>>>>>> 9661d5b (rmsd completely implemented; errors with changing frag size)
         endif
 
 
