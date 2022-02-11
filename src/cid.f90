@@ -1,11 +1,7 @@
-subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
-    stopcid, ELAB, ECOM, axyz, ttime, eExact, ECP, manual_dist,     &
-    vScale, MinPot, ConstVelo, cross,                               &
-    mfpath, r_mol, achrg, icoll, collisions, direc, velo_cm,        &
-    aTlast, calc_collisions,imass)
-
+module qcxms_cid_routine
   use common1 
   use cidcommon
+  use covalent_radii, only: Rad
   use rmsd_ls, only : get_rmsd
   use qcxms_analyse, only: avg_frag_struc 
   use qcxms_boxmuller, only: vary_energies
@@ -13,11 +9,23 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   use qcxms_fragments
   use qcxms_iniqm, only: iniqm
   use qcxms_mdinit, only: ekinet
+  use qcxms_molecular_dynamics, only: leapfrog, intenergy, center_of_mass
   use xtb_mctc_accuracy, only: wp
   use xtb_mctc_convert
   use xtb_mctc_constants, only:pi,kB
   use xtb_mctc_symbols, only: toSymbol 
   implicit none
+
+  contains
+
+
+
+subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
+    stopcid, ELAB, ECOM, axyz, ttime, eExact, ECP, manual_dist,     &
+    vScale, MinPot, ConstVelo, cross,                               &
+    mfpath, r_mol, achrg, icoll, collisions, direc, velo_cm,        &
+    aTlast, calc_collisions,imass)
+
   
   ! note that xyz from main code is in bohr
   real(wp),parameter :: kB_eV  = kB*autoev
@@ -125,16 +133,16 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: xstps = .false.
   logical :: avg_struc 
 
-  interface
-    function calc_ECOM(beta,e_kin) result(E_COM)
-      !use cidcommon
-      use xtb_mctc_accuracy, only: wp
-      !use xtb_mctc_convert
-      implicit none
-    
-      real(wp) :: beta, e_kin, E_COM
-    end function calc_ECOM
-  end interface
+  !interface
+  !  function calc_ECOM(beta,e_kin) result(E_COM)
+  !    !use cidcommon
+  !    use xtb_mctc_accuracy, only: wp
+  !    !use xtb_mctc_convert
+  !    implicit none
+  !  
+  !    real(wp) :: beta, e_kin, E_COM
+  !  end function calc_ECOM
+  !end interface
 
   ! initiate random numbers
   if (iseed(1) == 0) then
@@ -245,7 +253,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   if (icoll == 1)then
 
     !> Calculate center of mass
-    call cofmass(nuc,mass,xyz,cm)
+    call center_of_mass(nuc,mass,xyz,cm)
 
     !> translate center of mass to origin
     xyz(1,:) = xyz(1,:)-cm(1)
@@ -448,7 +456,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Argon placement and initial velocity determination
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
-  call cofmass(nuc,mass,xyz,cm)
+  call center_of_mass(nuc,mass,xyz,cm)
   
   
   !if (icoll == 1)then
@@ -620,7 +628,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   
   old_cm(:) = cm(:)
   
-  call cofmass(nuc,mass,xyz,cm)
+  call center_of_mass(nuc,mass,xyz,cm)
   
   ! Set the molecule, atom, grads and velos        
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -709,7 +717,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !Calculate the distance between COM and Ar atom; set lowest distance as 
   !criteri for rest calculations
   
-  call cofmass(nuc,mass,xyz,cm)
+  call center_of_mass(nuc,mass,xyz,cm)
   call distArCOM(nuc0,xyz0,cm,new_dist)
   call minmaxCOM(new_dist,highestCOM,lowestCOM)
 
@@ -746,7 +754,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     endif
 
     ! Calculate center-of-mass
-    call cofmass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
+    call center_of_mass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
   
     diff_cm(:) = cm(:) - old_cm(:)
     cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 +  diff_cm(3)**2)
@@ -879,7 +887,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     
        !1.Stop MD loop if shortest distance between Ar and molecule is more 
        !  than initial dist or if after impact a certain time has passed
-       call cofmass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
+       call center_of_mass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
        call distArCOM(nuc0,xyz0,cm,new_dist)
        call minmaxCOM(new_dist,highestCOM,lowestCOM)
   
@@ -1022,38 +1030,14 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   
-  !Calculates center of mass and returns it in variable cm      
-  subroutine cofmass(nuc,mass,xyz,cm)
-  use xtb_mctc_accuracy, only: wp
-  implicit none      
-
-  integer  :: i, nuc
-
-  real(wp) :: totmass
-  real(wp),intent(in) :: xyz(3,nuc), mass(nuc)
-  real(wp),intent(out) :: cm(3)
-
-
-  totmass = 0.0d0
-  cm = 0.0d0
-  do i = 1,nuc
-     cm(1) = cm(1) + mass(i) * xyz(1,i)
-     cm(2) = cm(2) + mass(i) * xyz(2,i)
-     cm(3) = cm(3) + mass(i) * xyz(3,i)
-     totmass  = totmass + mass(i)
-  end do
-  cm(1) = cm(1) / totmass
-  cm(2) = cm(2) / totmass
-  cm(3) = cm(3) / totmass
-  end subroutine
  
 
   !############################################################################
   !Distance coll atom to COM - N2 doesnt matter
   
   subroutine distArCOM(nuc0,xyz0,cm,new_dist)
-  use xtb_mctc_accuracy, only: wp
-  implicit none
+  !use xtb_mctc_accuracy, only: wp
+  !implicit none
   integer  :: j
   integer  :: nuc0
   real(wp), intent(in) :: xyz0(3,nuc0),cm(3)
@@ -1091,12 +1075,12 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 ! Calcualte the molecular radius, cross section and mean-free-path
 !#########################################################################
   subroutine collision_setup(nuc,iat,xyz,mass,r_mol,cross,mfpath,calc_collisions)
-  use cidcommon
-  use covalent_radii, only: Rad
-  use xtb_mctc_accuracy, only: wp
-  use xtb_mctc_convert
-  use xtb_mctc_constants, only: pi
-  implicit none
+  !use cidcommon
+  !use covalent_radii, only: Rad
+  !use xtb_mctc_accuracy, only: wp
+  !use xtb_mctc_convert
+  !use xtb_mctc_constants, only: pi
+  !implicit none
 
   integer  :: nuc
   integer  :: iat(nuc)
@@ -1113,7 +1097,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   mol_rad = 0
   rtot    = 0
 
-  call cofmass(nuc,mass,xyz,cm)
+  call center_of_mass(nuc,mass,xyz,cm)
 
   ! Determine the radii by checking the largest distance from the center of mass
   do i=1,nuc
@@ -1143,12 +1127,14 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 !#########################################################################
 
 function calc_ECOM(beta,e_kin) result(E_COM)
-  use xtb_mctc_accuracy, only: wp
-  use xtb_mctc_convert
-  implicit none
+  !use xtb_mctc_accuracy, only: wp
+  !use xtb_mctc_convert
+  !implicit none
 
   real(wp) :: beta, e_kin, E_COM
 
   E_COM = (beta * E_KIN) * autoev
 
 end function calc_ECOM
+
+end module qcxms_cid_routine

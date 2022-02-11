@@ -1,4 +1,4 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !      
 ! main MD part of the code with various subtleties (a big bug can
 ! occur in every line, be carefull!)
@@ -10,14 +10,9 @@
 !
 ! mdok is set true if the result should be taken
 !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- 
-subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
-              velo,velof,list,tstep,totdump,nfragexit,              &
-              fragm,fragf,fragat,dumpstep,etempin,                  &
-              mdok,achrg,aspin,axyz,                                &
-              Tsoll,tadd,eimp,restart,Tav,Epav,Ekav,ttime,aTlast,   &
-              fragstate,dtime,ECP,starting_md,new_velo)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+module qcxms_molecular_dynamics
   use common1
   use cidcommon
   use rmsd, only : get_rmsd
@@ -31,6 +26,15 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   use xtb_mctc_constants
   use xtb_mctc_symbols, only: toSymbol 
   implicit none
+
+  contains
+
+subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
+              velo,velof,list,tstep,totdump,nfragexit,              &
+              fragm,fragf,fragat,dumpstep,etempin,                  &
+              mdok,achrg,aspin,axyz,                                &
+              Tsoll,tadd,eimp,restart,Tav,Epav,Ekav,ttime,aTlast,   &
+              fragstate,dtime,ECP,starting_md,new_velo)
   
   integer :: nuc,iat(nuc),list(nuc)
   integer :: nmax,it,k,totdump,icoll,isec
@@ -86,14 +90,26 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   integer :: cnt
   integer :: iatf(nuc,10)
   integer :: natf(10)
-  real(wp) :: nxyz(3,10)
+  integer :: save_natf(10)
+  integer :: s1,s2, s3
+  real(wp) :: normmass
+  real(wp) :: cg(3,10,50)
+  real(wp) :: diff_cg(3,10,50)
+  real(wp),allocatable :: nxyz1(:,:)!(3,nuc)
+  real(wp),allocatable :: nxyz2(:,:)!(3,nuc)
+  real(wp) :: check_xyz(3,nuc)
   real(wp) :: xyzf(3,nuc,10)
-  real(wp) :: rmsd_check (3,10,50)
-   real(wp) :: root_msd
+  real(wp) :: rmsd_check (3,nuc,10,50)
+   real(wp) :: root_msd, rmsd_frag(10), highest_rmsd(10)
+   real(wp) :: gradient(3,nuc)
+   real(wp) :: trafo(3,3)
   !type(fragment_info) :: frag
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  
+ 
+  open(file='struc1.xyz', newunit=s1)
+  open(file='struc2.xyz', newunit=s2)
+  open(file='struc3.xyz', newunit=s3)
   
   write(*,'(/13x''E N T E R I N G   M D   M O D U L E'',/)')
   
@@ -182,9 +198,14 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   new_temp=0
   summass =0
 
+  normmass =0
+  cg = 0
+  diff_cg = 0
   check_fragmented = 1
   cnt = 0
   avxyz2 = 0
+  trafo = 0
+  gradient = 0
   
   ndump=dumpstep
   kdump=avdump     
@@ -194,7 +215,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   err2 = .false.
   
   ! Stuff for velocity
-  call cofmass(nuc,mass,xyz,old_cm)
+  call center_of_mass(nuc,mass,xyz,old_cm)
   do i = 1,nuc
      summass = summass +  mass(i) 
   enddo
@@ -412,7 +433,7 @@ ifit:if(it > 0)then
         if (method == 3.and.icoll >= 1 .and. .not. Temprun)then 
 
           !> get the length of COM difference
-          call cofmass(nuc,mass,xyz,cm)
+          call center_of_mass(nuc,mass,xyz,cm)
           diff_cm(:) = cm(:) - old_cm(:)
           cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 + diff_cm(3)**2)
 
@@ -439,37 +460,125 @@ ifit:if(it > 0)then
         ! If nfragexit (can be user-set), exit immidiately
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+        root_msd=0
+        highest_rmsd=0
+        normmass = 0
 
         if (nfrag > check_fragmented) then
 
+          cg = 0
           cnt = cnt + 1
           avxyz2  = avxyz2  + xyz
 
-          !store_avxyz  = avxyz2 / cnt
+          store_avxyz  = avxyz2 / cnt
 
-          !call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf, nxyz)
-          call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf, nxyz)
+          call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
+          !call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf)
+
 
           do i = 1, nfrag
-            rmsd_check(:,i,cnt) = nxyz(:,i)
-            call get_rmsd(rmsd_check(:,i,1), rmsd_check(:,i,cnt), root_msd)
-            write(*,*) root_msd
-          enddo
 
-          if (cnt == 5) then
-            store_avxyz  = avxyz2 / cnt
-            check_fragmented = nfrag
-            call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf, nxyz)
-            write(*,*) 'Count', cnt
-            !do i = 1, nfrag
-            !  do j = 1, natf(i)
-            !    rmsd_check(:,j,cnt,i) = xyzf(:,j,i)
-            !    write(*,*)  rmsd_check(:,j,cnt,i) 
-            !  enddo
-            !    write(*,*)  
+          if (cnt == 1) then
+            save_natf(i) = natf(i)
+          endif
 
+          if(natf(i) /= save_natf(i))then
+            write(*,*) 'Fragment changed. Re-started count'
+            cnt = 0
+            store_avxyz  = 0 ! avxyz2 / cnt
+            exit
+          endif
+
+            allocate(nxyz1(3,natf(i)), &
+                    nxyz2(3,natf(i)))
+            !> start-strucutre
+            normmass = 0
+
+            !> compute the center-of-geometry of current structure
+            do j = 1, natf(i)
+              !>> get the current fragment structure
+              rmsd_check(:,j,i,cnt) = xyzf(:,j,i)
+
+              !>> get the current center-of-geometry
+              cg(:,i,cnt) = cg(:,i,cnt) + 1 * rmsd_check(:,j,i,cnt)
+
+              normmass  = normmass + 1 
+            enddo
+
+            cg(:,i,cnt) = cg(:,i,cnt) / normmass
+
+
+            !> calculate the difference betwen the two c-of-g
+            diff_cg(:,i,cnt) = cg(:,i,cnt) - cg(:,i,1)
+
+
+            !> shift the c-of-g by the difference of c-of-g
+            do j=1,natf(i)
+              rmsd_check(:,j,i,cnt) = rmsd_check(:,j,i,cnt) - diff_cg(:,i,cnt)
+            enddo
+
+            !> transform into right array size for rmsd routine
+            do j = 1, natf(i)
+              !>> the right compare-structure is taken
+              nxyz1(:,j) = rmsd_check(:,j,i,1)
+              nxyz2(:,j) = rmsd_check(:,j,i,cnt)
+            enddo
+
+            !>>>> write for test
+            !write(s1,*) natf(i)
+            !write(s1,*) 
+            !do j= 1, natf(i)
+            !  write(s1,*) toSymbol(iatf(j,i)), nxyz1(:,j)*autoaa
             !enddo
 
+            write(s2,*) natf(i)
+            write(s2,*) 
+            do j= 1, natf(i)
+              write(s2,*) toSymbol(iatf(j,i)), nxyz2(:,j)*autoaa
+            enddo
+
+            !> calculate root-mean-sqare-deviation of the two structures
+            call get_rmsd( nxyz1, nxyz2, root_msd, gradient, trafo)
+
+
+            !write(*,*) 'RMSD',i,root_msd*autoaa
+            !write(*,*) 'trafo'
+            !write(*,*) trafo
+            !write(*,*)  
+            !write(*,*)  'TRANSFORM'
+
+            do j= 1, natf(i)
+              check_xyz (:,j) = matmul(nxyz2(:,j),trafo)
+            enddo
+
+            !write(s3,*) natf(i)
+            !write(s3,*) 
+            !do j= 1, natf(i)
+            !  write(s3,*) toSymbol(iatf(j,i)), check_xyz(:,j)*autoaa
+            !enddo
+
+            call get_rmsd( nxyz1, check_xyz, root_msd)!, gradient, trafo)
+
+            rmsd_frag(i) = root_msd !/cnt
+            !write(*,*)  
+            !write(*,*) 'RMSD new',i,(rmsd_frag(i)*aatoau)
+            if (rmsd_frag(i) > highest_rmsd(i)) highest_rmsd(i) = rmsd_frag(i)
+
+
+            deallocate(nxyz1, nxyz2)
+          enddo
+
+
+          if (cnt == 50) then
+            store_avxyz  = avxyz2 / cnt
+            check_fragmented = nfrag
+            call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
+            write(*,*) 'Count', cnt
+
+            do i = 1, nfrag
+          write(*,*) 'Higest RMSD',i, highest_rmsd(i)*aatoau
+          enddo
+           
             !call get_rmsd CHARGES_avg_MDs
             cnt = 0
             avxyz2 = 0
@@ -477,7 +586,9 @@ ifit:if(it > 0)then
         elseif (nfrag < check_fragmented) then
           cnt = 0
           rmsd_check = 0
+          store_avxyz  = 0!avxyz2 / cnt
         endif
+
 
         ! exit always immidiately if we have > nfragexit frags
         if(nfrag > nfragexit) then
@@ -555,10 +666,6 @@ ifit:if(it > 0)then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine intenergy(nuc,list,mass,velo,nfrag,T,E_int)
-   use xtb_mctc_accuracy, only: wp
-   use xtb_mctc_convert
-   use xtb_mctc_constants
-   implicit none
 
    integer  :: i,j,n(10)
    integer  :: nuc,list(nuc),nfrag
@@ -593,9 +700,6 @@ end
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine leapfrog(nat,grad,amass,tstp,xyz,vel,ke,nstp)
-   use common1
-   use xtb_mctc_accuracy, only: wp
-   implicit none
 
    integer  :: nat,nstp
    integer  :: j,k
@@ -620,3 +724,47 @@ subroutine leapfrog(nat,grad,amass,tstp,xyz,vel,ke,nstp)
    nstp = nstp + 1
 
 end subroutine leapfrog
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!subroutine center_of_geometry
+!
+!  do j = 1, natf(i)
+!    rmsd_check(:,j,i,1) = xyzf(:,j,i)
+!    nxyz1(:,j) = rmsd_check(:,j,i,1)
+!  
+!    cg(:,i,1) = cg(:,i,1) + 1 * rmsd_check(:,j,i,1)
+!  
+!    normmass  = normmass + 1 
+!  enddo
+!  
+!  cg(:,i,1) = cg(:,i,1) / normmass
+!
+!end subroutine center_of_geometry
+
+  !Calculates center of mass and returns it in variable cm      
+  subroutine center_of_mass(nuc,mass,xyz,cm)
+  !use xtb_mctc_accuracy, only: wp
+  !implicit none      
+
+  integer  :: i, nuc
+
+  real(wp) :: totmass
+  real(wp),intent(in) :: xyz(3,nuc), mass(nuc)
+  real(wp),intent(out) :: cm(3)
+
+
+  totmass = 0.0d0
+  cm = 0.0d0
+  do i = 1,nuc
+     cm(1) = cm(1) + mass(i) * xyz(1,i)
+     cm(2) = cm(2) + mass(i) * xyz(2,i)
+     cm(3) = cm(3) + mass(i) * xyz(3,i)
+     totmass  = totmass + mass(i)
+  end do
+  cm(1) = cm(1) / totmass
+  cm(2) = cm(2) / totmass
+  cm(3) = cm(3) / totmass
+  end subroutine
+
+end module qcxms_molecular_dynamics

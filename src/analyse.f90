@@ -62,7 +62,7 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   w2 = 0.0_wp
 
   write(*,'('' computing average fragment structures ...'')')
-  call avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf, nxyz)
+  call avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf)
 
   !write(*,'('' computing average fragment structures ...'')')
   !
@@ -477,7 +477,7 @@ end subroutine analyse
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine avg_frag_struc(nuc,iat,iatf,axyz,list, nfrag, natf, xyzf, nxyz)
+subroutine avg_frag_struc(nuc,iat,iatf,axyz,list, nfrag, natf, xyzf)
 
   integer :: nuc  
   integer :: natf(10)
