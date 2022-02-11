@@ -130,7 +130,7 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
    end select
 
    ! Create a new wavefunction for every calculation
-   call new_wavefunction(wfn, mol%nat, calc%bas%nsh, calc%bas%nao, etemp * ktoau)
+   call new_wavefunction(wfn, mol%nat, calc%bas%nsh, calc%bas%nao, 1, etemp * ktoau)
 
    ! Perform the actual calculation
    call xtb_singlepoint(ctx, mol, calc, wfn, accuracy, energy, gradient, sigma, 1)
@@ -148,7 +148,7 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
    end if
 
 !   ! Copy results to output variables
-   qat(:) = wfn%qat
+   qat(:) = wfn%qat(:, 1)
 
    if (spec_calc)then
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -158,10 +158,11 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
       call get_overlap(mol, trans , cutoff, calc%bas, overlap)
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      ihomo  = max(wfn%homoa, 1)
-      ehomo  = wfn%emo(ihomo)
+      ihomo  = max(wfn%homo(1), 1)
+      ehomo  = wfn%emo(ihomo, 1)
 
-      call write_qmo(mol%nat, calc%bas%nao, calc%bas%ao2at, wfn%coeff, overlap, wfn%emo, wfn%focc, ihomo)
+      call write_qmo(mol%nat, calc%bas%nao, calc%bas%ao2at, wfn%coeff(:, :, 1), &
+         & overlap, wfn%emo(:, 1), wfn%focc(:, 1), ihomo)
    endif
 !   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
