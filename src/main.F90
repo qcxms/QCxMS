@@ -30,9 +30,10 @@ use qcxms_fragments
 use qcxms_iee
 use qcxms_impact, only: calctrelax
 use qcxms_iniqm, only: iniqm
-use qcxms_input
+use qcxms_input, only: input, command_line_args
 use qcxms_mdinit, only: mdinitu, ekinet
 use qcxms_info, only: info_main, info_sumup, cidcheck
+use readcommon
 use qcxms_use_orca, only: copyorc
 use qcxms_use_turbomole, only: copytm, copytm_ip
 use qcxms_utility
@@ -311,8 +312,36 @@ call input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,           &
 &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
 call command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inp_fname)
-nuc = mol%nat
+
+nuc = mol%nat !      nuc : Number of atoms in molecule
+
+! allocate memory for molecular properties
+allocate(xyz (3,nuc),      &
+&        axyz(3,nuc),      &
+&        grad(3,nuc),      &
+&        velo(3,nuc),      &
+&        velof(nuc),       &
+&        emo(10*nuc),      &
+&        mopop(5*nuc,nuc), &
+&        modum(5*nuc),     &
+&        atm_charge(nuc),  & !      atm_charge(nuc) : Charge of atom
+&        spin(nuc),        &
+&        iat (nuc),        &
+&        list(nuc),        &
+&        imass(nuc),       &
+&        mass(nuc))           !      mass(nuc) : Mass of the atom
+
+xyz = mol%xyz
+iat = mol%num(mol%id) !      iat(nuc) : typ of atom (index)
+
+! Description:
+!      ncao / nbf : number of cartesian AOs
+!      nel : number of valence electrons (-1)
+!      ndim / : numer of AOs
+!      ihomo : integer of HOMO orbital
+!      edum : Energy of the system (3/2*k_B*T*nuc)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -361,7 +390,6 @@ write(*,*)
 
 ! initialize D3
 if (prog /= 8) call copyc6
-
 
 ! set traj automatically
 if(ntraj <= 0) ntraj = nuc*25
@@ -426,41 +454,6 @@ tstep = tstep * fstoau
 ! the "70" eV in a.u.
 eimp0 = eimp0 * evtoau
 
-
-! Check if input provides reasonable molecule
-if(nuc < 1)     stop 'no reasonable molecule (coord) found!'
-if(nuc > 10000) stop 'too many atoms'
-
-! allocate memory for molecular properties
-allocate(xyz (3,nuc),      &
-&        axyz(3,nuc),      &
-&        grad(3,nuc),      &
-&        velo(3,nuc),      &
-&        velof(nuc),       &
-&        emo(10*nuc),      &
-&        mopop(5*nuc,nuc), &
-&        modum(5*nuc),     &
-&        atm_charge(nuc),        &
-&        spin(nuc),        &
-&        iat (nuc),        &
-&        list(nuc),        &
-&        imass(nuc),       &
-&        mass(nuc))
-
-! Description:
-!      nuc : Number of atoms in molecule
-!      mass(nuc) : Mass of the atom
-!      atm_charge(nuc) : Charge of atom
-!      iat(nuc) : typ of atom (index)
-!      ncao / nbf : number of cartesian AOs
-!      nel : number of valence electrons (-1)
-!      ndim / : numer of AOs
-!      ihomo : integer of HOMO orbital
-!      edum : Energy of the system (3/2*k_B*T*nuc)
-
-
-xyz = mol%xyz
-iat = mol%num(mol%id)
 
 !if (prog == 2 .or. iprog == 2) call wrcoord(nuc, xyz, iat)
 
@@ -815,7 +808,6 @@ iee2:  do i = 1, ndumpGS
         read(io_gs,*, iostat = iocheck)(xyz(j,k),j=1,3),(velo(j,k),j=1,3)
         if (iocheck>0)then     !Fail
           write(*,*) 'Something is wrong in the input structure.'
-          if (method == 3 ) write(*,*) 'Did you protonate the structure correctly?'
           write(*,*) ' --- Exiting --- '
           stop
          ! End-of-file
@@ -836,7 +828,6 @@ iee2:  do i = 1, ndumpGS
         !> DEFAULT: vary by normal distributed boxmuller random number
         else
           Edum = vary_energies(eimp0,eimpw)
-          !Edum = vary_energies(eimp0,0.1)
         endif
 
         if ( Edum >= ehomo ) exit
@@ -1002,8 +993,16 @@ iee2:  do i = 1, ndumpGS
         set%xyzr (1:3,1:nuc,nrun)=xyz (1:3,1:nuc)
         set%velor(1:3,1:nuc,nrun)=velo(1:3,1:nuc)
         set%velofr(   1:nuc,nrun)=velof(   1:nuc)
-        set%eimpr (         nrun)=0.0_wp
-        set%taddr (         nrun)=0.0_wp 
+
+        if (TempRun)then
+
+          set%eimpr (         nrun)=0.0_wp
+          set%taddr (         nrun)=0.0_wp 
+
+        else
+          set%eimpr (         nrun)=0.0_wp
+          set%taddr (         nrun)=0.0_wp 
+        endif
       enddo
 
       close(io_gs)
@@ -1133,30 +1132,27 @@ else !prun - if production run == .true.
 
   call timing(t1,w1)
 
-  !!> if the program did not rin before, there is no "ready" file 
-  !!> (see end of code), so for automatic runs, it checks if running in 
-  !!> normal mode is wanted.
-  !ex = .false.
-  !inquire(file='ready', exist=ex)
-  !if (.not. ex) then
-  !  call read_structure(mol, 'start.xyz', error, filetype%xyz)
-  !  !> Read the qcxms.start file
-  !  call rdstart(itrj,mol,nuc,xyz,velo,velof,tadd,eimp)
+  !> if the program did not rin before, there is no "ready" file 
+  !> (see end of code), so for automatic runs, it checks if running in 
+  !> normal mode is wanted.
+  ex = .false.
+  inquire(file='ready', exist=ex)
+  !if (.not. ex ) then
+    !> Read the qcxms.start file
+    !call rdstart(itrj,mol,nuc,xyz,velo,velof,tadd,eimp)
+    if (method < 3)                      call rdstart(itrj,nuc,velo,velof,tadd,eimp)
+    if (method == 3 .and.       TempRun) call rdstart(itrj,nuc,velo,velof,tadd,eimp)
+    if (method == 3 .and. .not. TempRun) call rdstart(itrj,nuc,velo,velof)
   !else
   !  !>> in this case, the run conditions have to come from other settings
   !  write(*,*) ' - Not using qcxms.start conditions, but settings in qcxms.in -'
   !  !>>> For EI I do not see the need for this 
   !  if (method == 0 .or. method == 1) stop 'Not useful for EI'
-  !  !call read_structure(mol, inp_fname, error) < is already read at the start
   !endif
 
-  call rdstart(itrj,mol,nuc,xyz,velo,velof,tadd,eimp)
+  !call rdstart(itrj,mol,nuc,xyz,velo,velof,tadd,eimp)
 
-  xyz = mol%xyz
-  nuc = mol%nat
-  iat = mol%num(mol%id)
-
-  if ( method == 3 ) then !.or. method == 4 ) then
+  if ( method == 3 ) then 
     res_name = 'qcxms_cid.res'
   else
     res_name = 'qcxms.res'

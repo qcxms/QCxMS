@@ -1073,11 +1073,12 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
    type(structure_type) :: mol
 
   iarg = 0
+  prod = .false.
   narg = command_argument_count()
 
 
   write(*,*) 'COMM LINE ARGS: ', narg
-  call read_structure(mol, 'coord', error, 2 ) !input_format)
+  !call read_structure(mol, 'coord', error, 2 ) !input_format)
 
   do while(iarg < narg)
     iarg = iarg + 1
@@ -1132,25 +1133,37 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
     end select
   enddo
 
+  !> If production run, search for start.xyz
+  if (mol%nat < 1 .and. prod ) then
+    call read_structure(mol, 'start.xyz', error, filetype%xyz)
 
-     !if(arg == '-check'   ) check  =.true. !Check IEE settings
-     !if(arg == '-c'       ) check  =.true. !Check IEE settings
-     !if(arg == '-prod'    ) prod   =.true. !Do production run
-     !if(arg == '-p'       ) prod   =.true. !Do production run
-     !!if(arg == '-noeq'    ) noeq   =.false. !Skip equilibration MD
-     !!if(arg == '-e0'      ) eonly0 =.true. !Only calc. energy chrg = 0
-     !!if(arg == '-e1'      ) eonly1 =.true. !Only calc. energy chrg = 1
-     !!if(arg == '-eonly'   ) eonly  =.true. !Only calc. energy chrg = .CHRG file
-     !if(arg == '-v'       ) verbose  =.true.   ! more infos 
-     !if(arg == '-verbose' ) verbose  =.true.   ! more infos 
-
-     !if(index(arg(i),'-qcp'     ) /= 0)path=arg(i+1)  !Set QC path
-     !if(index(arg(i),'-qcpath'  ) /= 0)path=arg(i+1)  !Set QC path
+    if (mol%nat < 1) stop 'no reasonable molecule (start.xyz) found!'
+    if(mol%nat > 10000) stop 'too many atoms'
 
 
+  !> If no input is provided, check for coord  
+  elseif (mol%nat < 1 .and. .not. prod ) then
 
 
-  end subroutine command_line_args
+    call read_structure(mol, 'coord', error, filetype%tmol )
+
+    !>> check if input provides reasonable molecule
+    if (mol%nat < 1) then
+      write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+      write(*,*) '--- No structure provided! ---'
+      write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+      write(*,*) 'Provide structure with -i flag or &
+      (turbomole-style) coord file and check in number of atoms is correct'
+
+      write(*,*) 
+      stop 'no reasonable molecule (coord) found! - EXIT'
+    endif
+
+    if(mol%nat > 10000) stop 'too many atoms'
+
+  endif
+
+end subroutine command_line_args
   
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
   

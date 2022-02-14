@@ -351,6 +351,8 @@ module qcxms_utility
    
       call write_structure(mol, fname_xyz, error, filetype%xyz) 
 
+      nat = mol%nat
+
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       if(traj < 10000) write(fname_info,'(''TMPQCXMS/TMP.'',i4,''/qcxms.start'')')traj
@@ -360,7 +362,8 @@ module qcxms_utility
 
       open(file=fname_info, newunit= io_wr_info)
       write(io_wr_info,'(i4)') traj
-      write(io_wr_info,'(2D22.14)') eimpr,taddr
+      write(io_wr_info,'(D22.14)') eimpr
+      write(io_wr_info,'(D22.14)') taddr
 
       do j=1,nat
          write(io_wr_info,'(7D22.14)') velor(1:3,j),velofr(j)
@@ -373,7 +376,8 @@ module qcxms_utility
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! read qcxms.start file
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine rdstart(itrj,mol,nat,xyz,velo,velof,tadd,eimp)
+  !subroutine rdstart(itrj,mol,nat,xyz,velo,velof,tadd,eimp)
+  subroutine rdstart(itrj,nat,velo,velof,tadd,eimp)
   
      integer  :: itrj,nat
      integer  :: j,ndum
@@ -381,20 +385,21 @@ module qcxms_utility
      integer  :: ierror
       integer,allocatable  :: iat (:)
 
-     real(wp) :: xyz (3,nat)
+     !real(wp) :: xyz (3,nat)
      real(wp) :: velo(3,nat)
      real(wp) :: velof   (nat)
-     real(wp) :: tadd,eimp
+     real(wp), optional :: tadd
+     real(wp), optional :: eimp
   
      character(len=80) :: fname
 
      type(error_type), allocatable :: error
-     type(structure_type), intent(out) :: mol
+     !type(structure_type), intent(out) :: mol
 
-     call read_structure(mol, 'start.xyz', error, filetype%xyz)
+     !call read_structure(mol, 'start.xyz', error, filetype%xyz)
 
-     ndum = mol%nat
-     if (ndum /= nat) stop '- error in rdstart -'
+     !ndum = mol%nat
+     !if (ndum /= nat) stop '- error in rdstart -'
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      fname='qcxms.start'
@@ -405,7 +410,8 @@ module qcxms_utility
      if(ierror > 0) stop ' - Missing qcxms.start file! -'
 
      read (io_info,*) itrj
-     read (io_info,'(2D22.14)') eimp, tadd
+     if(present(eimp)) read (io_info,'(D22.14)') eimp
+     if(present(tadd)) read (io_info,'(D22.14)') tadd
 
      do j = 1, nat
         read (io_info,'(7D22.14)') velo(1:3,j), velof(j)

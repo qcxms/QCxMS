@@ -365,15 +365,11 @@ module qcxms_use_orca
    if(line >= 1000)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')line
       call execute_command_line(command)
-      write(command,'(''cp coord TMPQCXMS/TMP.'',i4)')line
-      call execute_command_line(command)
       return
    endif
    
    if(line >= 100)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i3)')line
-      call execute_command_line(command)
-      write(command,'(''cp coord TMPQCXMS/TMP.'',i3)')line
       call execute_command_line(command)
       return
    endif
@@ -381,15 +377,11 @@ module qcxms_use_orca
    if(line >= 10)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i2)')line
       call execute_command_line(command)
-      write(command,'(''cp coord TMPQCXMS/TMP.'',i2)')line
-      call execute_command_line(command)
       return
    endif
    
    if(line >= 0)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i1)')line
-      call execute_command_line(command)
-      write(command,'(''cp coord TMPQCXMS/TMP.'',i1)')line
       call execute_command_line(command)
       return
    endif
