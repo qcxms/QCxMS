@@ -1135,8 +1135,14 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
   if (mol%nat < 1 .and. prod ) then
     call read_structure(mol, 'start.xyz', error, filetype%xyz)
 
-    if (mol%nat < 1)    error stop 'no reasonable molecule (start.xyz) found!'
-    if(mol%nat > 10000) error stop 'too many atoms'
+    if (mol%nat < 1) then
+      inquire(file='start.xyz', exist=ex)
+      if (ex) error stop ' -- something wrong in start.xyz - aborting! -- '
+      if (.not. ex) then
+        write(*,*) ' -- no reasonable molecule found (searched for start.xyz)! --'
+        error stop ' -- provide strucutre with qcxms -i <structure.xyz> -- ' 
+     
+    if(mol%nat > 10000) error stop ' -- too many atoms! (exceeding 10000 atms) --'
 
 
   !> If no input is provided, check for coord  

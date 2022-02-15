@@ -25,6 +25,7 @@ use common1
 use newcommon
 use get_version
 use qcxms_boxmuller, only: vary_collisions, vary_energies
+use qcxms_cid_routine, only: cid, collision_setup, calc_ECOM
 use qcxms_mo_spec, only: getspec
 use qcxms_fragments
 use qcxms_iee
@@ -32,6 +33,7 @@ use qcxms_impact, only: calctrelax
 use qcxms_iniqm, only: iniqm
 use qcxms_input, only: input, command_line_args
 use qcxms_mdinit, only: mdinitu, ekinet
+use qcxms_molecular_dynamics, only: md, center_of_mass
 use qcxms_info, only: info_main, info_sumup, cidcheck
 use readcommon
 use qcxms_use_orca, only: copyorc
@@ -68,7 +70,6 @@ integer  :: imassn(10000)
 integer  :: io_res, io_gs, io_log, io_eimp
 integer  :: CollSec(3),CollNo(3)
 integer  :: collisions
-!,set_coll,MaxColl
 integer  :: minmass,numb
 integer  :: coll_counter,new_counter,frag_counter
 integer  :: simMD, manual_simMD, save_simMD
@@ -157,13 +158,6 @@ type(run_settings) :: set
 type(collision_type) :: coll
 !type(charge_type) :: chrg
 
-interface
-  function calc_ECOM(beta,e_kin) result(E_COM)
-    use xtb_mctc_accuracy, only: wp
-    implicit none
-    real(wp) :: beta, e_kin, E_COM
-  end function calc_ECOM
-end interface
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Start the program
@@ -1799,7 +1793,7 @@ MFPloop:  do
           Tdum = 0
 
           ! calculate the center-of-mass and reset for correct collision sim
-          call cofmass(nuc,mass,xyz,cm)
+          call center_of_mass(nuc,mass,xyz,cm)
           cm1(:) = cm(:) 
 
           !write(*,'(80(''-''),/)')
@@ -1895,7 +1889,7 @@ MFPloop:  do
           simMD = save_simMD
 
           ! calculate the new center-of-mass as reference
-          call cofmass(nuc,mass,xyz,cm)
+          call center_of_mass(nuc,mass,xyz,cm)
           cm2(:) = cm(:)
           !!!
 
