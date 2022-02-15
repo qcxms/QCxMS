@@ -104,6 +104,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
    real(wp) :: gradient(3,nuc)
    real(wp) :: trafo(3,3)
   !type(fragment_info) :: frag
+  logical :: count_average = .false.
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
  
@@ -464,8 +465,24 @@ ifit:if(it > 0)then
         highest_rmsd=0
         normmass = 0
 
-        if (nfrag > check_fragmented) then
+        if (nfrag > check_fragmented ) then
+          count_average = .true.
+          check_fragmented = nfrag
+        endif
 
+        if (nfrag < check_fragmented .and. count_average) then
+          write(*,*) 'ReSet'
+          cnt = 0
+          avxyz2 = 0
+          rmsd_check = 0
+          store_avxyz  = 0!avxyz2 / cnt
+          cg = 0
+          count_average = .false.
+          check_fragmented = 1
+        endif
+
+
+        if ( count_average ) then 
           cg = 0
           cnt = cnt + 1
           avxyz2  = avxyz2  + xyz
@@ -476,18 +493,20 @@ ifit:if(it > 0)then
           !call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf)
 
 
-          do i = 1, nfrag
+cntfrg:   do i = 1, nfrag
 
-          if (cnt == 1) then
-            save_natf(i) = natf(i)
-          endif
+            if (cnt == 1) then
+              save_natf(i) = natf(i)
+            endif
 
-          if(natf(i) /= save_natf(i))then
-            write(*,*) 'Fragment changed. Re-started count'
-            cnt = 0
-            store_avxyz  = 0 ! avxyz2 / cnt
-            exit
-          endif
+            if(natf(i) /= save_natf(i))then
+              write(*,*) 'Fragment changed. Re-started count'
+              cnt = 0
+              store_avxyz  = 0 ! avxyz2 / cnt
+              avxyz2 = 0
+              cg = 0
+              exit cntfrg
+            endif
 
             allocate(nxyz1(3,natf(i)), &
                     nxyz2(3,natf(i)))
@@ -566,27 +585,26 @@ ifit:if(it > 0)then
 
 
             deallocate(nxyz1, nxyz2)
-          enddo
+          enddo cntfrg
 
 
           if (cnt == 50) then
             store_avxyz  = avxyz2 / cnt
-            check_fragmented = nfrag
             call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
             write(*,*) 'Count', cnt
 
             do i = 1, nfrag
-          write(*,*) 'Higest RMSD',i, highest_rmsd(i)*aatoau
-          enddo
-           
+              write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
+            enddo
+             
             !call get_rmsd CHARGES_avg_MDs
-            cnt = 0
             avxyz2 = 0
+            cnt = 0
+            rmsd_check = 0
+            cg = 0
+            count_average = .false.
           endif
-        elseif (nfrag < check_fragmented) then
-          cnt = 0
-          rmsd_check = 0
-          store_avxyz  = 0!avxyz2 / cnt
+
         endif
 
 

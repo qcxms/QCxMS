@@ -51,18 +51,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer  :: io_cid, io_rotate, io_test
   integer  :: morestep , fconst
 
-  !
-  integer :: iatf(nuc,10)
-  integer :: idum(nuc,10)
-  real(wp) :: xyzf(3,nuc,10)
-  real(wp) :: dum (3,nuc,10)
-  integer :: natf(10)
-  integer :: cnt 
-  integer :: check_fragmented
-
-
-  !
-
   real(wp) :: calc_collisions
   real(wp) :: etemp,E,ke
   real(wp) :: xyz(3,nuc),velo(3,nuc),grad(3,nuc)
@@ -133,6 +121,31 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: xstps = .false.
   logical :: avg_struc 
 
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Stuff for checking RMSD
+  integer :: check_fragmented
+  integer :: cnt
+  integer :: iatf(nuc,10)
+  integer :: natf(10)
+  integer :: save_natf(10)
+  integer :: s1,s2, s3
+  real(wp) :: normmass
+  real(wp) :: cg(3,10,50)
+  real(wp) :: diff_cg(3,10,50)
+  real(wp),allocatable :: nxyz1(:,:)!(3,nuc)
+  real(wp),allocatable :: nxyz2(:,:)!(3,nuc)
+  real(wp) :: check_xyz(3,nuc)
+  real(wp) :: xyzf(3,nuc,10)
+  real(wp) :: rmsd_check (3,nuc,10,50)
+   real(wp) :: root_msd, rmsd_frag(10), highest_rmsd(10)
+   real(wp) :: gradient(3,nuc)
+   real(wp) :: trafo(3,3)
+  !type(fragment_info) :: frag
+  logical :: count_average = .false.
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   !interface
   !  function calc_ECOM(beta,e_kin) result(E_COM)
   !    !use cidcommon
@@ -149,6 +162,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     call random_seed()
   endif
 
+  open(file='struc1.xyz', newunit=s1)
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !Allocate molecule+Impactatom
@@ -221,7 +235,13 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   avxyz = 0
   avxyz2 = 0
 
+  normmass =0
+  cg = 0
+  diff_cg = 0
+  check_fragmented = 1
   cnt = 0
+  trafo = 0
+  gradient = 0
 
 
   set_grad = huge(0.0_wp)
@@ -793,20 +813,155 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     avxyz  = avxyz  + xyz0(:,:nuc)
      
 
-    if (nfrag > check_fragmented) then
+    !if (nfrag > check_fragmented) then
+    !  cnt = cnt + 1
+    !  avxyz2  = avxyz2  + xyz0(:,:nuc)
+    !  if (cnt == 50) then
+    !    store_avxyz  = avxyz2 / cnt
+    !    !avxyz2  = avxyz / xyzavg_dump
+    !    check_fragmented = nfrag
+    !    write(*,*) 'Count', cnt
+    !    cnt = 0
+    !    avxyz2 = 0
+    !  endif
+    !elseif (nfrag < check_fragmented) then
+    !    cnt = 0
+    !endif
+
+
+    root_msd=0
+    highest_rmsd=0
+    normmass = 0
+
+    if (nfrag > check_fragmented ) then
+      count_average = .true.
+      check_fragmented = nfrag
+    endif
+
+    if (nfrag < check_fragmented .and. count_average) then
+      write(*,*) 'ReSet'
+      cnt = 0
+      avxyz2 = 0
+      rmsd_check = 0
+      store_avxyz  = 0!avxyz2 / cnt
+      cg = 0
+      count_average = .false.
+      check_fragmented = 1
+    endif
+
+
+    if ( count_average ) then 
+      cg = 0
       cnt = cnt + 1
       avxyz2  = avxyz2  + xyz0(:,:nuc)
-      if (cnt == 50) then
-        store_avxyz  = avxyz2 / cnt
-        !avxyz2  = avxyz / xyzavg_dump
-        check_fragmented = nfrag
-        write(*,*) 'Count', cnt
-        cnt = 0
-        avxyz2 = 0
-      endif
-    elseif (nfrag < check_fragmented) then
-        cnt = 0
+
+      store_avxyz  = avxyz2 / cnt
+
+      call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
+      !call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf)
+
+
+cntfrg: do i = 1, nfrag
+
+          if (cnt == 1) then
+            save_natf(i) = natf(i)
+          endif
+
+          if(natf(i) /= save_natf(i))then
+            write(*,*) 'Fragment changed. Re-started count'
+            cnt = 0
+            store_avxyz  = 0 ! avxyz2 / cnt
+            avxyz2 = 0
+            cg = 0
+            exit cntfrg
+          endif
+
+          allocate(nxyz1(3,natf(i)), &
+                  nxyz2(3,natf(i)))
+          !> start-strucutre
+          normmass = 0
+
+          !> compute the center-of-geometry of current structure
+          do j = 1, natf(i)
+            !>> get the current fragment structure
+            rmsd_check(:,j,i,cnt) = xyzf(:,j,i)
+
+            !>> get the current center-of-geometry
+            cg(:,i,cnt) = cg(:,i,cnt) + 1 * rmsd_check(:,j,i,cnt)
+
+            normmass  = normmass + 1 
+          enddo
+
+          cg(:,i,cnt) = cg(:,i,cnt) / normmass
+
+
+          !> calculate the difference betwen the two c-of-g
+          diff_cg(:,i,cnt) = cg(:,i,cnt) - cg(:,i,1)
+
+
+          !> shift the c-of-g by the difference of c-of-g
+          do j=1,natf(i)
+            rmsd_check(:,j,i,cnt) = rmsd_check(:,j,i,cnt) - diff_cg(:,i,cnt)
+          enddo
+
+          !> transform into right array size for rmsd routine
+          do j = 1, natf(i)
+            !>> the right compare-structure is taken
+            nxyz1(:,j) = rmsd_check(:,j,i,1)
+            nxyz2(:,j) = rmsd_check(:,j,i,cnt)
+          enddo
+
+
+
+          !> calculate root-mean-sqare-deviation of the two structures
+          call get_rmsd( nxyz1, nxyz2, root_msd, gradient, trafo)
+
+          do j= 1, natf(i)
+            check_xyz (:,j) = matmul(nxyz2(:,j),trafo)
+          enddo
+
+
+          call get_rmsd( nxyz1, check_xyz, root_msd)!, gradient, trafo)
+
+          rmsd_frag(i) = root_msd !/cnt
+          !write(*,*)  
+          !write(*,*) 'RMSD new',i,(rmsd_frag(i)*aatoau)
+          if (rmsd_frag(i) > highest_rmsd(i)) highest_rmsd(i) = rmsd_frag(i)
+
+          !>>>> write for test
+          if ( rmsd_frag(i)*autoaa > 1.0 ) then
+            write(*,*) 'HIGH RMSD'
+            write(s1,*) natf(i)
+            write(s1,*) 
+            do j= 1, natf(i)
+              write(s1,*) toSymbol(iatf(j,i)), nxyz1(:,j)*autoaa
+            enddo 
+          endif
+
+          deallocate(nxyz1, nxyz2)
+        enddo cntfrg
+
+
+        if (cnt == 50) then
+          store_avxyz  = avxyz2 / cnt
+          call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
+          write(*,*) 'Count', cnt
+
+          do i = 1, nfrag
+            write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
+          enddo
+           
+          !call get_rmsd CHARGES_avg_MDs
+          avxyz2 = 0
+          cnt = 0
+          rmsd_check = 0
+          cg = 0
+          count_average = .false.
+        endif
+
     endif
+
+
 
     if(nfrag > 3) then ! nfragexit) then
        !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
