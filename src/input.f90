@@ -294,7 +294,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   else
      write(*,*) 'changed by input:'
      open ( file='qcxms.in', newunit = io_in, status = 'old' , iostat = error)
-     if ( error > 0 ) stop '!!! error while opening qcxms.in !!!'
+     if ( error > 0 ) error stop '!!! error while opening qcxms.in !!!'
   
      ! Read line-by-line
      do
@@ -1136,8 +1136,8 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
   if (mol%nat < 1 .and. prod ) then
     call read_structure(mol, 'start.xyz', error, filetype%xyz)
 
-    if (mol%nat < 1) stop 'no reasonable molecule (start.xyz) found!'
-    if(mol%nat > 10000) stop 'too many atoms'
+    if (mol%nat < 1)    error stop 'no reasonable molecule (start.xyz) found!'
+    if(mol%nat > 10000) error stop 'too many atoms'
 
 
   !> If no input is provided, check for coord  
@@ -1155,10 +1155,10 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
       (turbomole-style) coord file and check in number of atoms is correct'
 
       write(*,*) 
-      stop 'no reasonable molecule (coord) found! - EXIT'
+      error stop 'no reasonable molecule (coord) found! - EXIT'
     endif
 
-    if(mol%nat > 10000) stop 'too many atoms'
+    if(mol%nat > 10000) error stop 'too many atoms'
 
   endif
 
