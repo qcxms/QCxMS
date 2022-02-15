@@ -1127,8 +1127,7 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
       end if
 
     case default
-      write(*,*) 'DEFAULT'
-
+      error stop ' -- Unrecognized Keyword -- '
     end select
   enddo
 
