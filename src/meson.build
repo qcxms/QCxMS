@@ -15,7 +15,6 @@ srcs += files(
   'dftd3.f90',
   'dftd4.f90',
   'diag3x3.f90',
-  'egrad.f90',
   'elem.f90',
   'fragments.f90',
   'gcp.f90',

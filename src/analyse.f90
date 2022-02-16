@@ -25,20 +25,19 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   integer :: progi,itry,useprog(4)  
   integer :: isave,jsave,ksave,gsave
   integer :: iatf(nuc,10)
-  integer :: idum(nuc,10)
+  !integer :: idum(nuc,10)
   integer :: neutfspin,ionfspin !fragment spin (for metals etc.)
   integer :: spin_neut,spin_ion !save these spins 
   integer :: fiter !Number of spin iterations 
-  integer :: sp(3),sn(3),sn0,sp0
+  !integer :: sp(3),sn(3),sn0,sp0
   integer :: nb,nel
   integer :: mchrg, lpchrg, dump_chrg
   integer :: io_xyz 
   
   real(wp) :: axyz(3,nuc)
-  real(wp) :: nxyz(3,nfrag) 
   real(wp) :: fragip(nfrag,abs(mchrg)),etemp
   real(wp) :: xyzf(3,nuc,10)
-  real(wp) :: dum (3,nuc,10)
+  !real(wp) :: dum (3,nuc,10)
   real(wp) :: z,E_neut,E_ion,cema(3,10),rf(10*(10+1)/2)
   real(wp) :: t2,t1,w2,w1
   real(wp) :: gsen(3),gsep(3)
@@ -284,8 +283,8 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
     lowest_neut = 0.0_wp
     lowest_ion  = 0.0_wp
     
-    sn = 0
-    sp = 0
+    !sn = 0
+    !sp = 0
   
 frg:do i = 1,nfrag
       gsen  = 0.0d0

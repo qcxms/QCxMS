@@ -71,7 +71,7 @@ integer  :: io_res, io_gs, io_log, io_eimp
 integer  :: CollSec(3),CollNo(3)
 integer  :: collisions
 integer  :: minmass,numb
-integer  :: coll_counter,new_counter,frag_counter
+integer  :: frag_counter,new_counter,save_counter
 integer  :: simMD, manual_simMD, save_simMD
 integer  :: rand_int,dep,convetemp
 integer  :: manual_dist
@@ -1116,8 +1116,8 @@ else !prun - if production run == .true.
   asave ='NOT USED'
   tcont = 0
   num_frags = 0
-  coll_counter = 0
   frag_counter = 0
+  save_counter = 0
 
   call timing(t1,w1)
 
@@ -1440,11 +1440,11 @@ ESI_loop: do
             ! reset number of atoms
             nuc=k
             ! count number of fragmentations
-            coll_counter = coll_counter + 1
+            frag_counter = frag_counter + 1
             write(*,'(40(''!''))')
             write(*,'(''!! Fragmentation in ESI MD !!'')')
             write(*,'(''-- No of overall fragmentations: '',i3, '' --'')')&
-              coll_counter
+              frag_counter
             write(*,'(40(''!''))')
             write(*,*)
 
@@ -1482,17 +1482,17 @@ ESI_loop: do
           ! reallocate the variables, as they change for smaller systemsizes
           deallocate(xyz,axyz,grad,velo,velof,atm_charge,spin,iat,list,mass,imass)
 
-          allocate(xyz (3,nuc), &
-          & axyz(3,nuc),        &
-          & grad(3,nuc),        &
-          & velo(3,nuc),        &
-          & velof(nuc),         &
-          & atm_charge(nuc),          &
-          & spin(nuc),          &
-          & iat (nuc),          &
-          & list(nuc),          &
-          & imass(nuc),         &
-          & mass(nuc))
+          allocate(xyz (3,nuc),        &
+                   axyz(3,nuc),        &
+                   grad(3,nuc),        &
+                   velo(3,nuc),        &
+                   velof(nuc),         &
+                   atm_charge(nuc),    &
+                   spin(nuc),          &
+                   iat (nuc),          &
+                   list(nuc),          &
+                   imass(nuc),         &
+                   mass(nuc))
 
           do i=1,3
             xyz(i,1:nuc) = xyzn (i,1:nuc) - cema(i)
@@ -1715,9 +1715,9 @@ cidlp:  do
           ! reset number of atoms
           nuc=k
           ! count number of fragmentations
-          coll_counter = coll_counter + 1
+          frag_counter = frag_counter + 1
           write(*,'(''-- No of overall fragmentations: '',i3, '' --'')')&
-            coll_counter
+            frag_counter
 
         elseif (tcont == 0) then
           do i = 1, nuc
@@ -1839,14 +1839,14 @@ MFPloop:  do
           !> but only if not set manually
           if ( manual_simMD == 0 ) then
             simMD = icoll * 0.6 * nuc * 100
-            if ( simMD > 8000 .and. coll_counter <= 2 ) simMD = 8000
+            if ( simMD > 8000 .and. frag_counter <= 2 ) simMD = 8000
             
             !>> make some timing adjustments
-            if ( simMD > 8000 .and. coll_counter > 2  ) then
+            if ( simMD > 8000 .and. frag_counter > 2  ) then
               simMD = 8000 * 0.75_wp
-            elseif ( simMD > 8000 .and. coll_counter > 3  ) then
+            elseif ( simMD > 8000 .and. frag_counter > 3  ) then
               simMD = 8000 * 0.6_wp
-            elseif ( simMD > 8000 .and. coll_counter >= 4  ) then
+            elseif ( simMD > 8000 .and. frag_counter >= 4  ) then
               simMD = 8000 * 0.5_wp
             endif
 
@@ -1867,8 +1867,8 @@ MFPloop:  do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           call md(itrj,icoll,isec,nuc,simMD,xyz,iat,mass,imass,mchrg,grad,&
           &       velo,velof,list,tstep,j,nfragexit,                      &
-          &       fragm,fragf,fragat,dumpstep,etemp_in,                    &
-          &       md_ok,atm_charge,spin,axyz,                                    &
+          &       fragm,fragf,fragat,dumpstep,etemp_in,                   &
+          &       md_ok,atm_charge,spin,axyz,                             &
           &       Tdum,tadd,eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,      &
           &       fragstate,dtime,ECP,.false.,new_velo)
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1944,9 +1944,9 @@ MFPloop:  do
             ! reset number of atoms
             nuc = k
             ! count number of fragmentations
-            coll_counter = coll_counter + 1
+            frag_counter = frag_counter + 1
             write(*,'(''-- No of overall fragmentations: '',i3, '' --'')')&
-              coll_counter
+              frag_counter
 
           elseif ( tcont == 0 ) then
             do i = 1, nuc
@@ -2053,7 +2053,7 @@ MFPloop:  do
           ! 3.1.) If the number of fragmentaion steps are exceeded
           !Collauto  == false
           if ( Manual .and. new_counter > 0 ) then
-            if ( coll_counter >= new_counter ) then
+            if ( frag_counter >= new_counter ) then
               if ( index(asave,'NOT USED') == 0) then
                 write(io_res,'(a)')asave
               endif
@@ -2067,9 +2067,9 @@ MFPloop:  do
           !--------------------------------------------------------------
           ! 3.2.) If fragmentation occured, check the rest of the collisions
           !       Fullauto run-type!
-Full:     if (FullAuto .and. coll_counter > frag_counter) then
+Full:     if (FullAuto .and. frag_counter > save_counter) then
 
-            frag_counter = coll_counter
+            save_counter = frag_counter
 
             ! Set-up collision number and vary the amount (cid.f90)
             call collision_setup(nuc,iat,xyz,mass,rtot,cross,mfpath, &
@@ -2102,7 +2102,7 @@ Full:     if (FullAuto .and. coll_counter > frag_counter) then
           !--------------------------------------------------------------
           ! 3.3) For Collauto (NOT Fullauto)
           ! Vary the amount of collisions depending on the number of atoms
-CollLp:   if (CollAuto .and. coll_counter > frag_counter) then
+CollLp:   if (CollAuto .and. frag_counter > save_counter) then
 
             ! Set-up collision number and vary the amount (cid.f90)
             call collision_setup(nuc,iat,xyz,mass,rtot,cross,mfpath, &

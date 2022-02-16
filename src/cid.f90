@@ -7,7 +7,7 @@ module qcxms_cid_routine
   use qcxms_boxmuller, only: vary_energies
   use qcxms_cid_rotation
   use qcxms_fragments
-  use qcxms_iniqm, only: iniqm
+  use qcxms_iniqm, only: iniqm, egrad
   use qcxms_mdinit, only: ekinet
   use qcxms_molecular_dynamics, only: leapfrog, intenergy, center_of_mass
   use xtb_mctc_accuracy, only: wp
@@ -168,13 +168,13 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   if(gas%Iatom /= 6)nuc0 = nuc+1
   if(gas%Iatom == 6)nuc0 = nuc+2 !N2, but has to be fixed for more atoms
-  allocate(xyz0(3,nuc0))
-  allocate(velo0(3,nuc0))
-  allocate(grad0(3,nuc0))
-  allocate(mass0(nuc0))
-  allocate(iat0(nuc0))
-  allocate(achrg0(nuc0))
-  allocate(aspin0(nuc0))
+  allocate(xyz0(3,nuc0), &
+          velo0(3,nuc0), &
+          grad0(3,nuc0), &
+          mass0(nuc0), &
+          iat0(nuc0), &
+          achrg0(nuc0), &
+          aspin0(nuc0)) 
   
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -203,7 +203,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   open(file=fname,newunit=io_cid,status='replace')
   
   !open(file='avgxyz.xyz',newunit=io_test,status='replace')
-  
+
   
   !---------------------------------------------------------
   !logical
@@ -1231,12 +1231,6 @@ cntfrg: do i = 1, nfrag
 ! Calcualte the molecular radius, cross section and mean-free-path
 !#########################################################################
   subroutine collision_setup(nuc,iat,xyz,mass,r_mol,cross,mfpath,calc_collisions)
-  !use cidcommon
-  !use covalent_radii, only: Rad
-  !use xtb_mctc_accuracy, only: wp
-  !use xtb_mctc_convert
-  !use xtb_mctc_constants, only: pi
-  !implicit none
 
   integer  :: nuc
   integer  :: iat(nuc)
@@ -1273,9 +1267,9 @@ cntfrg: do i = 1, nfrag
   cross  = pi * ((r_mol + r_atom)**2)
   mfpath = (kB_J * cell%TGas) / (cross * cell%PGas) 
 
-  calc_collisions = cell%lchamb/mfpath
+  calc_collisions = cell%lchamb / mfpath
 
-  end subroutine
+  end subroutine collision_setup
   
 
 !#########################################################################
@@ -1283,9 +1277,6 @@ cntfrg: do i = 1, nfrag
 !#########################################################################
 
 function calc_ECOM(beta,e_kin) result(E_COM)
-  !use xtb_mctc_accuracy, only: wp
-  !use xtb_mctc_convert
-  !implicit none
 
   real(wp) :: beta, e_kin, E_COM
 
