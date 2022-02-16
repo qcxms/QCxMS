@@ -930,6 +930,8 @@ cntfrg: do i = 1, nfrag
           !>>>> write for test
           if ( rmsd_frag(i)*autoaa > 1.0 ) then
             write(*,*) 'HIGH RMSD'
+            !wr_file = wr_file + 1
+            !open(file=
             write(s1,*) natf(i)
             write(s1,*) 
             do j= 1, natf(i)
@@ -1064,7 +1066,7 @@ cntfrg: do i = 1, nfrag
        endif
 
        if (nfrag > 1 .and.step_counter == 50)then !500 steps (we need some time after frag)
-          xtra = 600  !should be made dependend on the velocity of fragment
+          xtra = 150 * int(nuc/10)  !should be made dependend on the velocity of fragment
                 
           write(*,'('' FRAGMENTATION occured!'')')
           write(*,'('' Do '',i3,a12)') xtra, ' extra steps'

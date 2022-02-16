@@ -1068,6 +1068,7 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
   character(len=:), allocatable :: arg
   character(len=:), allocatable :: input_file
   logical :: check,eonly,eonly0,eonly1,noeq, prod
+  logical :: ex = .false.
 
   type(error_type), allocatable :: error
    type(structure_type) :: mol
@@ -1137,10 +1138,15 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
 
     if (mol%nat < 1) then
       inquire(file='start.xyz', exist=ex)
+
       if (ex) error stop ' -- something wrong in start.xyz - aborting! -- '
+
       if (.not. ex) then
         write(*,*) ' -- no reasonable molecule found (searched for start.xyz)! --'
         error stop ' -- provide strucutre with qcxms -i <structure.xyz> -- ' 
+      endif
+
+    endif
      
     if(mol%nat > 10000) error stop ' -- too many atoms! (exceeding 10000 atms) --'
 
