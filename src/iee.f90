@@ -84,6 +84,41 @@ module qcxms_iee
      p = exp( -iee_a * (x - ieeel * iee_b)**2 / ieeel )
   
   end subroutine gauss0
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine gauss1(height,posi,breite,ergebnis,ntraj, nuc)
+
+    integer :: ntraj
+    integer :: i, nuc
+  
+     real(wp) :: height, posi, breite, wert, x
+     real(wp) :: bla
+     
+     real(wp) :: ergebnis(ntraj)
+
+     !x = posi / ntraj
+     x = posi / (ntraj/2)
+     ! write(*,*) x
+
+     do i = 1, ntraj
+     !do i = 1, 10
+
+      wert = x * i
+      !write(*,*) i
+      !write(*,*) 'WERT', i, wert
+      !write(*,*) 'position',posi
+
+      bla = wert-posi
+  
+      !write(*,*) 'sum',bla
+       !ergebnis(i) = height *  exp(-1* (wert - posi)**2 / (2* breite) )
+       !ergebnis(i) = exp(-1* bla**2 )
+       ergebnis(i) = (wert-posi) / 8 
+
+      !write(*,*) 'ergebnis', ergebnis(i)
+    enddo
+  
+  end subroutine gauss1
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Poisson energy distribution, ieeel= # val el, iee_a and iee_b are parameters
