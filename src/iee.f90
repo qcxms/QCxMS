@@ -92,7 +92,6 @@ module qcxms_iee
     integer :: i, nuc
   
      real(wp) :: height, posi, breite, wert, x
-     real(wp) :: bla
      
      real(wp) :: ergebnis(ntraj)
 
@@ -108,9 +107,6 @@ module qcxms_iee
       !write(*,*) 'WERT', i, wert
       !write(*,*) 'position',posi
 
-      bla = wert-posi
-  
-      !write(*,*) 'sum',bla
        !ergebnis(i) = height *  exp(-1* (wert - posi)**2 / (2* breite) )
        !ergebnis(i) = exp(-1* bla**2 )
        ergebnis(i) = (wert-posi) / 8 

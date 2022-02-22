@@ -970,6 +970,7 @@ iee2:do i = 1, ndumpGS
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !---- CID part --- 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !> other kind of distribution, because we don't know timings etc
     elseif ( method == 3 ) then 
@@ -982,7 +983,12 @@ iee2:do i = 1, ndumpGS
       allocate (ergebnis(ntraj))
       !allocate (ergebnis(100))
 
-      call gauss1(1.0_wp, new_temp, 1.0_wp, ergebnis, ntraj, nuc)  
+     ! call gauss1(1.0_wp, new_temp, 1.0_wp, ergebnis, ntraj, nuc)  
+
+      x = new_temp / (ntraj/2)
+      do i = 1, ntraj
+        ergebnis(i) = ((x*i)-new_temp) / 8 
+      enddo
 
       do i =1,ntraj
         !write(*,*) i, ergebnis(i)
