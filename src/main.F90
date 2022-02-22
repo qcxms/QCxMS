@@ -975,24 +975,21 @@ iee2:do i = 1, ndumpGS
     !> other kind of distribution, because we don't know timings etc
     elseif ( method == 3 ) then 
 
-      new_temp = -17.3_wp * nuc + 2933.3_wp
+      new_temp = 17.5_wp * nuc + 250_wp
+      !Edum = 0.4_wp * nuc
+      Edum = new_temp * (0.5_wp * 3.0_wp * nuc * kB)
       write(*,*) '_______________'
       write(*,*) 'Temp', new_temp
+      write(*,*) 'Edum', Edum * autoev
       write(*,*) '_______________'
 
       allocate (ergebnis(ntraj))
-      !allocate (ergebnis(100))
-
-     ! call gauss1(1.0_wp, new_temp, 1.0_wp, ergebnis, ntraj, nuc)  
 
       x = new_temp / (ntraj/2)
       do i = 1, ntraj
-        ergebnis(i) = ((x*i)-new_temp) / 8 
+        ergebnis(i) = ((x*i)-new_temp) / 8 !/ Edum*autoev !8 
       enddo
 
-      do i =1,ntraj
-        !write(*,*) i, ergebnis(i)
-      enddo
 
 
       do i = 1, ndumpGS
@@ -1019,8 +1016,8 @@ iee2:do i = 1, ndumpGS
         Edum = Tsoll * (0.5_wp * 3.0_wp * nuc * kB)
 
         set%eimpr (         nrun)= Edum
-        set%taddr (         nrun)= 800*fstoau + (Edum* nuc * 100) * fstoau
-        write(*,*) nrun, Edum*autoev, Tsoll,set%taddr(nrun) / fstoau
+        set%taddr (         nrun)= 1500*fstoau ! 800*fstoau + (Edum* nuc * 100) * fstoau
+        write(*,*) nrun, Edum*autoev, Tsoll !,set%taddr(nrun) / fstoau
 
         !write(*,*) nrun, set%taddr(nrun) / fstoau
 
@@ -1223,7 +1220,7 @@ mCID:if ( method == 3 ) then
     !set%tadd  = 0.0_wp !should be 0 anyway.
     !set%eimp  = 0.0_wp !should be 0 anyway.
     velof = 1.0_wp
-    nmax = ((int((tadd/fstoau)) + 200)) / (tstep/fstoau)
+    !nmax = ((int((tadd/fstoau)) + 200)) / (tstep/fstoau)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !if ( method == 3 ) mchrg =  mchrg_prod
@@ -1251,120 +1248,127 @@ noESI: if (.not. No_ESI )then
       write(*,*) '# ESI simulation turned ON #'
       write(*,*) '# ## ### ## # ## ### ## # ##'
       write(*,*) ''
-      call ekinet(nuc,velo,mass,edum,t)
-      edum = t * (0.5 * 3 * nuc *kB)
-      write(*,*) ' Scale from', edum * autoev
-      write(*,*) ' Scale to', eimp * autoev
-      t = eimp / (0.5 * 3 * nuc *kB)
-      write(*,*) ' Which is', t, 'Kelvin'
-      write(*,*) 
-      write(*,*) ' For ', tadd/fstoau, 'steps'
-      write(*,*) ' With ', nmax, 'maximum'
+      !call ekinet(nuc,velo,mass,edum,t)
+      !edum = t * (0.5 * 3 * nuc *kB)
+      !write(*,*) ' Scale from', edum * autoev
+      !write(*,*) ' Scale to', eimp * autoev
+      !t = eimp / (0.5 * 3 * nuc *kB)
+      !write(*,*) ' Which is', t, 'Kelvin'
+      !write(*,*) 
+      !write(*,*) ' For ', tadd/fstoau, 'steps'
+      !write(*,*) ' With ', nmax, 'maximum'
 
       !> get internal energy
-      !call ekinet(nuc,velo,mass,edum,t)
-      !edum = t * (0.5 * 3 * nuc *kB * autoev)
-      !ENe(1) = edum
+      call ekinet(nuc,velo,mass,edum,t)
+      edum = t * (0.5 * 3 * nuc *kB )
+      !>> starting energy
+      ENe(1) = edum * autoev
 
-      !!> if not set manually, determine automatically and distribute
-      !if (ESI == 0 .and. tempESI == 0 ) then
-      !  !> set random seed and number 
-      !  !> else the random seed from start is taken
-      !  if (iseed(1) == 0) then
-      !    call random_seed()
-      !  endif
+      !>> scaling energy
+      ENe(2) = eimp * autoev
 
-      !  call random_number(a)
+      !> if not set manually, determine automatically and distribute
+      if (ESI == 0 .and. tempESI == 0 ) then
+        !> set random seed and number 
+        !> else the random seed from start is taken
+        !if (iseed(1) == 0) then
+        !  call random_seed()
+        !endif
 
-      !  b    = nuc / 10.0
-      !  dep  = nint(b)
-      !  if ( b < 2.0_wp ) dep = 1 ! hard coded for small molecules
+        !call random_number(a)
 
-      !  !>> Make random energy depending on molecular size
-      !  if (dep == 1) rand_int = 1 + FLOOR(2*a)     ! 1-2
-      !  if (dep == 2) rand_int = 2 + FLOOR(2*a)     ! 2-3
-      !  if (dep == 3) rand_int = 3 + FLOOR(3*a)     ! 3-5 !höher für anderen bereich
-      !  if (dep == 4) rand_int = 3 + FLOOR(4*a)     ! 3-6
-      !  if (dep >= 5) rand_int = 4 + FLOOR(5*a)     ! 4-8
+        !b    = nuc / 10.0
+        !dep  = nint(b)
+        !if ( b < 2.0_wp ) dep = 1 ! hard coded for small molecules
+
+        !!>> Make random energy depending on molecular size
+        !if (dep == 1) rand_int = 1 + FLOOR(2*a)     ! 1-2
+        !if (dep == 2) rand_int = 2 + FLOOR(2*a)     ! 2-3
+        !if (dep == 3) rand_int = 3 + FLOOR(3*a)     ! 3-5 !höher für anderen bereich
+        !if (dep == 4) rand_int = 3 + FLOOR(4*a)     ! 3-6
+        !if (dep >= 5) rand_int = 4 + FLOOR(5*a)     ! 4-8
 
 
-      !  write(*,'('' Randomly Scaling internal energy: '')')
-      !  write(*,'(50(''-''))') 
-      !  write(*,'('' Inner Energy before          : '', f14.6, a3)') ENe(1), ' eV'
-      !  write(*,'('' Temperature  before          : '', f14.6, a3)')      T, ' K'
-      !  write(*,'(50(''-''))') 
-      !  write(*,'('' Wanted value Energy          : '', i4, a3)'  ) rand_int, ' eV'
-      !  write(*,'(50(''-''))') 
+        write(*,'('' Randomly Scaling internal energy: '')')
+        write(*,'(50(''-''))') 
+        write(*,'('' Inner Energy before          : '', f14.6, a3)') ENe(1), ' eV'
+        write(*,'('' Temperature  before          : '', f14.6, a3)')      T, ' K'
+        write(*,'(50(''-''))') 
+        write(*,'('' Wanted value Energy          : '', f7.4, a3)'  ) Ene(2), ' eV'
+        write(*,'(50(''-''))') 
 
-      !  !>> scale depending on random number (or not, if value too low)
-      !  edum = rand_int - edum
-      !  if (edum > 0) then
-      !    E_Scale = vary_energies(edum, 0.1_wp)
-      !    if (rand_int  == 0) E_Scale = 0
-      !    write(*,'('' Scaling to inner Energy      : '', f14.6,a3)') E_Scale+ENe(1),' eV'
-      !  else
-      !    write(*,*) ' ! No Scaling ! '
-      !    E_Scale = 0.0_wp
-      !  endif
 
-      !!> if ESI value was set manually
-      !elseif ( ESI > 0.0_wp ) then
-      !  edum = (ESI - edum)
-      !  if ( edum <= 0.4_wp ) then !do not scale if energy is low 
-      !    write(*,'(''No Scaling required ...'')')
-      !    E_Scale = 0.0_wp
-      !    
-      !  else
-      !    write(*,'(''! Scaling internal energy !'')')
-      !    write(*,'(50(''-''))') 
-      !    write(*,'('' Inner Energy before          : '',f14.6,a3)') ENe(1), ' eV'
-      !    write(*,'('' Temperature  before          : '',f14.6,a3)')    T,   ' K'
-      !    write(*,'(50(''-''))') 
-      !    write(*,'(''Wanted value Energy           : '',f14.6,a3)') ESI,    ' eV'
-      !    write(*,'(50(''-''))') 
+        !>> scale depending on random number (or not, if value too low)
+        !edum = rand_int - edum
+        edum = ENe(2) - ENe(1)
+        if (edum > 0) then
+          E_Scale = Ene(2)
+        !  E_Scale = vary_energies(edum, 0.1_wp)
+        !  if (rand_int  == 0) E_Scale = 0
+        !  write(*,'('' Scaling to inner Energy      : '', f14.6,a3)') E_Scale+ENe(1),' eV'
+        else
+          write(*,*) ' ! No Scaling ! '
+          E_Scale = 0.0_wp
+        endif
 
-      !    !>> decide if manual value is distributed randomly or not
-      !    if ( NoScale ) then ! No distribution of ESI 
-      !      E_Scale = edum
-      !    else
-      !      E_Scale = vary_energies(edum, 0.2_wp) !distribute width 0.2 (see boxmuller)
-      !    endif
-      !    write(*,'('' Scaling to inner Energy      : '', f14.6,a3)') E_Scale+ENe(1),' eV'
-      !  endif
+      !> if ESI value was set manually
+      elseif ( ESI > 0.0_wp ) then
+        edum = (ESI - edum)
+        if ( edum <= 0.4_wp ) then !do not scale if energy is low 
+          write(*,'(''No Scaling required ...'')')
+          E_Scale = 0.0_wp
+          
+        else
+          write(*,'(''! Scaling internal energy !'')')
+          write(*,'(50(''-''))') 
+          write(*,'('' Inner Energy before          : '',f14.6,a3)') ENe(1), ' eV'
+          write(*,'('' Temperature  before          : '',f14.6,a3)')    T,   ' K'
+          write(*,'(50(''-''))') 
+          write(*,'(''Wanted value Energy           : '',f14.6,a3)') ESI,    ' eV'
+          write(*,'(50(''-''))') 
 
-      !!> if temperature is scaled instead of energy
-      !elseif ( tempESI > 0 ) then
-      !  ESI = 0
-      !  write(*,'(''! Scaling Temperature  !'')')
-      !  write(*,'(50(''-''))') 
-      !  write(*,'('' Inner Energy before          : '',f14.6,a3)') ENe(1), ' eV'
-      !  write(*,'('' Temperature  before          : '',f14.6,a3)')    T,   ' K'
-      !  write(*,'(50(''-''))') 
-      !  write(*,'('' Wanted value Temperature     : '', f14.6,a3)') tempESI,'K'
-      !  write(*,'(50(''-''))') 
-      !  edum = tempESI - t
-      !  edum =(3 * 0.5 * edum * nuc* kB)/evtoau
-      !  E_Scale = vary_energies(edum, 0.2_wp)
-      !  write(*,'(''Scaling to inner Energy       : '',f14.6,a3)') E_Scale+ENe(1),' eV'
-      !endif
+          !>> decide if manual value is distributed randomly or not
+          if ( NoScale ) then ! No distribution of ESI 
+            E_Scale = edum
+          else
+            E_Scale = vary_energies(edum, 0.2_wp) !distribute width 0.2 (see boxmuller)
+          endif
+          write(*,'('' Scaling to inner Energy      : '', f14.6,a3)') E_Scale+ENe(1),' eV'
+        endif
 
-      !!> stop if both values were provided (to circumvent errors in input)
-      !if ( tempESI > 0 .and. ESI > 0 ) stop 'Cannot provide both, Energy and Temp.!'
+      !> if temperature is scaled instead of energy
+      elseif ( tempESI > 0 ) then
+        ESI = 0
+        write(*,'(''! Scaling Temperature  !'')')
+        write(*,'(50(''-''))') 
+        write(*,'('' Inner Energy before          : '',f14.6,a3)') ENe(1), ' eV'
+        write(*,'('' Temperature  before          : '',f14.6,a3)')    T,   ' K'
+        write(*,'(50(''-''))') 
+        write(*,'('' Wanted value Temperature     : '', f14.6,a3)') tempESI,'K'
+        write(*,'(50(''-''))') 
+        edum = tempESI - t
+        edum =(3 * 0.5 * edum * nuc* kB)/evtoau
+        E_Scale = vary_energies(edum, 0.2_wp)
+        write(*,'(''Scaling to inner Energy       : '',f14.6,a3)') E_Scale+ENe(1),' eV'
+      endif
 
-      !!> make sure nothing strange is scaled
-      !if (E_Scale <= 0) E_Scale = 0
+      !> stop if both values were provided (to circumvent errors in input)
+      if ( tempESI > 0 .and. ESI > 0 ) stop 'Cannot provide both, Energy and Temp.!'
 
-      !!> convert values for output
-      !tScale = (E_Scale * 2.0d0/3.0d0) /(nuc * kB * autoev)
-      !ENe(4) = tScale
+      !> make sure nothing strange is scaled
+      if (E_Scale <= 0) E_Scale = 0
+
+      !> convert values for output
+      tScale = (E_Scale * 2.0d0/3.0d0) /(nuc * kB * autoev)
+      ENe(4) = tScale
       !tScale = tScale + T
-      !write(*,'('' Scaling to Temperature       : '', f14.6,a3)') tScale,' K'
-      !write(*,*) ' '
+      write(*,'('' Scaling to Temperature       : '', f14.6,a3)') tScale,' K'
+      write(*,*) ' '
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! Do the ESI pre-MD to scale to the energy given
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!doESI:  if ( E_Scale > 0 ) then
+doESI:  if ( E_Scale > 0 ) then
 
 ESI_loop: do
           isec = isec + 1
@@ -1396,34 +1400,37 @@ ESI_loop: do
             if(.not.iniok) stop 'fatal QC error. Must stop!'
           endif
 
-          !if (.not. TempRun)then
+          if (.not. TempRun)then
 
-          !  if (isec == 1)then
-          !    prestep = nint(ENe(4)/100)
-          !    prestep = prestep*200
-          !    starting_MD = .true.
-          !  else
-          !    prestep=simMD
-          !    starting_MD = .false.
-          !    if(fragstate == 2) prestep=simMD * 0.75
-          !  endif
+            if (isec == 1)then
+              prestep = nint(ENe(4)/100)
+              prestep = prestep*200
+              starting_MD = .true.
+            else
+              prestep=simMD
+              starting_MD = .false.
+              if(fragstate == 2) prestep=simMD * 0.75
+            endif
 
-          !elseif (TempRun .and. isec == 1) then
-          !  prestep = simMD
-          !  starting_MD = .true.
-          !elseif (TempRun .and. isec > 1) then
-          !  starting_MD = .false.
-          !  if(fragstate == 2) prestep = prestep * 0.75
-          !endif
+          elseif (TempRun .and. isec == 1) then
+            prestep = simMD
+            starting_MD = .true.
+          elseif (TempRun .and. isec > 1) then
+            starting_MD = .false.
+            if(fragstate == 2) prestep = prestep * 0.75
+          endif
 
+          tadd = float(prestep) * 0.75_wp *fstoau
+          write(*,*) 'Escale ev', E_scale
+          write(*,*) 'tadd', tadd / fstoau 
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !! Pre-CID MD Loop => ESI MD
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          call md(itrj,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,     &
+          call md(itrj,icoll,isec,nuc,prestep,xyz,iat,mass,imass,mchrg,     &
           & grad,velo,velof,list,tstep,j,nfragexit,fragm,fragf,             &
-          & fragat,dumpstep,etemp_in,md_ok,atm_charge,spin,axyz,tscale,tadd,      &
-          & eimp,.false.,Tav,Epav,Ekav,ttime,aTlast,fragstate,dtime,        &
+          & fragat,dumpstep,etemp_in,md_ok,atm_charge,spin,axyz,tscale,tadd,&
+          & E_Scale*evtoau, .false.,Tav,Epav,Ekav,ttime,aTlast,fragstate,dtime,      &
           & ECP,starting_MD,0.0d0)
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1566,7 +1573,7 @@ ESI_loop: do
           endif
         endif
 
-!      endif doESI ! ENDIF E_Scale gt 0
+      endif doESI ! ENDIF E_Scale gt 0
 
     endif noESI ! ENDIF No_ESI
 

@@ -30,7 +30,7 @@ module qcxms_iee
 
        call getmaxiee(iee_a,iee_b,ieeel,ityp,exc,ieemax,pmax,E_avg)
 
-       if (k > 10000) stop 'internal error inside getieeab'
+       if (k > 10000) error stop 'internal error inside getieeab'
        if (E_avg / nbnd >= ieeatm) exit 
 
 

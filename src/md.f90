@@ -152,8 +152,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   call ekinet(nuc,velo,mass,Ekin,T)
   
   if(it == 9999)Tsoll=T
-  !if(method == 3.or.method == 4)Tsoll=Tsoll
-  !if(method == 3)Tsoll=Tsoll
+  if(method == 3)Tsoll=Tsoll
   Ekinstart=Ekin
   
   !if (method == 3 .and.it > 0.and.it < 9999)then
@@ -283,7 +282,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      ! check av. Etot
   !   Eerror=Eav-Epot-Ekin
      if(it == 9999.or.it < 0) Eerror = 0
-     if(starting_md ) Eerror = 0
+     !if(starting_md ) Eerror = 0
 
      ! an error ocurred (normally failed to achieve SCF)      
      if (Epot == 0)  err1 = .true. 
@@ -396,13 +395,15 @@ ifit:if(it > 0)then
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! Berendsen Thermostat ! Only if not fragmented
         !if(method == 3.and.k > 10.and.starting_md.and. nfrag == 1)then
-        !    sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
-        !    velo= sca * (velo) 
-        !endif
+        if(method == 3 .and. icoll == 0 .and.starting_md.and. nfrag == 1)then
+            !sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
+            !velo= sca * (velo)
+            call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
+        endif
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
         ! add the IEE but only if not already fragmented
-        !if(method /= 3 ) then 
+        if(method /= 3 ) then 
           if(nstep <= nadd.and.nfrag == 1 .and. icoll == 0)then
              call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
           endif        
@@ -410,7 +411,7 @@ ifit:if(it > 0)then
           ! reduce eTemp when system is heated up (but only for nfrag=1)        
           dum=eimp-eimp*float(nstep)/float(nadd)
           call setetemp(nfrag,dum,etemp)
-        !endif        
+        endif        
 
 
         !> check if structure is fragmented
