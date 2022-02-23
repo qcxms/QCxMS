@@ -396,9 +396,9 @@ ifit:if(it > 0)then
         ! Berendsen Thermostat ! Only if not fragmented
         !if(method == 3.and.k > 10.and.starting_md.and. nfrag == 1)then
         if(method == 3 .and. icoll == 0 .and.starting_md.and. nfrag == 1)then
-            !sca = dsqrt(1.0_wp + ((tstep/fstoau) / 200)*(Tsoll/T-1.0d0))
-            !velo= sca * (velo)
-            call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
+            sca = dsqrt(1.0d0 + ((tstep/fstoau) / 200 )*(Tsoll/T-1.0d0))
+            velo= sca * (velo)
+            !call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
         endif
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   

@@ -603,6 +603,12 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
              mchrg_prod=int(xx(1))
           endif
 
+  !       IMPACT ENERGY SREAD (also scaling for CID-ESI)
+          if(index(line,'EIMPW') /= 0)then            
+             call readl(line,xx,nn)
+             eimpw = xx(1)
+          endif
+
   !       NUMBER OF FRAGMENTS FOR EXIT
           if(index(line,'NFRAGEXIT') /= 0)then            
              call readl(line,xx,nn)

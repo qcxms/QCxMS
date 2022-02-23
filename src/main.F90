@@ -160,6 +160,21 @@ type(collision_type) :: coll
 !type(charge_type) :: chrg
 
 
+!+*************************
+integer :: samples, n, ind
+integer(wp) :: bin(-50:50) = 0
+
+real(wp) :: rnd1, rnd2
+real(wp) :: s
+real(wp) :: z0, z1
+real(wp) :: sumn, sumnsq
+
+real(wp) :: mean, stddev
+real(wp) :: Tcheck
+
+!+*************************
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Start the program
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -975,22 +990,53 @@ iee2:do i = 1, ndumpGS
     !> other kind of distribution, because we don't know timings etc
     elseif ( method == 3 ) then 
 
-      new_temp = 17.5_wp * nuc + 250_wp
+      sumn = 0
+      sumnsq = 0
+      new_temp = 7.5_wp * nuc + 450_wp
       !Edum = 0.4_wp * nuc
       Edum = new_temp * (0.5_wp * 3.0_wp * nuc * kB)
       write(*,*) '_______________'
       write(*,*) 'Temp', new_temp
       write(*,*) 'Edum', Edum * autoev
+      write(*,*) 'Eimpw', eimpw 
       write(*,*) '_______________'
 
       allocate (ergebnis(ntraj))
 
-      x = new_temp / (ntraj/2)
       do i = 1, ntraj
-        ergebnis(i) = ((x*i)-new_temp) / 8 !/ Edum*autoev !8 
+        ergebnis(i) = vary_energies(Edum, eimpw)
+        Tcheck = ergebnis(i) / (0.5_wp * 3.0_wp * nuc * kB)
+        write(*,*) i, Tcheck, ergebnis(i)*autoev
+        sumn = sumn + ergebnis(i)
+        sumnsq = sumnsq + (ergebnis(i)*ergebnis(i))
       enddo
 
+      write(*,*) 
 
+      mean = sumn / ntraj
+      stddev = sqrt(sumnsq/ntraj - mean*mean)
+
+
+      write(*, "(a, f17.14)") "Mean E :   ", mean*autoev
+      Tcheck = mean / (0.5_wp * 3.0_wp * nuc * kB)
+      write(*, "(a, f17.10)") "Mean T :   ", Tcheck
+      write(*, *)
+
+      write(*, "(a, f17.14)") "Stddev : ", stddev*autoev
+      Tcheck = stddev / (0.5_wp * 3.0_wp * nuc * kB)
+      write(*, "(a, f17.10)") "Stddev : ", Tcheck
+      write(*, *)
+      write(*, *)
+
+      Tcheck = maxval(ergebnis) / (0.5_wp * 3.0_wp * nuc * kB)
+      write(*, "(a, f17.14)") "Highest E : ", maxval(ergebnis)
+      write(*, "(a, f17.10)") "Highest T : ", Tcheck
+      write(*, *)
+      Tcheck = minval(ergebnis) / (0.5_wp * 3.0_wp * nuc * kB)
+      write(*, "(a, f17.14)") "Lowest E : ", minval(ergebnis)
+      write(*, "(a, f17.10)") "Lowest T : ", Tcheck
+
+      if ( minval(ergebnis) <= 0.0_wp) error stop 'energy spread too large! Reduce eimpw values and try again'
 
       do i = 1, ndumpGS
 
@@ -1007,19 +1053,16 @@ iee2:do i = 1, ndumpGS
         set%velor(1:3,1:nuc,nrun)=velo(1:3,1:nuc)
         set%velofr(   1:nuc,nrun)=velof(   1:nuc)
 
-        Tsoll =  new_temp + ergebnis(nrun)
+        !Tsoll =  new_temp + ergebnis(nrun)
 
-       ! write(*,*) nrun, ergebnis(nrun)
-       ! write(*,*) nrun, Tsoll
 
-        !Tsoll = Edum / (0.5_wp * 3.0_wp * nuc * kB)
-        Edum = Tsoll * (0.5_wp * 3.0_wp * nuc * kB)
+        Tsoll = ergebnis(nrun) / (0.5_wp * 3.0_wp * nuc * kB)
+        !Edum = Tsoll * (0.5_wp * 3.0_wp * nuc * kB)
 
-        set%eimpr (         nrun)= Edum
+        !write(*,*) nrun, ergebnis(nrun), Tsoll
+
+        set%eimpr (         nrun)= ergebnis(nrun)
         set%taddr (         nrun)= 1500*fstoau ! 800*fstoau + (Edum* nuc * 100) * fstoau
-        write(*,*) nrun, Edum*autoev, Tsoll !,set%taddr(nrun) / fstoau
-
-        !write(*,*) nrun, set%taddr(nrun) / fstoau
 
         !if (TempRun)then
         !  set%eimpr (         nrun)=0.0_wp
@@ -1360,7 +1403,7 @@ noESI: if (.not. No_ESI )then
 
       !> convert values for output
       tScale = (E_Scale * 2.0d0/3.0d0) /(nuc * kB * autoev)
-      ENe(4) = tScale
+      ENe(4) = tScale - t
       !tScale = tScale + T
       write(*,'('' Scaling to Temperature       : '', f14.6,a3)') tScale,' K'
       write(*,*) ' '
@@ -1403,7 +1446,7 @@ ESI_loop: do
           if (.not. TempRun)then
 
             if (isec == 1)then
-              prestep = nint(ENe(4)/100)
+              prestep = nint(ENe(4)) / 100 ! * 10 !/100)
               prestep = prestep*200
               starting_MD = .true.
             else
@@ -1420,7 +1463,7 @@ ESI_loop: do
             if(fragstate == 2) prestep = prestep * 0.75
           endif
 
-          tadd = float(prestep) * 0.75_wp *fstoau
+          tadd = float(prestep) * 0.25_wp *fstoau
           write(*,*) 'Escale ev', E_scale
           write(*,*) 'tadd', tadd / fstoau 
 
