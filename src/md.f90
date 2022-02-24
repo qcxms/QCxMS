@@ -268,12 +268,16 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      Ekav=Ekav+Ekin
      !> if no. of steps exceed ~2x tadd (which is nadd roughly)
      !> the average energy is divided by nstep - nadd 
+  if (method /= 3) then
      if(nstep > nadd)then
         Edum=Edum+Epot+Ekin
         Eav =Edum/float(nstep-nadd)
      else
         Eav=Epot+Ekin
      endif 
+   else
+        Eav=Epot+Ekin
+   endif
      Eerror=Eav-Epot-Ekin
   
      ! Avg. Temp.
@@ -396,7 +400,7 @@ ifit:if(it > 0)then
         ! Berendsen Thermostat ! Only if not fragmented
         !if(method == 3.and.k > 10.and.starting_md.and. nfrag == 1)then
         if(method == 3 .and. icoll == 0 .and.starting_md.and. nfrag == 1)then
-            sca = dsqrt(1.0d0 + ((tstep/fstoau) / 200 )*(Tsoll/T-1.0d0))
+            sca = dsqrt(1.0d0 + ((tstep/fstoau) / 150 )*(Tsoll/T-1.0d0))
             velo= sca * (velo)
             !call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
         endif
