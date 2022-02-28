@@ -1079,13 +1079,18 @@ iee2:do i = 1, ndumpGS
         set%velor(1:3,1:nuc,nrun)=velo(1:3,1:nuc)
         set%velofr(   1:nuc,nrun)=velof(   1:nuc)
 
-        set%eimpr (         nrun)= ergebnis(nrun)
-        set%taddr (         nrun)= 0.0_wp 
+        if (.not. no_ESI) then
+          set%eimpr (         nrun)= ergebnis(nrun)
+          set%taddr (         nrun)= 0.0_wp 
+        else
+          set%eimpr (         nrun)= 0.0_wp
+          set%taddr (         nrun)= 0.0_wp 
+        endif
 
       enddo
 
       close(io_gs)
-      deallocate (ergebnis)
+      if (.not. no_ESI) deallocate (ergebnis)
 
       write(*,*)
       write(*,*) nrun,' done.'
