@@ -46,6 +46,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   integer :: screendump,nadd,morestep,more,spin,fconst
   integer :: mchrg
   integer :: io_GS, io_OUT
+  integer :: current_step
 
   real(wp) :: xyz (3,nuc)
   real(wp) :: grad(3,nuc)
@@ -108,10 +109,14 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   logical :: count_average = .false.
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !Stuff for count start
+  integer :: cnt_start, start_cnt
+  integer :: fconst_max
+  integer :: cnt_steps
+  integer :: max_steps, add_steps
  
-  open(file='struc1.xyz', newunit=s1)
-  open(file='struc2.xyz', newunit=s2)
-  open(file='struc3.xyz', newunit=s3)
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   write(*,'(/13x''E N T E R I N G   M D   M O D U L E'',/)')
   
@@ -207,6 +212,27 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   avxyz2 = 0
   trafo = 0
   gradient = 0
+
+  start_cnt = 0
+  !!!!!!!!!!!!!!!!!!
+  !> count the number of steps that are used for averaging structures for IP calc
+  if ( abs(mchrg) == 1) cnt_steps = 50
+  if ( abs(mchrg) > 1) cnt_steps = 100
+  !> this is not sufficiently tested. It was experienced that higher charge (or maybe larger molecules)
+  !> need more time for rearrangement and this can influence the IP assignment in the end
+
+  
+cnt_start = 0
+!  if ( abs(mchrg) == 1) cnt_start = 0
+!  if ( abs(mchrg) > 1) cnt_start = 1000
+!  if ( abs(mchrg) > 2) cnt_start = 3000
+
+  !>> for larges charge, start counting later than the direct fragmentation event
+  if ( abs(mchrg) == 1) add_steps = 500
+  if ( abs(mchrg) == 2) add_steps = 600
+  if ( abs(mchrg) >= 3) add_steps = 800
+
+  !!!!!!!!!!!!!!!!!!
   
   ndump=dumpstep
   kdump=avdump     
@@ -231,7 +257,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   
   ! add the e-hit energy in the first MD steps linearly     
   if(it > 0.and.it < 9999)then
-     write(*,'(''Eimp (eV) = '',F6.1,5x,''tauIC (fs) = '',F6.0,6x,''nstep = '',i7,/)')eimp*autoev,tadd/fstoau,nmax
+     write(*,'(''Eimp (eV) = '',F6.1,5x,''tauIC (fs) = '',F6.0,6x,''nstep = '',i7,/)')eimp*autoev,tadd*autofs,nmax
 
      nadd=(tadd+tstep)/tstep-1   
      fadd=tstep/(tadd+tstep)
@@ -248,258 +274,265 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   
   write(*,'(''step   time [fs]'',4x,''Epot'',7x,''Ekin'',7x,''Etot'',4x,''error'',2x,''#F   eTemp   frag. T'')')
   
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! MD loop
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  do k=1,nmax
-  
-     T=Ekin/(0.5*3*nuc*kB)
-     ! in frag runs the electronic temp is set 
-     if(it <= 0.or.it == 9999)then
-        etemp=etempin
-        !in mopac cid the elc temp should be 300 ! True? And Negative ion?=
-           if(prog == 1.and.method == 3)then
-              etemp=300.0d0
-           endif
-     endif
-  
-     Tav =Tav+T
-     Epav=Epav+Epot
-     Ekav=Ekav+Ekin
-     !> if no. of steps exceed ~2x tadd (which is nadd roughly)
-     !> the average energy is divided by nstep - nadd 
-  if (method /= 3) then
-     if(nstep > nadd)then
-        Edum=Edum+Epot+Ekin
-        Eav =Edum/float(nstep-nadd)
-     else
-        Eav=Epot+Ekin
-     endif 
-   else
-        Eav=Epot+Ekin
-   endif
-     Eerror=Eav-Epot-Ekin
-  
-     ! Avg. Temp.
-     if(nfrag == 1)fragT(1)=Tav/k
-  
-     ! check av. Etot
-  !   Eerror=Eav-Epot-Ekin
-     if(it == 9999.or.it < 0) Eerror = 0
-     !if(starting_md ) Eerror = 0
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-     ! an error ocurred (normally failed to achieve SCF)      
-     if (Epot == 0)  err1 = .true. 
-     if(method /= 3) then !.or.method /= 4)then
-       if (abs(Eerror) > 0.1.and.it /= 9999) err2 = .true.
-     else
-       if (abs(Eerror) > 0.2.and.it /= 9999) err2 = .true.
-     endif
-  
-     if(err1.or.err2) then
-     ! in case of errors take the traj anyway if fragments have been produced              
-        if( (nfrag > 1.and.nfrag <= 4).or. isec > 1 ) then
-           write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-           write(*,*)'EXIT DUE TO SCF CONVERGENCE PROBLEM'
-           write(*,*)'OR LARGE MD INTEGRATION ERROR.'
-           write(*,*)'because already nfrag > 1 result is taken'
-           write(*,*)'(error often occurs for large inter-fragment distances)'
-           write(*,*)' and is therefore not very meaningfull)'
-           mdok=.true.
-        else   
-           mdok=.false.
-           write(*,*) 'E,error ',Epot,Eerror
-        endif   
-        !goto 1000
-        exit
-     endif      
-  
-     ! average over last avdump steps              
-     if(kdump > avdump-1)then
-        kdump =0
-        avspin=0
-        avchrg=0
-        avxyz =0
-        aTlast=0
-     endif
+  max_steps = nmax
 
-     avchrg = avchrg + achrg
-     avspin = avspin + aspin
-     avxyz  = avxyz  + xyz 
+  do !k=1,nmax
+
+    current_step = current_step + 1
   
-     if(method == 3.and. icoll > 0)   aTlast = aTlast + new_temp    
-     if(method /= 3 .or. icoll == 0)  aTlast = aTlast + T    
+    T=Ekin/(0.5*3*nuc*kB)
+    ! in frag runs the electronic temp is set 
+    if(it <= 0.or.it == 9999)then
+       etemp=etempin
+       !in mopac cid the elc temp should be 300 ! True? And Negative ion?=
+          if(prog == 1.and.method == 3)then
+             etemp=300.0d0
+          endif
+    endif
   
-     ! print out every screendump steps
-     if(mdump > screendump-1)then
-  !      if(method == 3)then
-  !        e_int = (t*(0.5*3*nuc*0.316681534524639E-05))/0.03674932217565499
-  !        write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag),e_int
-  !      else
-          write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-  !      endif
-        mdump=0
-     endif
+    Tav =Tav+T
+    Epav=Epav+Epot
+    Ekav=Ekav+Ekin
+    !> if no. of steps exceed ~2x tadd (which is nadd roughly)
+    !> the average energy is divided by nstep - nadd 
+    if(nstep > nadd)then
+       Edum=Edum+Epot+Ekin
+       Eav =Edum/float(nstep-nadd)
+    else
+       Eav=Epot+Ekin
+    endif 
+    Eerror=Eav-Epot-Ekin
   
-     ! dump for MOLDEN
-     if(ndump > dumpstep-1.and.it >= 0.and.it < 9999)then
-        ndump=0
-        write(io_OUT,*)nuc
-        write(io_OUT,*)Epot
-        do i=1,nuc  
-        write(io_OUT,'(1x,a2,1x,3F14.6)')toSymbol(iat(i)),(xyz(j,i)/aatoau,j=1,3)
-        enddo
-     endif
+    ! Avg. Temp.
+    if(nfrag == 1)fragT(1)=Tav/current_step
   
-     ! no fragment run, dump to qcxms.gs
-     if(it == 0) then
-        totdump=totdump+1
-        do i=1,nuc  
-           write(io_GS,'(6d16.8)')(xyz(j,i),j=1,3),(velo(j,i),j=1,3) 
-        enddo
-     endif
+    ! check av. Etot
+  !  Eerror=Eav-Epot-Ekin
+    if(it == 9999.or.it < 0) Eerror = 0
+    !if(starting_md ) Eerror = 0
+
+    ! an error ocurred (normally failed to achieve SCF)      
+    if (Epot == 0)  err1 = .true. 
+    if(method /= 3) then !.or.method /= 4)then
+      if (abs(Eerror) > 0.1.and.it /= 9999) err2 = .true.
+    else
+      if (abs(Eerror) > 0.2.and.it /= 9999) err2 = .true.
+    endif
+  
+    if(err1.or.err2) then
+    ! in case of errors take the traj anyway if fragments have been produced              
+       if( (nfrag > 1.and.nfrag <= 4).or. isec > 1 ) then
+          write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+          write(*,*)'EXIT DUE TO SCF CONVERGENCE PROBLEM'
+          write(*,*)'OR LARGE MD INTEGRATION ERROR.'
+          write(*,*)'because already nfrag > 1 result is taken'
+          write(*,*)'(error often occurs for large inter-fragment distances)'
+          write(*,*)' and is therefore not very meaningfull)'
+          mdok=.true.
+       else   
+          mdok=.false.
+          write(*,*) 'E,error ',Epot,Eerror
+       endif   
+       !goto 1000
+       exit
+    endif      
+  
+    ! average over last avdump steps              
+    if(kdump > avdump-1)then
+       kdump =0
+       avspin=0
+       avchrg=0
+       avxyz =0
+       aTlast=0
+    endif
+
+    avchrg = avchrg + achrg
+    avspin = avspin + aspin
+    avxyz  = avxyz  + xyz 
+  
+    if(method == 3.and. icoll > 0)   aTlast = aTlast + new_temp    
+    if(method /= 3 .or. icoll == 0)  aTlast = aTlast + T    
+  
+    ! print out every screendump steps
+    if(mdump > screendump-1)then
+  !     if(method == 3)then
+  !       e_int = (t*(0.5*3*nuc*0.316681534524639E-05))/0.03674932217565499
+  !       write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag),e_int
+  !     else
+         write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+  !     endif
+       mdump=0
+    endif
+  
+    ! dump for MOLDEN
+    if(ndump > dumpstep-1.and.it >= 0.and.it < 9999)then
+       ndump=0
+       write(io_OUT,*)nuc
+       write(io_OUT,*)Epot
+       do i=1,nuc  
+       write(io_OUT,'(1x,a2,1x,3F14.6)')toSymbol(iat(i)),(xyz(j,i)/aatoau,j=1,3)
+       enddo
+    endif
+  
+    ! no fragment run, dump to qcxms.gs
+    if(it == 0) then
+       totdump=totdump+1
+       do i=1,nuc  
+          write(io_GS,'(6d16.8)')(xyz(j,i),j=1,3),(velo(j,i),j=1,3) 
+       enddo
+    endif
   
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! do MD step
-     call leapfrog(nuc,grad,mass,tstep,xyz,velo,Ekin,nstep)
+    call leapfrog(nuc,grad,mass,tstep,xyz,velo,Ekin,nstep)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! total time including secondaries      
-     ttime=ttime+tstep/fstoau
+    ttime=ttime+tstep/fstoau
   ! calc E and forces
-     call egrad(.false.,nuc,xyz,iat,mchrg,spin,etemp,Epot,grad,achrg,aspin,ECP,gradfail) 
-     if(gradfail)write(*,*)'Gradient fails in MD' !Prob wont happen. Otherwise go into CID and save frags
+    call egrad(.false.,nuc,xyz,iat,mchrg,spin,etemp,Epot,grad,achrg,aspin,ECP,gradfail) 
+    if(gradfail)write(*,*)'Gradient fails in MD' !Prob wont happen. Otherwise go into CID and save frags
   
-     ndump=ndump+1
-     mdump=mdump+1
-     kdump=kdump+1
-     vdump=vdump+1
+    ndump=ndump+1
+    mdump=mdump+1
+    kdump=kdump+1
+    vdump=vdump+1
   
-     ! rescale to get Tsoll (NVT ensemble) for equilibration
-     dum=100.*abs(Tav/k-Tsoll)/Tsoll
+    ! rescale to get Tsoll (NVT ensemble) for equilibration
+    dum=100.*abs(Tav/current_step-Tsoll)/Tsoll
 
-     ! the GS sampling is done in NVE      
-     if(dum > 5.0d0.and.it < 0.and.k > 50)then
-        velo = velo/sqrt(Tav/k/Tsoll)
-     endif
-     
-     ! Etemp for mopac is not performing well! Set it to fixed 300
-     if(prog == 1.and.method == 3)then
-        etemp=5000.0d0
-     endif
+    ! the GS sampling is done in NVE      
+    if(dum > 5.0d0.and.it < 0.and.current_step > 50)then
+       velo = velo/sqrt(Tav/current_step/Tsoll)
+    endif
+    
+    ! Etemp for mopac is not performing well! Set it to fixed 300
+    if(prog == 1.and.method == 3)then
+       etemp=5000.0d0
+    endif
 
-     ! if it oscillates between bonded and not, reset more
-     if(nfrag == 1) morestep=0
+    ! if it oscillates between bonded and not, reset more
+    if(nfrag == 1) morestep=0
   
-     if(nfrag > 1.and.dtime < 1.d-6) dtime=ttime/1000.
+    if(nfrag > 1.and.dtime < 1.d-6) dtime=ttime/1000.
   
-     ! check for fragmentation, EXIT section for frag runs
+    ! check for fragmentation, EXIT section for frag runs
 ifit:if(it > 0)then
 
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! Berendsen Thermostat ! Only if not fragmented
-        !if(method == 3.and.k > 10.and.starting_md.and. nfrag == 1)then
-        if(method == 3 .and. icoll == 0 .and.starting_md.and. nfrag == 1)then
-            sca = dsqrt(1.0d0 + ((tstep/fstoau) / 150 )*(Tsoll/T-1.0d0))
-            velo= sca * (velo)
-            !call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Berendsen Thermostat ! Only if not fragmented
+      !if(method == 3.and.current_step > 10.and.starting_md.and. nfrag == 1)then
+      if(method == 3 .and. icoll == 0 .and.starting_md.and. nfrag == 1)then
+        if ( nstep <= nadd) then
+          sca = dsqrt(1.0d0 + ((tstep/fstoau) / 150 )*(Tsoll/T-1.0d0))
+          velo= sca * (velo)
+          ! call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
         endif
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      endif
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
-        ! add the IEE but only if not already fragmented
-        if(method /= 3 ) then 
-          if(nstep <= nadd.and.nfrag == 1 .and. icoll == 0)then
-             call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
-          endif        
-  
-          ! reduce eTemp when system is heated up (but only for nfrag=1)        
-          dum=eimp-eimp*float(nstep)/float(nadd)
-          call setetemp(nfrag,dum,etemp)
+      ! add the IEE but only if not already fragmented
+      if(method /= 3 ) then 
+        if(nstep <= nadd.and.nfrag == 1 .and. icoll == 0)then
+           call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
         endif        
+  
+        ! reduce eTemp when system is heated up (but only for nfrag=1)        
+        dum=eimp-eimp*float(nstep)/float(nadd)
+        call setetemp(nfrag,dum,etemp)
+      endif        
 
 
-        !> check if structure is fragmented
-        call fragment_structure(nuc,iat,xyz,3.0d0,1,0,list)
-        call fragmass(nuc,iat,list,mass,imass,nfrag,fragm,fragf,fragat)
-        if(nfrag > 1) then
-          call intenergy(nuc,list,mass,velo,nfrag,fragT,E_int)
-        endif
+      !> check if structure is fragmented
+      call fragment_structure(nuc,iat,xyz,3.0d0,1,0,list)
+      call fragmass(nuc,iat,list,mass,imass,nfrag,fragm,fragf,fragat)
+      if(nfrag > 1) then
+        call intenergy(nuc,list,mass,velo,nfrag,fragT,E_int)
+      endif
 
   
-        ! probably an error
-        if(nfrag > 6)then
-          write(*,*) 'More than 6 fragments. Error?'
-          !goto 1000
-          exit
-        endif
+      ! probably an error
+      if(nfrag > 6)then
+        write(*,*) 'More than 6 fragments. Error?'
+        !goto 1000
+        exit
+      endif
   
-        !> it is important to get the RIGHT kinetic energy inside the molecule
-        !> therefor the kinetic energy has to be subtracted from the velocity
-        !if (method == 3.and.icoll >= 1.or.method == 4.and.icoll >= 1 &
-        !  & .and. .not. Temprun)then 
-        if (method == 3.and.icoll >= 1 .and. .not. Temprun)then 
+      !> it is important to get the RIGHT kinetic energy inside the molecule
+      !> therefor the kinetic energy has to be subtracted from the velocity
+      if (method == 3.and.icoll >= 1 .and. .not. Temprun)then 
 
-          !> get the length of COM difference
-          call center_of_mass(nuc,mass,xyz,cm)
-          diff_cm(:) = cm(:) - old_cm(:)
-          cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 + diff_cm(3)**2)
+        !> get the length of COM difference
+        call center_of_mass(nuc,mass,xyz,cm)
+        diff_cm(:) = cm(:) - old_cm(:)
+        cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 + diff_cm(3)**2)
 
-          !> calculate the velocity for this length in steps
-          new_velo = (cm_out / tstep) /mstoau !in ms
-          old_cm(:) = cm(:)
+        !> calculate the velocity for this length in steps
+        new_velo = (cm_out / tstep) /mstoau !in ms
+        old_cm(:) = cm(:)
  
-          !> calculate the kinetic energy diff, for new velo
-          E_kin = 0.5_wp * summass * ((new_velo*mstoau)**2) 
+        !> calculate the kinetic energy diff, for new velo
+        E_kin = 0.5_wp * summass * ((new_velo*mstoau)**2) 
 
-          !> check the kin. E difference
-          E_kin_diff = Ekin - E_kin
-          new_temp = (2.0_wp * E_kin_diff) / (3.0_wp * kB * nuc)
-          ! write(*,*) new_temp
-          vdump = 0
+        !> check the kin. E difference
+        E_kin_diff = Ekin - E_kin
+        new_temp = (2.0_wp * E_kin_diff) / (3.0_wp * kB * nuc)
+        ! write(*,*) new_temp
+        vdump = 0
 
-          !> Now set the new Ekin to a value that does not include the difference
-          !> by the velocity of the ion 
-          Ekin = E_kin_diff
-        endif
-
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! Check out the fragments. If > 2, do 1000 steps. If more, do 250 steps. 
-        ! If nfragexit (can be user-set), exit immidiately
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-        root_msd=0
-        highest_rmsd=0
-        normmass = 0
-
-        if (nfrag > check_fragmented ) then
-          count_average = .true.
-          check_fragmented = nfrag
-        endif
-
-        if (nfrag < check_fragmented .and. count_average) then
-          write(*,*) 'ReSet'
-          cnt = 0
-          avxyz2 = 0
-          rmsd_check = 0
-          store_avxyz  = 0!avxyz2 / cnt
-          cg = 0
-          count_average = .false.
-          check_fragmented = 1
-        endif
+        !> Now set the new Ekin to a value that does not include the difference
+        !> by the velocity of the ion 
+        Ekin = E_kin_diff
+      endif
 
 
-        if ( count_average ) then 
-          cg = 0
-          cnt = cnt + 1
-          avxyz2  = avxyz2  + xyz
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Start counting to get average structure for IP calculation and the RMSD of 
+      ! the counted structures
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      root_msd=0
+      highest_rmsd=0
+      normmass = 0
 
-          store_avxyz  = avxyz2 / cnt
+      !> set conditions to start counting if fragmentation occurs
+      if (nfrag > check_fragmented ) then
+        count_average = .true.
+        check_fragmented = nfrag
+        start_cnt = start_cnt + 1 
+        max_steps = max_steps + add_steps !* nfrag
+        write(*,*) 'Do a total of', max_steps, 'steps'
+      endif
 
-          call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
-          !call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf)
+      !> reset the count if it is no real fragmentation
+      if (nfrag < check_fragmented .and. count_average) then
+        !write(*,*) 'ReSet'
+        cnt = 0
+        avxyz2 = 0
+        rmsd_check = 0
+        store_avxyz  = 0
+        cg = 0
+        count_average = .false.
+        check_fragmented = 1
+        start_cnt = 0
+        max_steps = nmax
+      endif
+
+      !> start counting  
+avct: if ( count_average .and. start_cnt > cnt_start ) then 
+        cg = 0
+        cnt = cnt + 1
+        avxyz2  = avxyz2  + xyz
+
+        store_avxyz  = avxyz2 / cnt
+
+        call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
 
 
-cntfrg:   do i = 1, nfrag
+cntfrg: do i = 1, nfrag
 
             if (cnt == 1) then
               save_natf(i) = natf(i)
@@ -617,58 +650,73 @@ cntfrg:   do i = 1, nfrag
           store_avxyz  = 0!avxyz2 / cnt
         endif
 
+      endif avct
 
-        ! exit always immidiately if we have > nfragexit frags
-        if(nfrag > nfragexit) then
-           write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-           write(*,9001)
-           fragstate=1
-           exit
-        endif   
 
-        ! if fragmented, start counting steps
-        if(nfrag >= 2)then
-           fconst=fconst+1
-        else
-           fconst=0          
-        endif
-        ! exit if nfrag=2 is constant for some time  
-        if(fconst > 1000) then
-           write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-           write(*,9002)
-           fragstate=2       
-           exit
-        endif   
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Check out the fragments. If > 2, do 1000 steps. If more, do 250 steps. 
+      ! If nfragexit (can be user-set), exit immidiately
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! exit always immidiately if we have > nfragexit frags
+      if(nfrag > nfragexit) then
+        write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+        write(*,9001)
+        fragstate=1
+        mdok=.true.
+        exit
+      endif   
 
-        ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
-        if(nfrag >= nfragexit) then
-           morestep=morestep+1
-           if(morestep > more) then
-              write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-              write(*,9003)
-              fragstate=1
-              exit
-           endif 
-        endif        
+      ! if fragmented, start counting steps
+      !if(nfrag >= 2)then
+      !  fconst=fconst+1
+      !else
+      !  fconst=0          
+      !endif
+      ! exit if nfrag=2 is constant for some time  
+      !if(fconst > 1000) then
+      !if(fconst > fconst_max) then
+      if(current_step > nmax + add_steps - 1) then
+         write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+         write(*,9002)
+         fragstate=2       
+         mdok=.true.
+         exit
+      endif   
+
+      ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
+      !if(nfrag >= nfragexit) then
+      !  morestep=morestep+1
+      !  if(morestep > more) then
+      !    write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+      !    write(*,9003)
+      !    fragstate=1
+      !    mdok=.true.
+      !    exit
+      !   endif 
+      !endif        
+
       endif ifit
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !> end the loop
+    if (current_step >= max_steps) then
+      write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+      write(*,9004)
+      fragstate=1
+      mdok=.true.
+      exit 
+    endif
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   enddo ! END LOOP
   
-  ! all done and nice
-  mdok=.true.
-  if(k >= nmax)then
-     write(*,9004)
-     fragstate=1
-  endif
-
-! error exit (Skip if all okay)
-!1000  if( it >= 0.and.it < 9999.and.(.not.restart) )close(io_OUT)
   if( it >= 0.and.it < 9999.and.(.not.restart) )close(io_OUT)
   if( it == 0) close(io_GS)
 
 ! printed or used in main      
-  Tav    = Tav    / k
-  Epav   = Epav   / k
-  Ekav   = Ekav   / k
+  Tav    = Tav    / current_step
+  Epav   = Epav   / current_step
+  Ekav   = Ekav   / current_step
   aspin  = avspin / kdump
   achrg  = avchrg / kdump
   !axyz   = avxyz  / kdump

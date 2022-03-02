@@ -88,7 +88,8 @@ real(wp) :: etemp
 real(wp) :: tstep,edum,tmax,etemp_in,exc,dums,betemp
 real(wp) :: t,Tsoll,Tdum,Tinit,trelax,ttime,ehomo
 real(wp) :: Epav,Ekav,Tav,dum,t1,t2,w1,w2,eimpw,pmax,tta
-real(wp) :: tadd,fimp,aTlast
+real(wp) :: tadd, pretadd
+real(wp) :: fimp,aTlast
 real(wp) :: chrgcont
 real(wp) :: cema(3),eimp0,eimp,dtime
 real(wp) :: iee_a,iee_b,hacc,ieeel,btf,ieeatm,etempGS
@@ -443,24 +444,24 @@ endif
 !> Check if the sim. MD time has been manually set
 if ( method == 3 .and. manual_simMD > 0 ) simMD = manual_simMD
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! printing runtype information and chosen parameters
-call info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, mchrg_prod,  &
-    & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, coll%max_coll, CollNo, CollSec,  &
-    & ESI, tempESI, etemp_in, maxsec, betemp, nfragexit, iprog, edistri,     &
-    & legacy)
 
-
-!if (method == 3 ) tmax = simMD < implement this
+!if (method == 3 ) nmax = simMD 
 ! change time to fs      
-tmax = tmax*1000
+tmax = tmax*1000.0_wp
 ! # MD steps in a frag run
 nmax = tmax / tstep
+
 ! timesteps in au
 tstep = tstep * fstoau
 ! the "70" eV in a.u.
 eimp0 = eimp0 * evtoau
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! printing runtype information and chosen parameters
+call info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0*autoev, mchrg, &
+  mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, coll%max_coll, &
+  CollNo, CollSec, ESI, tempESI, etemp_in, maxsec, betemp, nfragexit, iprog, &
+  edistri, legacy)
 
 !if (prog == 2 .or. iprog == 2) call wrcoord(nuc, xyz, iat)
 
@@ -1030,9 +1031,10 @@ iee2:do i = 1, ndumpGS
         mean = sumn / ntraj
         stddev = sqrt(sumnsq/ntraj - mean*mean)
 
+        Edum = s * (0.5_wp * 3.0_wp * nuc * kB) 
         !>> printout
         write(*,'(41(''-''))')
-        write(*,"(a,f10.2)")           "Temperatue scaling (K)   : ", s 
+        write(*,"(a,f10.2)")           "Starting in. Energy (eV)  : ", Edum * autoev 
         if(ESI>0) write(*,"(a,f10.2)") "Additional Energy (eV)   : ", ESI
         if(tempESI>0) write(*,"(a,f10.2)") "Additional Temp. (K)     : ", tScale
         write(*,"(a,f10.2)")           "Energy spread by... (eV) : ", eimpw 
@@ -1081,11 +1083,10 @@ iee2:do i = 1, ndumpGS
 
         if (.not. no_ESI) then
           set%eimpr (         nrun)= ergebnis(nrun)
-          set%taddr (         nrun)= 0.0_wp 
         else
           set%eimpr (         nrun)= 0.0_wp
-          set%taddr (         nrun)= 0.0_wp 
         endif
+        set%taddr (         nrun)= 0.0_wp 
 
       enddo
 
@@ -1278,7 +1279,7 @@ else !prun - if production run == .true.
 mCID:if ( method == 3 ) then 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    set%tadd  = 0.0_wp !should be 0 anyway.
+    !set%tadd  = tadd !should be 0 anyway.
     velof = 1.0_wp
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1389,18 +1390,25 @@ ESI_loop: do
             if (isec == 1)then
               prestep = nint(ENe(4)) * nuc !*100 ! * 10 !/100)
               prestep = prestep / (4*nuc/10)  !200
+              pretadd = float(prestep)*fstoau *(tstep*autofs) * 0.75_wp
               starting_MD = .true.
             else
-              prestep=simMD
+              !prestep=simMD
+              prestep=nmax
+              pretadd = 0.0_wp
               starting_MD = .false.
-              if(fragstate == 2) prestep=simMD * 0.75
+              !if(fragstate == 2) prestep=simMD * 0.75
+              if(fragstate == 2) prestep=nmax * 0.75
             endif
 
           elseif (TempRun .and. isec == 1) then
-            prestep = simMD
+            !prestep = simMD
+            prestep = nmax
+            pretadd = float(prestep)*fstoau *(tstep*autofs) * 0.75_wp
             starting_MD = .true.
           elseif (TempRun .and. isec > 1) then
             starting_MD = .false.
+            pretadd = 0.0_wp
             if(fragstate == 2) prestep = prestep * 0.75
           endif
 
@@ -1410,7 +1418,7 @@ ESI_loop: do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           call md(itrj,icoll,isec,nuc,prestep,xyz,iat,mass,imass,mchrg,     &
           & grad,velo,velof,list,tstep,j,nfragexit,fragm,fragf,             &
-          & fragat,dumpstep,etemp_in,md_ok,atm_charge,spin,axyz,tscale,tadd,&
+          & fragat,dumpstep,etemp_in,md_ok,atm_charge,spin,axyz,tscale,pretadd,&
           & E_Scale*evtoau, .false.,Tav,Epav,Ekav,ttime,aTlast,fragstate,dtime,      &
           & ECP,starting_MD,0.0d0)
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1574,7 +1582,7 @@ ESI_loop: do
 cnt:  if (.not. TempRun .and. .not. small) then
 
       starting_md = .false.
-      save_simMD = simMD
+      !save_simMD = nmax
       new_counter = 0
 
       ! Full Auto = Total Program control depending on mol. size, pressure cham. length etc.
@@ -1663,7 +1671,6 @@ cidlp:  do
         isec      = 1
         icoll     = icoll + 1
         fragstate = 0
-        simMD     = save_simMD
 
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1872,7 +1879,7 @@ MFPloop:  do
           !> reduce the simulation timings for performance
 
           !> store the old value to reset later
-          save_simMD = simMD
+          !save_simMD = simMD
 
           !> change MFP times to reduce timings (empirical values)
           !> but only if not set manually
@@ -1891,6 +1898,8 @@ MFPloop:  do
 
             !>> not too short simulations
             if ( simMD < 2000 ) simMD = 2000
+          else
+            simMD = nmax
           endif
 
           !> reduce the MD time if fragmentation in MFP occurs
@@ -1925,7 +1934,7 @@ MFPloop:  do
           endif !verbose
 
           ! reset sim MD time
-          simMD = save_simMD
+          simMD = nmax
 
           ! calculate the new center-of-mass as reference
           call center_of_mass(nuc,mass,xyz,cm)

@@ -144,6 +144,13 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !type(fragment_info) :: frag
   logical :: count_average = .false.
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !Stuff for count start
+  integer :: cnt_start, start_cnt
+  integer :: fconst_max
+  integer :: cnt_steps
+ 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !interface
   !  function calc_ECOM(beta,e_kin) result(E_COM)
@@ -257,7 +264,26 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   morestep = 0
   fconst = 0
   check_fragmented = 1
+  start_cnt = 0
   !!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!
+  !> count the number of steps that are used for averaging structures for IP calc
+  if ( abs(mchrg) == 1) cnt_steps = 50
+  if ( abs(mchrg) > 1) cnt_steps = 100
+  !> this is not sufficiently tested. It was experienced that higher charge (or maybe larger molecules)
+  !> need more time for rearrangement and this can influence the IP assignment in the end
+
+  
+  if ( abs(mchrg) == 1) cnt_start = 0
+  if ( abs(mchrg) > 1) cnt_start = 1000
+  if ( abs(mchrg) > 2) cnt_start = 3000
+
+  !>> for larges charge, start counting later than the direct fragmentation event
+  if ( abs(mchrg) == 1) fconst_max = 1000
+  if ( abs(mchrg) == 2) fconst_max = 2000
+  if ( abs(mchrg) >= 3) fconst_max = 4000
+
+  !!!!!!!!!!!!!!!!!!
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
@@ -835,6 +861,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     if (nfrag > check_fragmented ) then
       count_average = .true.
       check_fragmented = nfrag
+      start_cnt = start_cnt + 1 
     endif
 
     if (nfrag < check_fragmented .and. count_average) then
@@ -846,10 +873,12 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
       cg = 0
       count_average = .false.
       check_fragmented = 1
+      start_cnt = 0
     endif
 
 
-    if ( count_average ) then 
+    !if ( count_average ) then 
+    if ( count_average .and. start_cnt > cnt_start ) then 
       cg = 0
       cnt = cnt + 1
       avxyz2  = avxyz2  + xyz0(:,:nuc)
@@ -943,7 +972,7 @@ cntfrg: do i = 1, nfrag
         enddo cntfrg
 
 
-        if (cnt == 50) then
+        if (cnt == cnt_steps) then
           store_avxyz  = avxyz2 / cnt
           call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
           write(*,*) 'Count', cnt
@@ -979,7 +1008,8 @@ cntfrg: do i = 1, nfrag
        fconst=0          
     endif
     ! exit if nfrag=2 is constant for some time  
-    if(fconst > 1000) then
+    !if(fconst > 1000) then
+    if(fconst > fconst_max) then
     !   write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
     !   write(*,9002)
        write(*,*) 'NOTHING HAPPNENS'
@@ -1065,11 +1095,11 @@ cntfrg: do i = 1, nfrag
           m   = 0  !temp after the coll. is taken
        endif
 
-       if (nfrag > 1 .and.step_counter == 50)then !500 steps (we need some time after frag)
+       if (nfrag > 1 .and.step_counter == 20)then !500 steps (we need some time after frag)
           xtra = 150 * int(nuc/10)  !should be made dependend on the velocity of fragment
                 
           write(*,'('' FRAGMENTATION occured!'')')
-          write(*,'('' Do '',i3,a12)') xtra, ' extra steps'
+          write(*,'('' Do '',i5,a)') xtra, ' extra steps'
 
 
        endif

@@ -125,8 +125,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   
   ! MD time step in fs (0.5-1 fs) 
   tstep = 0.5_wp
-  ! length of production runs in ps
-  tmax = 5
   ! # of frag traject 
   ntraj = -1  
   ! rand ini
@@ -311,25 +309,33 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
 
        ! Read the file
        else
-         write(*,'(''>'',a)') line
+        write(*,'(''>'',a)') line
   
-         ! USE TO_UPPER TO MAKE THE STRING CAPITALIZED
-         line = to_upper(line)
-         ! TRIM THE LINE
-         line = trim(line)
+        ! USE TO_UPPER TO MAKE THE STRING CAPITALIZED
+        line = to_upper(line)
+        ! TRIM THE LINE
+        line = trim(line)
   
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! METHODS 
-         if(line == 'EI')           method=0
-         if(line == 'CSC')          method=1
-         if(line == 'DEA') then
-           mchrg_prod = -1
-         endif
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! METHODS 
+        if(line == 'EI') then
+          method=0
+          ! length of production runs in ps
+          tmax = 5
+        endif
+        if(line == 'CSC') then
+          method=1
+        endif
+        if(line == 'DEA') then
+          mchrg_prod = -1
+        endif
 
-         if(line == 'CID')then
-                                    method=3
-           gas%Iatom = 3 !Argon
-         endif
+        if(line == 'CID')then
+          method=3
+          gas%Iatom = 3 !Argon
+          ! length of MFP runs in ps
+          tmax = 5
+        endif
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! PROGRAMS 

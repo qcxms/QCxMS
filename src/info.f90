@@ -116,8 +116,9 @@ module qcxms_info
   write(*,'('' M+ Ion charge(charge) : '',i4  )')mchrg_prod
   write(*,'('' total traj.   (ntraj) : '',i4  )')ntraj
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep 
-  if ( method == 1 ) write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
-  if ( method == 3 ) write(*,'('' MFP sim. time (simmd) : '',f7.2,'' ps'')')simmd/1000.0_wp
+  !if ( method == 1 ) write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
+  !if ( method == 3 ) write(*,'('' MFP sim. time (simmd) : '',f7.2,'' ps'')')simmd/1000.0_wp
+  write(*,'('' sim. time / MD (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
 
 
@@ -357,7 +358,7 @@ info: if ( method /= 3 ) then !.and. method /= 4 )then
 
     write(*,*)
     write(*,'('' internal Energy        : '',F6.2,'' eV'',a3)')E_int
-    if (ESI > 0)     write(*,'('' Scaling to             : '',F6.2, '' eV'')')ESI
+    if (ESI > 0)     write(*,'('' Scaling to             : '',F6.2, '' eV'')')ESI+E_int
     if (tempESI > 0) write(*,'('' Scaling to             : '',F6.2, '' K'')')tempESI
 
   endif info
