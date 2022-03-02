@@ -97,11 +97,11 @@ module qcxms_use_orca
         ! Set mayer and finalgrid
         if ( orca_version == 4 ) write(io_orca,'(''! NOFINALGRID NOMAYER'')')
         if ( orca_version == 5 ) then
-          if ( No_eTemp ) then
+         ! if ( No_eTemp ) then
            write(io_orca,'(''! NOFINALGRIDX NOMAYER'')')
-         else
-           write(io_orca,'(''! NOMAYER'')')
-         endif
+         !else
+         !  write(io_orca,'(''! NOMAYER'')')
+         !endif
        endif
      
         write(io_orca,'(''! UHF'')')
