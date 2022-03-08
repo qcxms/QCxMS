@@ -1052,11 +1052,13 @@ iee2:do i = 1, ndumpGS
         endif
 
         Tcheck = maxval(ergebnis) / (0.5_wp * 3.0_wp * nuc * kB)
-        write(*, "(a, f14.6)")       "Highest Energy (eV)      : ", maxval(ergebnis)
+        write(*, "(a, f14.6)")       "Highest Energy (eV)      : ", maxval(ergebnis) &
+          *autoev
         write(*, "(a, f14.6)")       "Highest Temperature (K)  : ", Tcheck
         write(*, *)
         Tcheck = minval(ergebnis) / (0.5_wp * 3.0_wp * nuc * kB)
-        write(*, "(a, f14.6)")       "Lowest Energy (eV)       : ", minval(ergebnis)
+        write(*, "(a, f14.6)")       "Lowest Energy (eV)       : ", minval(ergebnis) &
+          * autoev
         write(*, "(a, f14.6)")       "Lowest Temperature (K)   : ", Tcheck
         write(*,'(41(''-''))')
 

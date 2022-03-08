@@ -216,21 +216,23 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   start_cnt = 0
   !!!!!!!!!!!!!!!!!!
   !> count the number of steps that are used for averaging structures for IP calc
-  if ( abs(mchrg) == 1) cnt_steps = 50
-  if ( abs(mchrg) > 1) cnt_steps = 100
+  cnt_steps = 50
+  !if ( abs(mchrg) == 1) cnt_steps = 50
+  !if ( abs(mchrg) > 1) cnt_steps = 100
   !> this is not sufficiently tested. It was experienced that higher charge (or maybe larger molecules)
   !> need more time for rearrangement and this can influence the IP assignment in the end
 
   
-cnt_start = 0
+  cnt_start = 0
+  fconst_max = 1000
 !  if ( abs(mchrg) == 1) cnt_start = 0
 !  if ( abs(mchrg) > 1) cnt_start = 1000
 !  if ( abs(mchrg) > 2) cnt_start = 3000
 
   !>> for larges charge, start counting later than the direct fragmentation event
-  if ( abs(mchrg) == 1) add_steps = 500
-  if ( abs(mchrg) == 2) add_steps = 600
-  if ( abs(mchrg) >= 3) add_steps = 800
+  !if ( abs(mchrg) == 1) add_steps = 500
+  !if ( abs(mchrg) == 2) add_steps = 600
+  !if ( abs(mchrg) >= 3) add_steps = 800
 
   !!!!!!!!!!!!!!!!!!
   
@@ -430,7 +432,7 @@ ifit:if(it > 0)then
         if ( nstep <= nadd) then
           sca = dsqrt(1.0d0 + ((tstep/fstoau) / 150 )*(Tsoll/T-1.0d0))
           velo= sca * (velo)
-          ! call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
+          if (Temprun) call impactscale(nuc,velo,mass,velof,eimp,fadd*nstep,Ekinstart)
         endif
       endif
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -502,9 +504,9 @@ ifit:if(it > 0)then
       if (nfrag > check_fragmented ) then
         count_average = .true.
         check_fragmented = nfrag
-        start_cnt = start_cnt + 1 
-        max_steps = max_steps + add_steps !* nfrag
-        write(*,*) 'Do a total of', max_steps, 'steps'
+        !start_cnt = start_cnt + 1 
+        !max_steps = max_steps + add_steps !* nfrag
+        !write(*,*) 'Do a total of', max_steps, 'steps'
       endif
 
       !> reset the count if it is no real fragmentation
@@ -517,12 +519,12 @@ ifit:if(it > 0)then
         cg = 0
         count_average = .false.
         check_fragmented = 1
-        start_cnt = 0
-        max_steps = nmax
+        !start_cnt = 0
+        !max_steps = nmax
       endif
 
       !> start counting  
-avct: if ( count_average .and. start_cnt > cnt_start ) then 
+avct: if ( count_average ) then !.and. start_cnt > cnt_start ) then 
         cg = 0
         cnt = cnt + 1
         avxyz2  = avxyz2  + xyz
@@ -667,15 +669,14 @@ cntfrg: do i = 1, nfrag
       endif   
 
       ! if fragmented, start counting steps
-      !if(nfrag >= 2)then
-      !  fconst=fconst+1
-      !else
-      !  fconst=0          
-      !endif
+      if(nfrag >= 2)then
+        fconst=fconst+1
+      else
+        fconst=0          
+      endif
       ! exit if nfrag=2 is constant for some time  
       !if(fconst > 1000) then
-      !if(fconst > fconst_max) then
-      if(current_step > nmax + add_steps - 1) then
+      if(fconst > fconst_max) then
          write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
          write(*,9002)
          fragstate=2       
@@ -684,22 +685,23 @@ cntfrg: do i = 1, nfrag
       endif   
 
       ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
-      !if(nfrag >= nfragexit) then
-      !  morestep=morestep+1
-      !  if(morestep > more) then
-      !    write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-      !    write(*,9003)
-      !    fragstate=1
-      !    mdok=.true.
-      !    exit
-      !   endif 
-      !endif        
+      if(nfrag >= nfragexit) then
+        morestep=morestep+1
+        if(morestep > more) then
+          write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+          write(*,9003)
+          fragstate=1
+          mdok=.true.
+          exit
+         endif 
+      endif        
 
       endif ifit
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !> end the loop
-    if (current_step >= max_steps) then
+    !if (current_step >= max_steps) then
+    if (current_step >= nmax) then
       write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
       write(*,9004)
       fragstate=1
