@@ -61,11 +61,11 @@ module qcxms_use_orca
 
      ! hybrid vs other funcs.... nat is number of atoms
         if ( func <= 4 .and. nat < 60 .and. .not. noconv ) then
-         if ( No_eTemp ) then
+         !if ( No_eTemp ) then
            write(io_orca,'(''! CONV SMALLPRINT NOSOSCF RIJK DEF2/JK'')')
-         else 
-           write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
-         endif
+         !else 
+         !  write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
+         !endif
 
         elseif ( func  ==  7 .and. nat < 60 .and. .not.noconv ) then
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
@@ -97,11 +97,7 @@ module qcxms_use_orca
         ! Set mayer and finalgrid
         if ( orca_version == 4 ) write(io_orca,'(''! NOFINALGRID NOMAYER'')')
         if ( orca_version == 5 ) then
-         ! if ( No_eTemp ) then
            write(io_orca,'(''! NOFINALGRIDX NOMAYER'')')
-         !else
-         !  write(io_orca,'(''! NOMAYER'')')
-         !endif
        endif
      
         write(io_orca,'(''! UHF'')')

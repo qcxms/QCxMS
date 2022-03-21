@@ -46,7 +46,6 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   integer :: screendump,nadd,morestep,more,spin,fconst
   integer :: mchrg
   integer :: io_GS, io_OUT
-  integer :: current_step
 
   real(wp) :: xyz (3,nuc)
   real(wp) :: grad(3,nuc)
@@ -107,6 +106,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
    real(wp) :: trafo(3,3)
   !type(fragment_info) :: frag
   logical :: count_average = .false.
+  logical :: count_fragmented = .false.
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -213,7 +213,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   trafo = 0
   gradient = 0
 
-  start_cnt = 0
+  !start_cnt = 0
   !!!!!!!!!!!!!!!!!!
   !> count the number of steps that are used for averaging structures for IP calc
   cnt_steps = 50
@@ -225,14 +225,14 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   
   cnt_start = 0
   fconst_max = 1000
-!  if ( abs(mchrg) == 1) cnt_start = 0
-!  if ( abs(mchrg) > 1) cnt_start = 1000
-!  if ( abs(mchrg) > 2) cnt_start = 3000
+  !if ( abs(mchrg) == 1) cnt_start = 0
+  !if ( abs(mchrg) > 1) cnt_start = 1000
+  !if ( abs(mchrg) > 2) cnt_start = 3000
 
   !>> for larges charge, start counting later than the direct fragmentation event
-  !if ( abs(mchrg) == 1) add_steps = 500
-  !if ( abs(mchrg) == 2) add_steps = 600
-  !if ( abs(mchrg) >= 3) add_steps = 800
+  if ( abs(mchrg) == 1) add_steps = 1000
+  if ( abs(mchrg) == 2) add_steps = 2000
+  if ( abs(mchrg) >= 3) add_steps = 6000
 
   !!!!!!!!!!!!!!!!!!
   
@@ -284,7 +284,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
 
   do !k=1,nmax
 
-    current_step = current_step + 1
+    nstep = nstep + 1
   
     T=Ekin/(0.5*3*nuc*kB)
     ! in frag runs the electronic temp is set 
@@ -310,7 +310,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
     Eerror=Eav-Epot-Ekin
   
     ! Avg. Temp.
-    if(nfrag == 1)fragT(1)=Tav/current_step
+    if(nfrag == 1)fragT(1)=Tav/nstep
   
     ! check av. Etot
   !  Eerror=Eav-Epot-Ekin
@@ -343,6 +343,12 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
        exit
     endif      
   
+    ! print out every screendump steps
+    if(mdump > screendump-1)then
+       write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+       mdump=0
+    endif
+
     ! average over last avdump steps              
     if(kdump > avdump-1)then
        kdump =0
@@ -359,16 +365,6 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
     if(method == 3.and. icoll > 0)   aTlast = aTlast + new_temp    
     if(method /= 3 .or. icoll == 0)  aTlast = aTlast + T    
   
-    ! print out every screendump steps
-    if(mdump > screendump-1)then
-  !     if(method == 3)then
-  !       e_int = (t*(0.5*3*nuc*0.316681534524639E-05))/0.03674932217565499
-  !       write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag),e_int
-  !     else
-         write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-  !     endif
-       mdump=0
-    endif
   
     ! dump for MOLDEN
     if(ndump > dumpstep-1.and.it >= 0.and.it < 9999)then
@@ -391,8 +387,9 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! do MD step
-    call leapfrog(nuc,grad,mass,tstep,xyz,velo,Ekin,nstep)
+    call leapfrog(nuc,grad,mass,tstep,xyz,velo,Ekin)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   ! total time including secondaries      
     ttime=ttime+tstep/fstoau
   ! calc E and forces
@@ -405,11 +402,11 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
     vdump=vdump+1
   
     ! rescale to get Tsoll (NVT ensemble) for equilibration
-    dum=100.*abs(Tav/current_step-Tsoll)/Tsoll
+    dum=100.*abs(Tav/nstep-Tsoll)/Tsoll
 
     ! the GS sampling is done in NVE      
-    if(dum > 5.0d0.and.it < 0.and.current_step > 50)then
-       velo = velo/sqrt(Tav/current_step/Tsoll)
+    if(dum > 5.0d0.and.it < 0.and. nstep > 50)then
+       velo = velo/sqrt(Tav/nstep/Tsoll)
     endif
     
     ! Etemp for mopac is not performing well! Set it to fixed 300
@@ -503,28 +500,47 @@ ifit:if(it > 0)then
       !> set conditions to start counting if fragmentation occurs
       if (nfrag > check_fragmented ) then
         count_average = .true.
+        count_fragmented = .true.
         check_fragmented = nfrag
-        !start_cnt = start_cnt + 1 
-        !max_steps = max_steps + add_steps !* nfrag
-        !write(*,*) 'Do a total of', max_steps, 'steps'
+        max_steps = nstep + add_steps !* nfrag
+        write(*,*) 'Do a total of', max_steps, 'steps'
       endif
 
       !> reset the count if it is no real fragmentation
-      if (nfrag < check_fragmented .and. count_average) then
-        !write(*,*) 'ReSet'
-        cnt = 0
-        avxyz2 = 0
-        rmsd_check = 0
-        store_avxyz  = 0
-        cg = 0
-        count_average = .false.
-        check_fragmented = 1
-        !start_cnt = 0
-        !max_steps = nmax
+      if (nfrag < check_fragmented ) then
+        if ( count_average) then
+          !write(*,*) 'ReSet'
+          cnt = 0
+          avxyz2 = 0
+          rmsd_check = 0
+          store_avxyz  = 0
+          cg = 0
+          count_average = .false.
+          check_fragmented = 1
+        endif
+
+        if ( count_fragmented) then
+          count_fragmented = .false.
+          !fconst = 0
+          !start_cnt = 0
+          max_steps = nmax
+          check_fragmented = 1
+          !write(*,*) 'RESET!'
+          !start_cnt = 0
+          !max_steps = nmax
+          endif
+      endif
+
+
+      if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
+        !fconst = fconst + 1
+        !start_cnt = start_cnt + 1 
+        if ( abs(mchrg) == 1) cnt_start = 0
+        if ( abs(mchrg) > 1) cnt_start = max_steps - cnt_steps
       endif
 
       !> start counting  
-avct: if ( count_average ) then !.and. start_cnt > cnt_start ) then 
+avct: if ( count_average .and. nstep > cnt_start ) then 
         cg = 0
         cnt = cnt + 1
         avxyz2  = avxyz2  + xyz
@@ -655,6 +671,7 @@ cntfrg: do i = 1, nfrag
       endif avct
 
 
+
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! Check out the fragments. If > 2, do 1000 steps. If more, do 250 steps. 
       ! If nfragexit (can be user-set), exit immidiately
@@ -669,20 +686,30 @@ cntfrg: do i = 1, nfrag
       endif   
 
       ! if fragmented, start counting steps
-      if(nfrag >= 2)then
-        fconst=fconst+1
-      else
-        fconst=0          
-      endif
+      !if(nfrag >= 2)then
+      !  fconst=fconst+1
+      !else
+      !  fconst=0          
+      !endif
+
+      !> if we are sure that we have a fragmentation
+      !if(fconst > 100) then
+      !  nmax = nmax + fconst_max
+      !  write(*,'(''STOP      after '',i6,a6)') nmax,' steps'
+      !endif
+
+
       ! exit if nfrag=2 is constant for some time  
       !if(fconst > 1000) then
-      if(fconst > fconst_max) then
-         write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-         write(*,9002)
-         fragstate=2       
-         mdok=.true.
-         exit
-      endif   
+      !if(fconst > fconst_max) then
+      !if(start_cnt > cnt_start + fconst_max) then
+      !   write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+      !   write(*,9002)
+      !   write(*,*) 'START COUNT', start_cnt, 'fconst_max', fconst_max
+      !   fragstate=2       
+      !   mdok=.true.
+      !   exit
+      !endif   
 
       ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
       if(nfrag >= nfragexit) then
@@ -700,8 +727,8 @@ cntfrg: do i = 1, nfrag
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !> end the loop
-    !if (current_step >= max_steps) then
-    if (current_step >= nmax) then
+    if (nstep >= max_steps) then
+    !if (current_step >= nmax) then
       write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
       write(*,9004)
       fragstate=1
@@ -716,9 +743,9 @@ cntfrg: do i = 1, nfrag
   if( it == 0) close(io_GS)
 
 ! printed or used in main      
-  Tav    = Tav    / current_step
-  Epav   = Epav   / current_step
-  Ekav   = Ekav   / current_step
+  Tav    = Tav    / nstep
+  Epav   = Epav   / nstep
+  Ekav   = Ekav   / nstep
   aspin  = avspin / kdump
   achrg  = avchrg / kdump
   !axyz   = avxyz  / kdump
@@ -777,7 +804,7 @@ end
 ! Verlet leapfrog algorithm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine leapfrog(nat,grad,amass,tstp,xyz,vel,ke,nstp)
+subroutine leapfrog(nat,grad,amass,tstp,xyz,vel,ke)
 
    integer  :: nat,nstp
    integer  :: j,k
@@ -799,7 +826,7 @@ subroutine leapfrog(nat,grad,amass,tstp,xyz,vel,ke,nstp)
       enddo
    enddo
 
-   nstp = nstp + 1
+   !nstp = nstp + 1
 
 end subroutine leapfrog
 

@@ -458,7 +458,7 @@ eimp0 = eimp0 * evtoau
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! printing runtype information and chosen parameters
-call info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0*autoev, mchrg, &
+call info_main(ntraj, tstep/fstoau, tmax, simMD, Tinit, trelax, eimp0*autoev, mchrg, &
   mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, coll%max_coll, &
   CollNo, CollSec, ESI, tempESI, etemp_in, maxsec, betemp, nfragexit, iprog, &
   edistri, legacy)
@@ -1887,15 +1887,15 @@ MFPloop:  do
           !> but only if not set manually
           if ( manual_simMD == 0 ) then
             simMD = icoll * 0.6 * nuc * 100
-            if ( simMD > 8000 .and. frag_counter <= 2 ) simMD = 8000
+            if ( simMD > 6000 .and. frag_counter <= 2 ) simMD = 6000
             
             !>> make some timing adjustments
-            if ( simMD > 8000 .and. frag_counter > 2  ) then
-              simMD = 8000 * 0.75_wp
-            elseif ( simMD > 8000 .and. frag_counter > 3  ) then
-              simMD = 8000 * 0.6_wp
-            elseif ( simMD > 8000 .and. frag_counter >= 4  ) then
-              simMD = 8000 * 0.5_wp
+            if ( simMD > 6000 .and. frag_counter > 2  ) then
+              simMD = 6000 * 0.75_wp
+            elseif ( simMD > 6000 .and. frag_counter > 3  ) then
+              simMD = 6000 * 0.6_wp
+            elseif ( simMD > 6000 .and. frag_counter >= 4  ) then
+              simMD = 6000 * 0.5_wp
             endif
 
             !>> not too short simulations

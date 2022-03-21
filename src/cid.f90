@@ -31,7 +31,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   real(wp),parameter :: kB_J   = 1.38064852E-23
   
   integer  :: nuc,spin,iat(nuc)
-  integer  :: nstp
+  integer  :: nstep
   integer  :: dumpavg,dumpxyz,dumpscreen,dumpcoord,dumpdist
   integer  :: average_dump,xyzavg_dump,screen_dump,coord_dump,distance_dump
   integer  :: i,j,k,ind,m
@@ -46,9 +46,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer  :: list(nuc),nfrag
   integer  :: fragat(200,10)  
   integer  :: imass(nuc)
-  integer  :: istep, step_dist, manual_dist
+  integer  :: step_dist, manual_dist
   integer  :: io_cid, io_rotate, io_test
   integer  :: morestep , fconst
+  integer  :: scale_chrg_steps
 
   real(wp) :: calc_collisions
   real(wp) :: etemp,E,ke
@@ -119,8 +120,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: gradfail
   logical :: xstps = .false.
   logical :: avg_struc 
-
-
+  logical :: count_fragmented = .false.
+  logical :: fragmented = .false.
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Stuff for checking RMSD
@@ -249,9 +250,11 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   trafo = 0
   gradient = 0
 
-
   set_grad = huge(0.0_wp)
 
+  if (abs(mchrg) == 1 )  scale_chrg_steps =0
+  if ( abs(mchrg) > 1) scale_chrg_steps = 500
+  if ( abs(mchrg) > 2) scale_chrg_steps = 1000
   !velo_rot(3,3) = 0.0d0
   
   T_GBSA=300
@@ -262,7 +265,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!!!!!!!!!!
   !> count steps after frag
   morestep = 0
-  fconst = 0
+  !fconst = 0
   check_fragmented = 1
   start_cnt = 0
   !!!!!!!!!!!
@@ -274,14 +277,14 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !> need more time for rearrangement and this can influence the IP assignment in the end
 
   
-  if ( abs(mchrg) == 1) cnt_start = 0
-  if ( abs(mchrg) > 1) cnt_start = 1000
-  if ( abs(mchrg) > 2) cnt_start = 3000
+  !if ( abs(mchrg) == 1) cnt_start = 0
+  !if ( abs(mchrg) > 1) cnt_start = 1000
+  !if ( abs(mchrg) > 2) cnt_start = 3000
 
   !>> for larges charge, start counting later than the direct fragmentation event
-  if ( abs(mchrg) == 1) fconst_max = 1000
-  if ( abs(mchrg) == 2) fconst_max = 2000
-  if ( abs(mchrg) >= 3) fconst_max = 4000
+  !if ( abs(mchrg) == 1) fconst_max = 1000
+  !if ( abs(mchrg) == 2) fconst_max = 2000
+  !if ( abs(mchrg) >= 3) fconst_max = 4000
 
   !!!!!!!!!!!!!!!!!!
   
@@ -750,7 +753,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   distance_dump = 0
   xyzavg_dump = 0 
   average_dump = 0 
-  nstp  = 0
+  nstep  = 0
   Tav   = 0.0d0
   m     = 0
   xtra  = 0
@@ -770,7 +773,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   distcrit = 1.05d0 * lowestCOM  !say at which point the sim ends (by distance)
  
   !> start the leapfrog algorithm loop
-  do istep = 1, ntot
+  do 
+    nstep = nstep + 1
 
     !> re-set xyz_avg structures
     if (xyzavg_dump == dumpavg) then
@@ -788,7 +792,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
  
 
     ! Do the leap frog step 
-    call leapfrog(nuc0,grad0,mass0,time_step,xyz0,velo0,ke,nstp)
+    call leapfrog(nuc0,grad0,mass0,time_step,xyz0,velo0,ke)
 
     ! Calculate Grad for entire system
     call egrad(.False.,nuc0,xyz0,iat0,mchrg,spin,etemp,E,grad0,achrg0,aspin0,ECP,gradfail)
@@ -806,7 +810,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     old_cm(:) = cm(:)
   
     ! compute new velocity and convert to m/s
-    if (istep /= 1)then
+    if (nstep /= 1)then
       new_velo = (cm_out / time_step ) / mstoau 
     else !i.e. in the first step: 
       new_velo = 0
@@ -820,7 +824,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     E_kin_diff = Ekin - E_velo
   
     new_temp = (2*E_kin_diff) / (3 * kB * nuc)
-    if (istep == 1) new_temp = tinit
+    if (nstep == 1) new_temp = tinit
     Tav = Tav + new_temp
   
     m    = m + 1
@@ -837,35 +841,22 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      !> get the average structure of the ion/fragments
     avxyz  = avxyz  + xyz0(:,:nuc)
      
-
-    !if (nfrag > check_fragmented) then
-    !  cnt = cnt + 1
-    !  avxyz2  = avxyz2  + xyz0(:,:nuc)
-    !  if (cnt == 50) then
-    !    store_avxyz  = avxyz2 / cnt
-    !    !avxyz2  = avxyz / xyzavg_dump
-    !    check_fragmented = nfrag
-    !    write(*,*) 'Count', cnt
-    !    cnt = 0
-    !    avxyz2 = 0
-    !  endif
-    !elseif (nfrag < check_fragmented) then
-    !    cnt = 0
-    !endif
-
-
     root_msd=0
     highest_rmsd=0
     normmass = 0
 
     if (nfrag > check_fragmented ) then
       count_average = .true.
+      count_fragmented = .true.
       check_fragmented = nfrag
-      start_cnt = start_cnt + 1 
+
+      if ( abs(mchrg) == 1) cnt_start = 0
+      if ( abs(mchrg) > 1) cnt_start = ntot - 500
+      !if ( abs(mchrg) > 2) cnt_start = 3000
     endif
 
     if (nfrag < check_fragmented .and. count_average) then
-      write(*,*) 'ReSet'
+      !write(*,*) 'ReSet'
       cnt = 0
       avxyz2 = 0
       rmsd_check = 0
@@ -873,8 +864,22 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
       cg = 0
       count_average = .false.
       check_fragmented = 1
-      start_cnt = 0
+      !start_cnt = 0
     endif
+
+
+    if (nfrag < check_fragmented .and. count_fragmented) then
+      count_fragmented = .false.
+      !fconst = 0
+      start_cnt = 0
+      !max_steps = nmax
+    endif
+
+    if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
+      !fconst = fconst + 1
+      start_cnt = start_cnt + 1 
+    endif
+
 
 
     !if ( count_average ) then 
@@ -896,7 +901,7 @@ cntfrg: do i = 1, nfrag
           endif
 
           if(natf(i) /= save_natf(i))then
-            write(*,*) 'Fragment changed. Re-started count'
+            !write(*,*) 'Fragment changed. Re-started count'
             cnt = 0
             store_avxyz  = 0 ! avxyz2 / cnt
             avxyz2 = 0
@@ -904,71 +909,71 @@ cntfrg: do i = 1, nfrag
             exit cntfrg
           endif
 
-          allocate(nxyz1(3,natf(i)), &
-                  nxyz2(3,natf(i)))
-          !> start-strucutre
-          normmass = 0
+          !allocate(nxyz1(3,natf(i)), &
+          !        nxyz2(3,natf(i)))
+          !!> start-strucutre
+          !normmass = 0
 
-          !> compute the center-of-geometry of current structure
-          do j = 1, natf(i)
-            !>> get the current fragment structure
-            rmsd_check(:,j,i,cnt) = xyzf(:,j,i)
+          !!> compute the center-of-geometry of current structure
+          !do j = 1, natf(i)
+          !  !>> get the current fragment structure
+          !  rmsd_check(:,j,i,cnt) = xyzf(:,j,i)
 
-            !>> get the current center-of-geometry
-            cg(:,i,cnt) = cg(:,i,cnt) + 1 * rmsd_check(:,j,i,cnt)
+          !  !>> get the current center-of-geometry
+          !  cg(:,i,cnt) = cg(:,i,cnt) + 1 * rmsd_check(:,j,i,cnt)
 
-            normmass  = normmass + 1 
-          enddo
+          !  normmass  = normmass + 1 
+          !enddo
 
-          cg(:,i,cnt) = cg(:,i,cnt) / normmass
-
-
-          !> calculate the difference betwen the two c-of-g
-          diff_cg(:,i,cnt) = cg(:,i,cnt) - cg(:,i,1)
+          !cg(:,i,cnt) = cg(:,i,cnt) / normmass
 
 
-          !> shift the c-of-g by the difference of c-of-g
-          do j=1,natf(i)
-            rmsd_check(:,j,i,cnt) = rmsd_check(:,j,i,cnt) - diff_cg(:,i,cnt)
-          enddo
-
-          !> transform into right array size for rmsd routine
-          do j = 1, natf(i)
-            !>> the right compare-structure is taken
-            nxyz1(:,j) = rmsd_check(:,j,i,1)
-            nxyz2(:,j) = rmsd_check(:,j,i,cnt)
-          enddo
+          !!> calculate the difference betwen the two c-of-g
+          !diff_cg(:,i,cnt) = cg(:,i,cnt) - cg(:,i,1)
 
 
+          !!> shift the c-of-g by the difference of c-of-g
+          !do j=1,natf(i)
+          !  rmsd_check(:,j,i,cnt) = rmsd_check(:,j,i,cnt) - diff_cg(:,i,cnt)
+          !enddo
 
-          !> calculate root-mean-sqare-deviation of the two structures
-          call get_rmsd( nxyz1, nxyz2, root_msd, gradient, trafo)
+          !!> transform into right array size for rmsd routine
+          !do j = 1, natf(i)
+          !  !>> the right compare-structure is taken
+          !  nxyz1(:,j) = rmsd_check(:,j,i,1)
+          !  nxyz2(:,j) = rmsd_check(:,j,i,cnt)
+          !enddo
 
-          do j= 1, natf(i)
-            check_xyz (:,j) = matmul(nxyz2(:,j),trafo)
-          enddo
 
 
-          call get_rmsd( nxyz1, check_xyz, root_msd)!, gradient, trafo)
+          !!> calculate root-mean-sqare-deviation of the two structures
+          !call get_rmsd( nxyz1, nxyz2, root_msd, gradient, trafo)
 
-          rmsd_frag(i) = root_msd !/cnt
-          !write(*,*)  
-          !write(*,*) 'RMSD new',i,(rmsd_frag(i)*aatoau)
-          if (rmsd_frag(i) > highest_rmsd(i)) highest_rmsd(i) = rmsd_frag(i)
+          !do j= 1, natf(i)
+          !  check_xyz (:,j) = matmul(nxyz2(:,j),trafo)
+          !enddo
 
-          !>>>> write for test
-          if ( rmsd_frag(i)*autoaa > 1.0 ) then
-            write(*,*) 'HIGH RMSD'
-            !wr_file = wr_file + 1
-            !open(file=
-            write(s1,*) natf(i)
-            write(s1,*) 
-            do j= 1, natf(i)
-              write(s1,*) toSymbol(iatf(j,i)), nxyz1(:,j)*autoaa
-            enddo 
-          endif
 
-          deallocate(nxyz1, nxyz2)
+          !call get_rmsd( nxyz1, check_xyz, root_msd)!, gradient, trafo)
+
+          !rmsd_frag(i) = root_msd !/cnt
+          !!write(*,*)  
+          !!write(*,*) 'RMSD new',i,(rmsd_frag(i)*aatoau)
+          !if (rmsd_frag(i) > highest_rmsd(i)) highest_rmsd(i) = rmsd_frag(i)
+
+          !!>>>> write for test
+          !if ( rmsd_frag(i)*autoaa > 1.0 ) then
+          !  write(*,*) 'HIGH RMSD'
+          !  !wr_file = wr_file + 1
+          !  !open(file=
+          !  write(s1,*) natf(i)
+          !  write(s1,*) 
+          !  do j= 1, natf(i)
+          !    write(s1,*) toSymbol(iatf(j,i)), nxyz1(:,j)*autoaa
+          !  enddo 
+          !endif
+
+          !deallocate(nxyz1, nxyz2)
         enddo cntfrg
 
 
@@ -976,10 +981,11 @@ cntfrg: do i = 1, nfrag
           store_avxyz  = avxyz2 / cnt
           call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
           write(*,*) 'Count', cnt
+          write(*,*) 'Start Count', start_cnt
 
-          do i = 1, nfrag
-            write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
-          enddo
+          !do i = 1, nfrag
+          !  write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
+          !enddo
            
           !call get_rmsd CHARGES_avg_MDs
           avxyz2 = 0
@@ -1001,22 +1007,6 @@ cntfrg: do i = 1, nfrag
        exit
     endif   
 
-    ! if fragmented, start counting steps
-    if(nfrag >= 2)then
-       fconst=fconst+1
-    else
-       fconst=0          
-    endif
-    ! exit if nfrag=2 is constant for some time  
-    !if(fconst > 1000) then
-    if(fconst > fconst_max) then
-    !   write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-    !   write(*,9002)
-       write(*,*) 'NOTHING HAPPNENS'
-       !fragstate=2       
-       exit
-    endif   
-
     ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
     if(nfrag >= 3 ) then !nfragexit) then
        morestep=morestep+1
@@ -1034,7 +1024,7 @@ cntfrg: do i = 1, nfrag
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !DUMP coordinates to CID.xyz and DUMP text to screen                  
     
-    if (coord_dump == dumpcoord .or. istep == 1)then
+    if (coord_dump == dumpcoord .or. nstep == 1)then
        coord_dump = 0
        write(io_cid,*) nuc0
        write(io_cid,*) 'E=',ke+E
@@ -1044,7 +1034,7 @@ cntfrg: do i = 1, nfrag
                ,' ',xyz0(2,ind) * autoaa     &
                ,' ',xyz0(3,ind) * autoaa 
        end do        
-       if (istep == 1)coord_dump=1
+       if (nstep == 1)coord_dump=1
     end if
     
     ! Screen dump
@@ -1052,7 +1042,7 @@ cntfrg: do i = 1, nfrag
        screen_dump = 0
        
        write(*,'(i7,f8.0,3x,F11.4,2x,F8.4,F11.4,2x,F8.0,F12.3)') &
-         &      nstp,ttime,E/evtoau,ke/evtoau,E+ke/evtoau,etemp,avgT
+         &      nstep,ttime,E/evtoau,ke/evtoau,E+ke/evtoau,etemp,avgT
     end if
 
     if (average_dump == dumpavg)then
@@ -1083,64 +1073,44 @@ cntfrg: do i = 1, nfrag
           step_counter = 0
        endif
 
-       if (step_counter == 10)then !100 steps (see dumpdist)
+       if (step_counter == 5)then !100 steps (see dumpdist)
           write(*,*)
-          write(*,'(''COLLISION after '',i6,a6)') nstp,' steps'
+          write(*,'(''COLLISION after '',i6,a6)') nstep -50 ,' steps'
   
-          time_step_count = nstp + nint(800.0_wp * (2 * time_step * autofs)) 
+          time_step_count = nstep + nint(800.0_wp * (2 * time_step * autofs)) 
+          !time_step_count = nint(800.0_wp * (2 * time_step * autofs)) 
 
-          write(*,'(''STOP      after '',i6,a6)') time_step_count,' steps'
+          ntot = time_step_count
+
+          write(*,'(''STOP      after '',i6,a6)') ntot,' steps'
           write(*,*) 
           Tav = 0  !Start counting again to ensure only the
           m   = 0  !temp after the coll. is taken
        endif
 
-       if (nfrag > 1 .and.step_counter == 20)then !500 steps (we need some time after frag)
-          xtra = 150 * int(nuc/10)  !should be made dependend on the velocity of fragment
-                
-          write(*,'('' FRAGMENTATION occured!'')')
-          write(*,'('' Do '',i5,a)') xtra, ' extra steps'
-
-
-       endif
   
-      ! Stop if either the dist-criterion...
-       if (lowestCOM > distcrit)then
-          stopcid = .False.
-          write(*,*) 'The collision MD finished in',nstp,' steps'
-          write(*,*) 'Collision MD finished due to DISTANCE!'
-  !        write(*,*) ''
-  !        write(*,*) 'The LAB velocity:',  new_velo, 'm/s'
-          velo_diff = velo_cm - new_velo
-          time_step_count = 0
-          exit
-       endif
-
-     ! ...or the step-criterion is fullfilled
-       if (nstp == time_step_count+xtra)then  ! 800 Steps + xtra Steps
-          stopcid = .False.
-          write(*,*) 'Collision MD finished due to STEPS!'
-          write(*,*) ''
-          velo_diff = velo_cm - new_velo
-          E_velo = (0.5_wp * summass * ((new_velo)**2)) !/ evtoau
-          !write(*,*) ''
-          !write(*,*) 'Velo Difference' , velo_diff
-          !write(*,*) 'Velocity now  :',  new_velo, 'm/s'
-          !write(*,*) ''
-          time_step_count = 0
-          exit
-       endif
     endif
   
+
+    if ( step_counter > 10 .and. .not. fragmented)then !500 steps (we need some time after frag)
+
+      xtra = 150 * int(nuc/10)  !should be made dependend on the velocity of fragment
+
+      ntot = nstep + xtra + scale_chrg_steps
+      write(*,'('' FRAGMENTATION occured!'')')
+      !write(*,*) 'scale chrg steps', scale_chrg_steps
+      write(*,'('' Do '',i5,a)') xtra+scale_chrg_steps, ' extra steps'
+      write(*,'(''STOP      after '',i6,a6)') ntot,' steps'
+      fragmented = .true.
+
+    endif
   
   !2.Stop simulation because the max nsteps are reached. 
-     if (istep == ntot)then
-        write(*,*) 'Attention:'
-        write(*,*) '-----------------------------------------------'
-        write(*,*) 'Maximum number of steps has been reached, but  '
-        write(*,*) 'probably no collision occured.                 '
-        write(*,*) '-----------------------------------------------'
-        stopcid = .False.
+     if (nstep >= ntot)then
+       velo_diff = velo_cm - new_velo
+       write(*,*) 'The collision MD finished in',nstep,' steps'
+       stopcid = .False.
+       exit
      endif
   
   
