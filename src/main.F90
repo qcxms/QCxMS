@@ -1510,10 +1510,10 @@ ESI_loop: do
 
 
           ! reduce the simulation time
-          if ( nuc <= 6 ) nmax = nmax0 / 4 !CID may fragment more
+          if ( nuc < 10 ) nmax = nmax0 / 4 !CID may fragment more
 
           ! do not continue with small fragments
-          if ( nuc <= 5 ) then
+          if ( nuc <= 7 ) then
             small = .true.
             exit
           endif
@@ -1783,7 +1783,7 @@ cidlp:  do
         cema(1:3) = cema(1:3) / dum
 
         ! do not continue with small fragments
-        if ( nuc <= 5 ) then
+        if ( nuc <= 7 ) then
           small = .true.
           exit
         endif
@@ -2014,10 +2014,10 @@ MFPloop:  do
           cema(1:3) = cema(1:3) / dum
 
           ! reduce the simulation time
-          if ( nuc <= 6 ) nmax = nmax0 / 4 !CID may fragment more
+          if ( nuc < 10 ) nmax = nmax0 / 4 !CID may fragment more
 
           ! do not continue with small fragments
-          if ( nuc <= 5 ) then
+          if ( nuc <= 7 ) then
             small = .true.
             exit
           endif

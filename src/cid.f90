@@ -122,6 +122,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: avg_struc 
   logical :: count_fragmented = .false.
   logical :: fragmented = .false.
+  logical :: collided = .false.
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Stuff for checking RMSD
@@ -150,6 +151,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer :: cnt_start, start_cnt
   integer :: fconst_max
   integer :: cnt_steps
+  integer :: max_steps, add_steps
+  integer :: total_steps
  
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -169,7 +172,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     call random_seed()
   endif
 
-  open(file='struc1.xyz', newunit=s1)
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !Allocate molecule+Impactatom
@@ -245,18 +247,12 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   normmass =0
   cg = 0
   diff_cg = 0
-  check_fragmented = 1
   cnt = 0
   trafo = 0
   gradient = 0
 
   set_grad = huge(0.0_wp)
 
-  if (abs(mchrg) == 1 )  scale_chrg_steps =0
-  if ( abs(mchrg) > 1) scale_chrg_steps = 500
-  if ( abs(mchrg) > 2) scale_chrg_steps = 1000
-  !velo_rot(3,3) = 0.0d0
-  
   T_GBSA=300
   solvent='h2o'
   gsolvstate=0
@@ -276,6 +272,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !> this is not sufficiently tested. It was experienced that higher charge (or maybe larger molecules)
   !> need more time for rearrangement and this can influence the IP assignment in the end
 
+  !>> for larges charge, start counting later than the direct fragmentation event
+  if ( abs(mchrg) == 1) add_steps = 1000
+  if ( abs(mchrg) == 2) add_steps = 2000
+  if ( abs(mchrg) >= 3) add_steps = 3000
   
   !if ( abs(mchrg) == 1) cnt_start = 0
   !if ( abs(mchrg) > 1) cnt_start = 1000
@@ -346,10 +346,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   if (icoll == 1)then
 
     !> determine if start E is LAB or COM 
-    if ( ELAB > 0.0_wp ) then
-      Eimpact = ELAB
-    else
+    if ( ECOM > 0.0_wp ) then
       Eimpact = ECOM / beta
+    else
+      Eimpact = ELAB
     endif
 
     !1. Get Impact Energy! Than vary it via box-muller distribution
@@ -758,6 +758,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   m     = 0
   xtra  = 0
  
+  max_steps = ntot
+  total_steps = ntot
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! MD loops
@@ -849,13 +851,12 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
       count_average = .true.
       count_fragmented = .true.
       check_fragmented = nfrag
-
-      if ( abs(mchrg) == 1) cnt_start = 0
-      if ( abs(mchrg) > 1) cnt_start = ntot - 500
-      !if ( abs(mchrg) > 2) cnt_start = 3000
+      !max_steps = nstep + add_steps !* nfrag
+      !write(*,*) 'Do a total of', max_steps, 'steps'
     endif
 
-    if (nfrag < check_fragmented .and. count_average) then
+    if (nfrag < check_fragmented)then
+      if(count_average) then
       !write(*,*) 'ReSet'
       cnt = 0
       avxyz2 = 0
@@ -864,26 +865,25 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
       cg = 0
       count_average = .false.
       check_fragmented = 1
-      !start_cnt = 0
     endif
 
-
-    if (nfrag < check_fragmented .and. count_fragmented) then
+    if (count_fragmented) then
       count_fragmented = .false.
-      !fconst = 0
-      start_cnt = 0
-      !max_steps = nmax
+      !max_steps = total_steps
+      check_fragmented = 1
+       != nmax
     endif
-
-    if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
-      !fconst = fconst + 1
-      start_cnt = start_cnt + 1 
-    endif
+  endif
 
 
+  if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
+    !fconst = fconst + 1
+    !start_cnt = start_cnt + 1 
+    if ( abs(mchrg) == 1) cnt_start = 0
+    if ( abs(mchrg) > 1) cnt_start = total_steps - cnt_steps
+ endif
 
-    !if ( count_average ) then 
-    if ( count_average .and. start_cnt > cnt_start ) then 
+    if ( count_average .and. nstep > cnt_start ) then 
       cg = 0
       cnt = cnt + 1
       avxyz2  = avxyz2  + xyz0(:,:nuc)
@@ -980,8 +980,8 @@ cntfrg: do i = 1, nfrag
         if (cnt == cnt_steps) then
           store_avxyz  = avxyz2 / cnt
           call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
-          write(*,*) 'Count', cnt
-          write(*,*) 'Start Count', start_cnt
+          !write(*,*) 'Count', cnt
+          !write(*,*) 'Start Count', start_cnt
 
           !do i = 1, nfrag
           !  write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
@@ -999,25 +999,25 @@ cntfrg: do i = 1, nfrag
 
 
 
-    if(nfrag > 3) then ! nfragexit) then
-       !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-       !write(*,9001)
-       !fragstate=1
-       write(*,*) 'Too many frags'
-       exit
-    endif   
+    !if(nfrag > 3) then ! nfragexit) then
+    !   !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+    !   !write(*,9001)
+    !   !fragstate=1
+    !   write(*,*) 'Too many frags'
+    !   exit
+    !endif   
 
     ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
-    if(nfrag >= 3 ) then !nfragexit) then
-       morestep=morestep+1
-       if(morestep > 250) then !more) then
-          !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-          !write(*,9003)
-          write(*,*) 'three or more frags'
-          !fragstate=1
-          exit
-       endif 
-    endif        
+    !if(nfrag >= 3 ) then !nfragexit) then
+    !   morestep=morestep+1
+    !   if(morestep > 250) then !more) then
+    !      !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+    !      !write(*,9003)
+    !      write(*,*) 'three or more frags'
+    !      !fragstate=1
+    !      exit
+    !   endif 
+    !endif        
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! D U M P s
@@ -1077,12 +1077,12 @@ cntfrg: do i = 1, nfrag
           write(*,*)
           write(*,'(''COLLISION after '',i6,a6)') nstep -50 ,' steps'
   
-          time_step_count = nstep + nint(800.0_wp * (2 * time_step * autofs)) 
+          total_steps = nstep + nint(800.0_wp * (2 * time_step * autofs)) 
           !time_step_count = nint(800.0_wp * (2 * time_step * autofs)) 
 
-          ntot = time_step_count
+          collided = .true.
 
-          write(*,'(''STOP      after '',i6,a6)') ntot,' steps'
+          write(*,'(''STOP      after '',i6,a6)') total_steps,' steps'
           write(*,*) 
           Tav = 0  !Start counting again to ensure only the
           m   = 0  !temp after the coll. is taken
@@ -1090,23 +1090,22 @@ cntfrg: do i = 1, nfrag
 
   
     endif
-  
-
-    if ( step_counter > 10 .and. .not. fragmented)then !500 steps (we need some time after frag)
+ 
+    if ( nfrag > 1 .and. collided .and. .not. fragmented)then !500 steps (we need some time after frag)
 
       xtra = 150 * int(nuc/10)  !should be made dependend on the velocity of fragment
 
-      ntot = nstep + xtra + scale_chrg_steps
+      total_steps = nstep + xtra + add_steps
       write(*,'('' FRAGMENTATION occured!'')')
       !write(*,*) 'scale chrg steps', scale_chrg_steps
-      write(*,'('' Do '',i5,a)') xtra+scale_chrg_steps, ' extra steps'
-      write(*,'(''STOP      after '',i6,a6)') ntot,' steps'
+      !write(*,'('' Do '',i5,a)') xtra+scale_chrg_steps, ' extra steps'
+      write(*,'(''STOP      after '',i6,a6)') total_steps,' steps'
       fragmented = .true.
 
     endif
   
   !2.Stop simulation because the max nsteps are reached. 
-     if (nstep >= ntot)then
+     if (nstep >= total_steps)then
        velo_diff = velo_cm - new_velo
        write(*,*) 'The collision MD finished in',nstep,' steps'
        stopcid = .False.
@@ -1168,6 +1167,7 @@ cntfrg: do i = 1, nfrag
   else
    axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) / xyzavg_dump
   endif
+  fragmented = .false.
 
   deallocate(xyz0,velo0,grad0,mass0,iat0,achrg0,aspin0)
   

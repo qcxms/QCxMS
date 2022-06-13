@@ -493,30 +493,18 @@ ifit:if(it > 0)then
       ! Start counting to get average structure for IP calculation and the RMSD of 
       ! the counted structures
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      root_msd=0
-      highest_rmsd=0
-      normmass = 0
+CID:  if (method == 3) then
+        root_msd=0
+        highest_rmsd=0
+        normmass = 0
 
-      !> set conditions to start counting if fragmentation occurs
-      if (nfrag > check_fragmented ) then
-        count_average = .true.
-        count_fragmented = .true.
-        check_fragmented = nfrag
-        max_steps = nstep + add_steps !* nfrag
-        write(*,*) 'Do a total of', max_steps, 'steps'
-      endif
-
-      !> reset the count if it is no real fragmentation
-      if (nfrag < check_fragmented ) then
-        if ( count_average) then
-          !write(*,*) 'ReSet'
-          cnt = 0
-          avxyz2 = 0
-          rmsd_check = 0
-          store_avxyz  = 0
-          cg = 0
-          count_average = .false.
-          check_fragmented = 1
+        !> set conditions to start counting if fragmentation occurs
+        if (nfrag > check_fragmented ) then
+          count_average = .true.
+          count_fragmented = .true.
+          check_fragmented = nfrag
+          max_steps = nstep + add_steps !* nfrag
+          write(*,*) 'Do a total of', max_steps, 'steps'
         endif
 
         if ( count_fragmented) then
@@ -668,62 +656,160 @@ cntfrg: do i = 1, nfrag
           store_avxyz  = 0!avxyz2 / cnt
         endif
 
-      endif avct
+
+        if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
+          !fconst = fconst + 1
+          !start_cnt = start_cnt + 1 
+          if ( abs(mchrg) == 1) cnt_start = 0
+          if ( abs(mchrg) > 1) cnt_start = max_steps - cnt_steps
+        endif
+
+        !> start counting  
+avct:   if ( count_average .and. nstep > cnt_start ) then 
+          cg = 0
+          cnt = cnt + 1
+          avxyz2  = avxyz2  + xyz
+
+          store_avxyz  = avxyz2 / cnt
+
+          call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
 
 
+cntfrg:   do i = 1, nfrag
 
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      ! Check out the fragments. If > 2, do 1000 steps. If more, do 250 steps. 
-      ! If nfragexit (can be user-set), exit immidiately
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      ! exit always immidiately if we have > nfragexit frags
-      if(nfrag > nfragexit) then
-        write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-        write(*,9001)
-        fragstate=1
-        mdok=.true.
-        exit
-      endif   
+            if (cnt == 1) then
+              save_natf(i) = natf(i)
+            endif
 
-      ! if fragmented, start counting steps
-      !if(nfrag >= 2)then
-      !  fconst=fconst+1
-      !else
-      !  fconst=0          
-      !endif
+            if(natf(i) /= save_natf(i))then
+              !write(*,*) 'Fragment changed. Re-started count'
+              cnt = 0
+              store_avxyz  = 0 ! avxyz2 / cnt
+              avxyz2 = 0
+              cg = 0
+              exit cntfrg
+            endif
 
-      !> if we are sure that we have a fragmentation
-      !if(fconst > 100) then
-      !  nmax = nmax + fconst_max
-      !  write(*,'(''STOP      after '',i6,a6)') nmax,' steps'
-      !endif
+          !  allocate(nxyz1(3,natf(i)), &
+          !          nxyz2(3,natf(i)))
+          !  !> start-strucutre
+          !  normmass = 0
+
+          !  !> compute the center-of-geometry of current structure
+          !  do j = 1, natf(i)
+          !    !>> get the current fragment structure
+          !    rmsd_check(:,j,i,cnt) = xyzf(:,j,i)
+
+          !    !>> get the current center-of-geometry
+          !    cg(:,i,cnt) = cg(:,i,cnt) + 1 * rmsd_check(:,j,i,cnt)
+
+          !    normmass  = normmass + 1 
+          !  enddo
+
+          !  cg(:,i,cnt) = cg(:,i,cnt) / normmass
 
 
-      ! exit if nfrag=2 is constant for some time  
-      !if(fconst > 1000) then
-      !if(fconst > fconst_max) then
-      !if(start_cnt > cnt_start + fconst_max) then
-      !   write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-      !   write(*,9002)
-      !   write(*,*) 'START COUNT', start_cnt, 'fconst_max', fconst_max
-      !   fragstate=2       
-      !   mdok=.true.
-      !   exit
-      !endif   
+          !  !> calculate the difference betwen the two c-of-g
+          !  diff_cg(:,i,cnt) = cg(:,i,cnt) - cg(:,i,1)
 
-      ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
-      if(nfrag >= nfragexit) then
-        morestep=morestep+1
-        if(morestep > more) then
+
+          !  !> shift the c-of-g by the difference of c-of-g
+          !  do j=1,natf(i)
+          !    rmsd_check(:,j,i,cnt) = rmsd_check(:,j,i,cnt) - diff_cg(:,i,cnt)
+          !  enddo
+
+          !  !> transform into right array size for rmsd routine
+          !  do j = 1, natf(i)
+          !    !>> the right compare-structure is taken
+          !    nxyz1(:,j) = rmsd_check(:,j,i,1)
+          !    nxyz2(:,j) = rmsd_check(:,j,i,cnt)
+          !  enddo
+
+
+          !  !> calculate root-mean-sqare-deviation of the two structures
+          !  call get_rmsd( nxyz1, nxyz2, root_msd, gradient, trafo)
+
+          !  do j= 1, natf(i)
+          !    check_xyz (:,j) = matmul(nxyz2(:,j),trafo)
+          !  enddo
+
+          !  call get_rmsd( nxyz1, check_xyz, root_msd)!, gradient, trafo)
+
+          !  rmsd_frag(i) = root_msd !/cnt
+
+          !  if (rmsd_frag(i) > highest_rmsd(i)) highest_rmsd(i) = rmsd_frag(i)
+
+          !  deallocate(nxyz1, nxyz2)
+
+          enddo cntfrg
+
+
+          if (cnt == cnt_steps) then
+            store_avxyz  = avxyz2 / cnt
+            call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
+            write(*,*) 'Count', cnt
+            write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+
+            !do i = 1, nfrag
+            !  write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
+            !enddo
+             
+            !call get_rmsd CHARGES_avg_MDs
+            avxyz2 = 0
+            cnt = 0
+            rmsd_check = 0
+            cg = 0
+            count_average = .false.
+          endif
+
+        endif avct
+
+      elseif (method < 3) then ! if EI :
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! Check out the fragments. If > 2, do 1000 steps. If more, do 250 steps. 
+        ! If nfragexit (can be user-set), exit immidiately
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! exit always immidiately if we have > nfragexit frags
+        if(nfrag > nfragexit) then
           write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-          write(*,9003)
+          write(*,9001)
           fragstate=1
           mdok=.true.
-          exit
-         endif 
-      endif        
+          exit 
+        endif   
 
-      endif ifit
+        !if fragmented, start counting steps
+        if(nfrag >= 2)then
+          fconst=fconst+1
+        else
+          fconst=0          
+        endif
+
+        ! exit if nfrag=2 is constant for some time  
+        if(fconst > 1000) then
+          write(*,8000)nstep,nstep*tstep/fstoau,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+          write(*,9002)
+          fragstate=2       
+          mdok=.true.
+          exit 
+        endif   
+
+        ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
+        if(nfrag >= nfragexit) then
+          morestep=morestep+1
+          if(morestep > more) then
+            write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
+            write(*,9003)
+            fragstate=1
+            mdok=.true.
+            exit 
+          endif 
+        endif        
+
+      endif CID
+
+    endif ifit
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !> end the loop

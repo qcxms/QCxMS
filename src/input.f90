@@ -219,9 +219,9 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   
   !!!           !!!! 
   !!!!!! CID !!!!!!!
-  !!!           !!!! 
-  ELAB       =  0.0_wp  ! The laboratory energy frame 
-  ECOM       = 10.0_wp  ! The center-of-mass energy frame 
+  !!!           !!!!
+  ELAB       =  40.0_wp  ! The laboratory energy frame 
+  ECOM       =  0.0_wp  ! The center-of-mass energy frame 
   gas%Iatom  = 0        ! Index of collision atom
   manual_dist  = 0
 
