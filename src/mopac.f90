@@ -63,7 +63,7 @@ subroutine getmopgrad(nat,ic,xyz,g,chrg,etemp, &
 
    calls = calls + 1
    write(line,'(a,''mopac inp 2>/dev/null'')')trim(path)
-   call system(line)
+   call execute_command_line(line)
 
    open(unit=3,file='inp.aux')
 !3333 read(3,'(a)',end=3334)atmp

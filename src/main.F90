@@ -154,7 +154,7 @@ program QCxMS
   ! Start the program
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  call system('date')
+  call execute_command_line('date')
   write(*,'(//&
   &          22x,''*********************************************'')')
   write(*,'(22x,''*                                           *'')')
@@ -203,7 +203,7 @@ program QCxMS
   write(*,*)
 
   ! use/uncomments this piece of code for the lfc compiler which generates other system calls
-  !     call system('echo $SHELL > .tmpqcxms')
+  !     call execute_command_line('echo $SHELL > .tmpqcxms')
   !     open(unit=1,file='.tmpqcxms')
   !     read(1,'(a)')adum
   !     close(1,status='delete')
@@ -671,9 +671,9 @@ GS: if(.not.ex)then
          write(*,'('' average Etot '',F12.6)')Epav+Ekav
          write(*,'('' average T    '',F12.1)')Tav
          write(*,*)'structures for fragmentation runs written'
-         call system('rm -rf fort.11 fort.15')
-         call system('rm -rf charges.bin detailed.outi dftb_in.hsd')
-         call system('rm -rf dftb_pin.hsd band.out')
+         call execute_command_line('rm -rf fort.11 fort.15')
+         call execute_command_line('rm -rf charges.bin detailed.outi dftb_in.hsd')
+         call execute_command_line('rm -rf dftb_pin.hsd band.out')
          call version(2)
          stop 'normal termination of QCxMS'
       endif
@@ -1017,8 +1017,8 @@ iee2:  do i = 1, ndumpGS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !  create the directories 
-    call system('rm -rf TMPQCXMS')
-    call system('mkdir  TMPQCXMS')
+    call execute_command_line('rm -rf TMPQCXMS')
+    call execute_command_line('mkdir  TMPQCXMS')
 
     write(*,*) 'generating temporary dirs in TMPQCXMS ...'
     write(*,*)
@@ -1094,7 +1094,7 @@ iee2:  do i = 1, ndumpGS
     endif
 
     ! save the coord file (using TMOL) into coord.original, because it will be overwritten
-    if (iprog == 2) call system('cp coord coord.original')
+    if (iprog == 2) call execute_command_line('cp coord coord.original')
 
     ttime = 0
     nmax0 = nmax
@@ -2323,7 +2323,7 @@ frag:     if(tcont > 0 .and. maxsec > 0)then
 !ENDENDENDENDENDENDENDENDENDENDENDENDENDENDENDENDENDENDENDENDEND
 
   ! clear the node even when mdok=.F. (<ready> is read by script)
-  call system('touch ready')
+  call execute_command_line('touch ready')
   close(io_res)
   close(io_log)
 
@@ -2332,7 +2332,7 @@ frag:     if(tcont > 0 .and. maxsec > 0)then
   write(*,'(/,'' wall time (min)'',F10.2  )')(w2-w1)/60.0_wp
   write(*,'(  '' # of QC calls  '',I10  ,/)')calls
 
-  call system('date')
+  call execute_command_line('date')
   call version(2)
   write(*,*)'normal termination of QCxMS'
 

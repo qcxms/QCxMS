@@ -3,7 +3,6 @@
 os = host_machine.system()
 fc = meson.get_compiler('fortran')
 fc_id = fc.get_id()
-static = get_option('default_library') == 'static' and get_option('fortran_link_args').contains('-static')
 
 if fc_id == 'gcc'
   add_project_arguments(
@@ -110,7 +109,6 @@ mctc_dep = dependency(
   version: '>=0.3',
   fallback: ['mctc-lib', 'mctc_dep'],
   default_options: ['default_library=static', 'json=disabled'],
-  static: static,
 )
 exe_deps += mctc_dep
 
@@ -120,7 +118,6 @@ tblite_dep = dependency(
   version: '>=0.2',
   fallback: ['tblite', 'tblite_dep'],
   default_options: ['default_library=static', 'api=false'],
-  static: static,
 )
 exe_deps += tblite_dep
 

@@ -71,7 +71,7 @@ module qcxms_use_msindo
      close(io_msindo)
   
      calls = calls + 1
-     call system('/usr/local/bin/msindo < inp > job.last')
+     call execute_command_line('/usr/local/bin/msindo < inp > job.last')
   
   
      open(unit=io_tmp,file='tmpcoord')

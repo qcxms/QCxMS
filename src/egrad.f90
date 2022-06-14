@@ -76,7 +76,7 @@ subroutine egrad(first,nuc,xyz,iat,chrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail
 !ccccccccccccccccccccccccccc
 
    if(prog.eq.2)then
-      call system('rm -rf gradient energy dscf_problem')
+      call execute_command_line('rm -rf gradient energy dscf_problem')
       open(unit=87,file='coord')
       write(87,'(a)')'$coord'
       do i=1,nuc

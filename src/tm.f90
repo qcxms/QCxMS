@@ -110,8 +110,8 @@ module qcxms_use_turbomole
   !      write(atmp,'(''$fermi tmstrt='',F8.1,'' tmend='',F8.1)')temp,temp
      write(atmp,'(''$fermi tmstrt='',F8.1,'' hlcrt=-1.0E0  stop=1.E-99 addTS noerf '')')temp
   
-     call system('kdg fermi')
-     call system('kdg end')
+     call execute_command_line('kdg fermi')
+     call execute_command_line('kdg end')
      open(unit=33,file='control',ACCESS='APPEND')
      write(33,'(a)')atmp
      write(33,'(''$end'')')
@@ -122,19 +122,23 @@ module qcxms_use_turbomole
   
   subroutine dscftm
 
-     if(shell.eq.1) call system('( /usr/local/bin/ridft >  job.last ) > & /dev/null')
-     if(shell.eq.2) call system('( ridft >  job.last  2>   /dev/null')
+     if(shell.eq.1) &
+       call execute_command_line('( /usr/local/bin/ridft >  job.last ) > & /dev/null')
+     if(shell.eq.2) &
+       call execute_command_line('( ridft >  job.last  2>   /dev/null')
   
   end subroutine dscftm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
   
   subroutine gradtm
 
-  !     if(shell.eq.1) call system('( grad >> job.last ) > & /dev/null')
-  !     if(shell.eq.2) call system('  grad >> job.last  2>   /dev/null')
+  !     if(shell.eq.1) call execute_command_line('( grad >> job.last ) > & /dev/null')
+  !     if(shell.eq.2) call execute_command_line('  grad >> job.last  2>   /dev/null')
   
-     if(shell.eq.1) call system('( /usr/local/bin/rdgrad >> job.last ) > & /dev/null')
-     if(shell.eq.2) call system('  rdgrad >> job.last  2>   /dev/null')
+     if(shell.eq.1) &
+       call execute_command_line('( /usr/local/bin/rdgrad >> job.last ) > & /dev/null')
+     if(shell.eq.2) &
+       call execute_command_line('  rdgrad >> job.last  2>   /dev/null')
   
   end subroutine gradtm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
@@ -240,101 +244,101 @@ module qcxms_use_turbomole
      write(io,*)'q'
      close(io)
   
-     call system('define < define.inp > define.out')
+     call execute_command_line('define < define.inp > define.out')
   !     now the setup: hybrid func. b3lyp, grid m4 (savings with m3 are marginal
   !     and m3 grid with fermi smearing produces a noisy gradient!). Real savings
   !     come with rij, extol 2.500, and scfonv 6. CAB 6.10.15
   !     gridsize m3 for GGAs - tests June 2016 CAB
-     call system('kdg scfdump')
-     call system('kdg end    ')
-     call system('kdg dft    ')
-     call system("echo '$dft' >> control")
+     call execute_command_line('kdg scfdump')
+     call execute_command_line('kdg end    ')
+     call execute_command_line('kdg dft    ')
+     call execute_command_line("echo '$dft' >> control")
   !     PBE0
      if(func.eq.0) then
-        call system("echo ' functional pbe0'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$extol 2.500      '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional pbe0'   >> control")
+        call execute_command_line("echo ' gridsize m4      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$extol 2.500      '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     PBE12 and PBE38 do not work
      elseif(func.eq.2.or.func.eq.3.or.func.eq.9.or.func.eq.13) then
         error stop 'PBE12/PBE38/B3PW91/REVPBE not implemented with Turbomole.'
   !     M062X without dispersion!
      elseif(func.eq.4) then
-        call system("echo ' functional m062x'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$extol 2.500      '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional m062x'   >> control")
+        call execute_command_line("echo ' gridsize m4      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$extol 2.500      '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     PBE-D3BJ
      elseif(func.eq.5) then
-        call system("echo ' functional pbe'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional pbe'   >> control")
+        call execute_command_line("echo ' gridsize m3      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     B97-D3BJ. CAB 27.10.15
      elseif(func.eq.6) then
-        call system("echo ' functional b97-d'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional b97-d'   >> control")
+        call execute_command_line("echo ' gridsize m3      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     B3LYP-D3BJ
      elseif(func.eq.7)  then
-        call system("echo ' functional b3-lyp'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$extol 2.500      '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional b3-lyp'   >> control")
+        call execute_command_line("echo ' gridsize m4      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$extol 2.500      '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     PW6B95-D3BJ
      elseif(func.eq.8)  then
-        call system("echo ' functional pw6b95'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$extol 2.500      '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional pw6b95'   >> control")
+        call execute_command_line("echo ' gridsize m4      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$extol 2.500      '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     BLYP-D3BJ
      elseif(func.eq.10)  then
-        call system("echo ' functional b-lyp'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional b-lyp'   >> control")
+        call execute_command_line("echo ' gridsize m3      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     BP86-D3BJ
      elseif(func.eq.11)  then
-        call system("echo ' functional b-p'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional b-p'   >> control")
+        call execute_command_line("echo ' gridsize m3      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     TPSS-D3BJ
      elseif(func.eq.12) then
-        call system("echo ' functional tpss'   >> control")
-        call system("echo ' gridsize m3      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional tpss'   >> control")
+        call execute_command_line("echo ' gridsize m3      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
   !     BH-LYP-D3BJ
      elseif(func.eq.15) then
-        call system("echo ' functional bh-lyp'   >> control")
-        call system("echo ' gridsize m4      '   >> control")
-        call system("echo '$pop              '   >> control")
-        call system("echo '$rij              '   >> control")
-        call system("echo '$disp3 -bj        '   >> control")
-        call system("echo '$end              '   >> control")
+        call execute_command_line("echo ' functional bh-lyp'   >> control")
+        call execute_command_line("echo ' gridsize m4      '   >> control")
+        call execute_command_line("echo '$pop              '   >> control")
+        call execute_command_line("echo '$rij              '   >> control")
+        call execute_command_line("echo '$disp3 -bj        '   >> control")
+        call execute_command_line("echo '$end              '   >> control")
      endif
   
   
@@ -375,77 +379,77 @@ module qcxms_use_turbomole
   
      if(it.ge.10000)error stop 'error 1 inside copytm'
   
-     call system('cp coord coord.original')
+     call execute_command_line('cp coord coord.original')
   
      if(it.ge.1000)then
         write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp alpha   TMPQCXMS/TMP.'',i4)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp beta    TMPQCXMS/TMP.'',i4)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp control TMPQCXMS/TMP.'',i4)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp basis   TMPQCXMS/TMP.'',i4)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp coord   TMPQCXMS/TMP.'',i4)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i4)')it
-        call system(fname)
+        call execute_command_line(fname)
         return
      endif
   
      if(it.ge.100)then
         write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i3)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp alpha   TMPQCXMS/TMP.'',i3)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp beta    TMPQCXMS/TMP.'',i3)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp control TMPQCXMS/TMP.'',i3)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp basis   TMPQCXMS/TMP.'',i3)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp coord   TMPQCXMS/TMP.'',i3)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i3)')it
-        call system(fname)
+        call execute_command_line(fname)
         return
      endif
   
      if(it.ge.10)then
         write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i2)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp alpha   TMPQCXMS/TMP.'',i2)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp beta    TMPQCXMS/TMP.'',i2)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp control TMPQCXMS/TMP.'',i2)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp basis   TMPQCXMS/TMP.'',i2)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp coord   TMPQCXMS/TMP.'',i2)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i2)')it
-        call system(fname)
+        call execute_command_line(fname)
         return
      endif
   
      if(it.ge.0)then
         write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i1)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp alpha   TMPQCXMS/TMP.'',i1)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp beta    TMPQCXMS/TMP.'',i1)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp control TMPQCXMS/TMP.'',i1)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp basis   TMPQCXMS/TMP.'',i1)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''cp coord   TMPQCXMS/TMP.'',i1)')it
-        call system(fname)
+        call execute_command_line(fname)
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i1)')it
-        call system(fname)
+        call execute_command_line(fname)
         return
      endif
   
@@ -464,29 +468,29 @@ module qcxms_use_turbomole
   
      if(it.ge.10000)error stop 'error 1 inside copytm'
   
-     call system('cp coord coord.original')
+     call execute_command_line('cp coord coord.original')
   
      if(it.ge.1000)then
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i4)')it
-        call system(fname)
+        call execute_command_line(fname)
         return
      endif
   
      if(it.ge.100)then
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i3)')it
-        call system(fname)
+        call execute_command_line(fname)
         return
      endif
   
      if(it.ge.10)then
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i2)')it
-        call system(fname)
+        call execute_command_line(fname)
         return
      endif
   
      if(it.ge.0)then
         write(fname,'(''mv coord.original TMPQCXMS/TMP.'',i1)')it
-        call system(fname)
+        call execute_command_line(fname)
         return
      endif
   

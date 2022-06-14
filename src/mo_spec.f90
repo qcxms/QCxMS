@@ -53,8 +53,8 @@ module qcxms_mo_spec
            error stop
            write(*,*) 'doing DFT for MO spectrum for M ...'
            call eqm(3,nat,xyz,iat,mchrg,-1,0.0_wp,.false.,idum,energy,nel,nb,ECP,spec_calc)
-           call system('rm -f ORCA.INPUT.prop')
-           call system('mv neutral.out qcxms.Mspec')
+           call execute_command_line('rm -f ORCA.INPUT.prop')
+           call execute_command_line('mv neutral.out qcxms.Mspec')
            if(abs(energy).lt.1.d-8.or.idum.ne.1) error stop 'QC initialization error'
            call geteps('qcxms.Mspec',nat,iat,mchrg,eps,mopop,ncore,ihomo,nb)
            emo (1:ihomo) = eps(1,1:ihomo)
@@ -63,7 +63,7 @@ module qcxms_mo_spec
         elseif(prog.eq.7)then
            write(*,*) 'doing XTB for MO spectrum for M ...'
            call eqm(7,nat,xyz,iat,mchrg,-1,0.0_wp,.false.,idum,energy,nel,nb,ECP,spec_calc)
-           call system('mv neutral.out qcxms.Mspec.xtb')
+           call execute_command_line('mv neutral.out qcxms.Mspec.xtb')
            if(abs(energy).lt.1.d-8.or.idum.ne.1) error stop 'QC initialization error'
            call readpopmo(nat,nao,ihomo,emo,focc,mopop)
            
@@ -71,7 +71,7 @@ module qcxms_mo_spec
         else
            write(*,*) 'doing XTB2 for MO spectrum for M ...'
            call eqm(8,nat,xyz,iat,mchrg,-1,0.0_wp,.false.,idum,energy,nel,nb,ECP,spec_calc)
-           call system('mv neutral.out qcxms.Mspec.xtb2')
+           call execute_command_line('mv neutral.out qcxms.Mspec.xtb2')
            if(abs(energy).lt.1.d-8.or.idum.ne.1) error stop 'QC initialization error'
            call readpopmo(nat,nao,ihomo,emo,focc,mopop)
         endif

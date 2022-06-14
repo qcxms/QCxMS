@@ -107,13 +107,13 @@ module qcxms_utility
    ! MNDO99
       if(iprog.eq.5) write(atmp,'(a,''mndo99 < inp > '',a)') trim(path),trim(fout)
    
-      call system(atmp)
+      call execute_command_line(atmp)
    
    ! TM GRAD
       if(iprog.eq.2)then
          if(shell.eq.1) write(atmp,'(''( '',a,''rdgrad >> '',a,'' ) > & /dev/null'')') trim(path),trim(fout)
          if(shell.eq.2) write(atmp,'(''rdgrad >> '',a,'' 2> /dev/null'')')trim(fout)
-         call system(atmp)
+         call execute_command_line(atmp)
       endif
    
    end subroutine
@@ -154,7 +154,7 @@ module qcxms_utility
       if(it.lt.100)  write(fname,'(''mkdir TMPQCXMS/TMP.'',i2)')it
       if(it.lt.10)   write(fname,'(''mkdir TMPQCXMS/TMP.'',i1)')it
    
-      call system(fname)
+      call execute_command_line(fname)
    end
    
    
@@ -169,35 +169,35 @@ module qcxms_utility
    
       if(it.ge.1000)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')it
-         call system(fname)
+         call execute_command_line(fname)
    !        write(fname,'(''cp charges.bin TMPQCXMS/TMP.'',i4)')it
-   !        call system(fname)
+   !        call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i4)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.100)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i3)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i3)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.10)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i2)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i2)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.0)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i1)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i1)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
@@ -215,41 +215,41 @@ module qcxms_utility
    
       if(it.ge.1000)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp inp.den TMPQCXMS/TMP.'',i4)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i4)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.100)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i3)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp inp.den TMPQCXMS/TMP.'',i3)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i3)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.10)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i2)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp inp.den TMPQCXMS/TMP.'',i2)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i2)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.0)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i1)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp inp.den TMPQCXMS/TMP.'',i1)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i1)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
@@ -269,41 +269,41 @@ module qcxms_utility
    
       if(it.ge.1000)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp DENSITY TMPQCXMS/TMP.'',i4)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i4)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.100)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i3)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp DENSITY TMPQCXMS/TMP.'',i3)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i3)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.10)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i2)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp DENSITY TMPQCXMS/TMP.'',i2)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i2)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    
       if(it.ge.0)then
          write(fname,'(''cp qcxms.in TMPQCXMS/TMP.'',i1)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp DENSITY TMPQCXMS/TMP.'',i1)')it
-         call system(fname)
+         call execute_command_line(fname)
          write(fname,'(''cp coord TMPQCXMS/TMP.'',i1)')it
-         call system(fname)
+         call execute_command_line(fname)
          return
       endif
    

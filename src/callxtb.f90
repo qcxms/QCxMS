@@ -33,13 +33,13 @@ subroutine callxtb(nuc,xyz,iat,chrg,spin,etemp,E,g,achrg,aspin)
 
 ! check if the file exist
    inquire(file='inp',exist=ex)
-   if(ex)call system('rm inp')
+   if(ex)call execute_command_line('rm inp')
 
    inquire(file='gradient',exist=ex)
-   if(ex)call system('rm gradient')
+   if(ex)call execute_command_line('rm gradient')
 
    inquire(file='charges',exist=ex)
-   if(ex)call system('rm charges')
+   if(ex)call execute_command_line('rm charges')
 
 ! xtb reads coord file in tm format
 ! thus write inp file for xtb in AU
@@ -59,7 +59,7 @@ subroutine callxtb(nuc,xyz,iat,chrg,spin,etemp,E,g,achrg,aspin)
 !      write(*,*) atmp
 
 !  call xtb
-   call system(atmp)
+   call execute_command_line(atmp)
 
 !cccccccccccccccccccccccccccc
 !      READ OUTPUT
@@ -95,14 +95,14 @@ subroutine callxtb(nuc,xyz,iat,chrg,spin,etemp,E,g,achrg,aspin)
 
 ! move gradient to gradient.last - to be sure that the file gets overwritten
 ! xtb works in a way where it adds subsequent calculations to grad
-   CALL RENAME('gradient','gradient.last')
+   CALL execute_command_line('mv gradient gradient.last')
 
 ! read atomic charges
    open(3,file='charges')
    do i=1,nuc
       read(3,*)achrg(i)
    enddo
-   CALL RENAME('charges','charges.last')
+   CALL execute_command_line('mv charges charges.last')
 
 
 
