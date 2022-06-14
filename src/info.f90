@@ -2,6 +2,7 @@ module qcxms_info
   use cidcommon
   use common1
   use newcommon
+  use get_version
   use qcxms_mdinit, only: ekinet
   use xtb_mctc_accuracy, only : wp
   use xtb_mctc_symbols, only: toSymbol 
@@ -11,6 +12,57 @@ module qcxms_info
   implicit none
 
   contains
+
+  subroutine start_info
+
+    call system('date')
+    write(*,'(//&
+    &          22x,''*********************************************'')')
+    write(*,'(22x,''*                                           *'')')
+    write(*,'(22x,''*            Q   C   x   M   S              *'')')
+    write(*,'(22x,''*                                           *'')')
+    call version(0)
+    call version(1)
+    write(*,'(22x,''*                                           *'')')
+    write(*,'(22x,''*                S. Grimme                  *'')')
+    write(*,'(22x,''* Mulliken Center for Theoretical Chemistry *'')')
+    write(*,'(22x,''*             Universitaet Bonn             *'')')
+    write(*,'(22x,''*                                           *'')')
+    write(*,'(22x,''*********************************************'')')
+    write(*,*)
+    write(*,'('' QCxMS is free software: you can redistribute it and/or &
+            &modify it under'')')
+    write(*,'('' the terms of the GNU Lesser General Public License as &
+            &published by '')') 
+    write(*,'('' the Free Software Foundation, either version 3 of the &
+            &License, or '')') 
+    write(*,'('' (at your option) any later version.'')')
+    write(*,*)
+    write(*,'('' QCxMS is distributed in the hope that it will be useful, '')')
+    write(*,'('' but WITHOUT ANY WARRANTY; without even the implied warranty of '')') 
+    write(*,'('' MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the '')')
+    write(*,'('' GNU Lesser General Public License for more details.'')')
+    write(*,*)
+    write(*,'(''Cite this work as:'')')
+    write(*,'(''S.Grimme, Angew.Chem.Int.Ed. 52 (2013) 6306-6312.'')')
+    write(*,*)
+    write(*,'(''for the CID module:'')')
+    write(*,'(''J. Koopman, S. Grimme, J. Am. Soc. Mass Spectrom., (2021), &
+             & DOI: 10.1021/jasms.1c00098 '')')
+    write(*,*)
+    write(*,'(''with respect to negative/multiple charges:'')')
+    write(*,'(''J. Koopman, S. Grimme, ChemRxiv, (2022), &
+             & DOI: 10.26434/chemrxiv-2022-w5260 '')')
+    write(*,*)
+    write(*,'(''for the GFN1-xTB implementation:'')')
+    write(*,'(''V. Asgeirsson, C.Bauer, S. Grimme, Chem. Sci. 8 (2017) 4879'')')
+    write(*,*)
+    write(*,'(''for the GFN2-xTB implementation:'')')
+    write(*,'('' J. Koopman, S. Grimme, ACS Omega 4 (12) (2019) 15120-15133, &
+             & DOI: 10.1021/acsomega.9b02011 '')')
+    write(*,*)
+
+  end subroutine start_info
 
 
   subroutine info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, &
@@ -570,5 +622,8 @@ info: if ( method /= 3 ) then !.and. method /= 4 )then
   
   
   end subroutine qcstring
+
+
+
 
 end module qcxms_info

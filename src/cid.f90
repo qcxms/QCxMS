@@ -267,15 +267,22 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!
   !> count the number of steps that are used for averaging structures for IP calc
-  if ( abs(mchrg) == 1) cnt_steps = 50
-  if ( abs(mchrg) > 1) cnt_steps = 100
+  cnt_steps = 50
+  !if ( abs(mchrg) == 1) cnt_steps = 50
+  !if ( abs(mchrg) > 1) cnt_steps = 100
   !> this is not sufficiently tested. It was experienced that higher charge (or maybe larger molecules)
   !> need more time for rearrangement and this can influence the IP assignment in the end
 
   !>> for larges charge, start counting later than the direct fragmentation event
-  if ( abs(mchrg) == 1) add_steps = 1000
-  if ( abs(mchrg) == 2) add_steps = 2000
-  if ( abs(mchrg) >= 3) add_steps = 3000
+
+  if (nuc <= 10 ) add_steps = 0
+  if (nuc > 10  ) add_steps = (nuc / 10) * 500
+  if (nuc >= 40 ) add_steps = (nuc / 10) * 1000
+
+
+  !if ( abs(mchrg) == 1) add_steps = 1000
+  !if ( abs(mchrg) == 2) add_steps = 2000
+  !if ( abs(mchrg) >= 3) add_steps = 3000
   
   !if ( abs(mchrg) == 1) cnt_start = 0
   !if ( abs(mchrg) > 1) cnt_start = 1000
@@ -879,8 +886,9 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
     !fconst = fconst + 1
     !start_cnt = start_cnt + 1 
-    if ( abs(mchrg) == 1) cnt_start = 0
-    if ( abs(mchrg) > 1) cnt_start = total_steps - cnt_steps
+    !if ( abs(mchrg) == 1) cnt_start = 0
+    !if ( abs(mchrg) > 1) cnt_start = total_steps - cnt_steps
+    cnt_start = total_steps - cnt_steps
  endif
 
     if ( count_average .and. nstep > cnt_start ) then 
@@ -980,7 +988,7 @@ cntfrg: do i = 1, nfrag
         if (cnt == cnt_steps) then
           store_avxyz  = avxyz2 / cnt
           call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
-          !write(*,*) 'Count', cnt
+          write(*,*) nstep, 'Count', cnt
           !write(*,*) 'Start Count', start_cnt
 
           !do i = 1, nfrag
@@ -1093,9 +1101,9 @@ cntfrg: do i = 1, nfrag
  
     if ( nfrag > 1 .and. collided .and. .not. fragmented)then !500 steps (we need some time after frag)
 
-      xtra = 150 * int(nuc/10)  !should be made dependend on the velocity of fragment
+      !xtra = 150 * int(nuc/10)  !should be made dependend on the velocity of fragment
 
-      total_steps = nstep + xtra + add_steps
+      total_steps = nstep + add_steps +xtra
       write(*,'('' FRAGMENTATION occured!'')')
       !write(*,*) 'scale chrg steps', scale_chrg_steps
       !write(*,'('' Do '',i5,a)') xtra+scale_chrg_steps, ' extra steps'

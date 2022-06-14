@@ -230,9 +230,13 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   !if ( abs(mchrg) > 2) cnt_start = 3000
 
   !>> for larges charge, start counting later than the direct fragmentation event
-  if ( abs(mchrg) == 1) add_steps = 1000
-  if ( abs(mchrg) == 2) add_steps = 2000
-  if ( abs(mchrg) >= 3) add_steps = 6000
+  !if ( abs(mchrg) == 1) add_steps = 1000
+  !if ( abs(mchrg) == 2) add_steps = 2000
+  !if ( abs(mchrg) >= 3) add_steps = 6000
+
+  if (nuc <= 10 ) add_steps = 0
+  if (nuc > 10  ) add_steps = (nuc / 10) * 500
+  if (nuc >= 40 ) add_steps = (nuc / 10) * 1000
 
   !!!!!!!!!!!!!!!!!!
   
@@ -660,8 +664,9 @@ cntfrg: do i = 1, nfrag
         if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
           !fconst = fconst + 1
           !start_cnt = start_cnt + 1 
-          if ( abs(mchrg) == 1) cnt_start = 0
-          if ( abs(mchrg) > 1) cnt_start = max_steps - cnt_steps
+          !if ( abs(mchrg) == 1) cnt_start = 0
+          !if ( abs(mchrg) > 1) cnt_start = max_steps - cnt_steps
+          cnt_start = max_steps - cnt_steps
         endif
 
         !> start counting  

@@ -34,8 +34,8 @@ use qcxms_iniqm, only: iniqm
 use qcxms_input, only: input, command_line_args
 use qcxms_mdinit, only: mdinitu, ekinet
 use qcxms_molecular_dynamics, only: md, center_of_mass
-use qcxms_info, only: info_main, info_sumup, cidcheck
-use readcommon
+!use readcommon
+use qcxms_info, only: info_main, info_sumup, cidcheck, start_info
 use qcxms_use_orca, only: copyorc
 use qcxms_use_turbomole, only: copytm, copytm_ip
 use qcxms_utility
@@ -180,54 +180,6 @@ real(wp) :: Tcheck
 ! Start the program
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-call execute_command_line('date')
-write(*,'(//&
-&          22x,''*********************************************'')')
-write(*,'(22x,''*                                           *'')')
-write(*,'(22x,''*            Q   C   x   M   S              *'')')
-write(*,'(22x,''*                                           *'')')
-call version(0)
-write(*,'(22x,''*                                           *'')')
-write(*,'(22x,''*                S. Grimme                  *'')')
-write(*,'(22x,''* Mulliken Center for Theoretical Chemistry *'')')
-write(*,'(22x,''*             Universitaet Bonn             *'')')
-write(*,'(22x,''*                  2008-21                  *'')')
-call version(1)
-write(*,'(22x,''*                                           *'')')
-write(*,'(22x,''*********************************************'')')
-write(*,*)
-write(*,'('' QCxMS is free software: you can redistribute it and/or &
-        &modify it under'')')
-write(*,'('' the terms of the GNU Lesser General Public License as &
-        &published by '')') 
-write(*,'('' the Free Software Foundation, either version 3 of the &
-        &License, or '')') 
-write(*,'('' (at your option) any later version.'')')
-write(*,*)
-write(*,'('' QCxMS is distributed in the hope that it will be useful, '')')
-write(*,'('' but WITHOUT ANY WARRANTY; without even the implied warranty of '')') 
-write(*,'('' MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the '')')
-write(*,'('' GNU Lesser General Public License for more details.'')')
-write(*,*)
-write(*,'(''Cite this work as:'')')
-write(*,'(''S.Grimme, Angew.Chem.Int.Ed. 52 (2013) 6306-6312.'')')
-write(*,*)
-write(*,'(''for the CID module:'')')
-write(*,'(''J. Koopman, S. Grimme, J. Am. Soc. Mass Spectrom., (2021), &
-         & DOI: 10.1021/jasms.1c00098 '')')
-write(*,*)
-write(*,'(''for the GFN1-xTB implementation:'')')
-write(*,'(''V. Asgeirsson, C.Bauer, S. Grimme, Chem. Sci. 8 (2017) 4879'')')
-write(*,*)
-write(*,'(''for the GFN2-xTB implementation:'')')
-write(*,'('' J. Koopman, S. Grimme, ACS Omega 4 (12) (2019) 15120-15133, &
-         & DOI: 10.1021/acsomega.9b02011 '')')
-write(*,*)
-write(*,'(50(''-''))')
-write(*,'(''Current Dev. : J. Koopman '')')
-write(*,'(''Former Dev.  : V.Asgeirsson, C.Bauer '')')
-write(*,'(50(''-''))')
-write(*,*)
 
 ! use/uncomments this piece of code for the lfc compiler which generates other system calls
 !     call execute_command_line('echo $SHELL > .tmpqcxms')
@@ -237,7 +189,7 @@ write(*,*)
 !     if(index(adum,'tcsh') /= 0) shell=1
 !     if(index(adum,'bash') /= 0) shell=2
 
-
+call start_info
 shell=2
 !write(*,*)
 !write(*,*) 'Shell ',shell
@@ -555,8 +507,8 @@ prun: if(.not.prod) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Set the charge of the chosen method 
-  ! 0 = EI , 1 = CSC, 2 = DEA, 3 = CID
-  if     (method  ==  0 ) then !.or. method  ==  2) then
+  ! 0 = EI , 1 = CSC,  3 = CID
+  if     (method  ==  0 ) then 
     mchrg = 0
   elseif (method  ==  1 .or. method  ==  3) then 
     mchrg = mchrg_prod 
