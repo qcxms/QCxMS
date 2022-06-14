@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# The pqcxms script is used to do parallel computations on a local machine.
+# Use either the maximum number of possible threads <nproc> or define the 
+# number with 'pqcxms <$1>'.
+
+TMPDIR=TMPQCXMS
+if [ ! -d "$TMPDIR" ]; then
+    echo "No TMPQCXMS folder! -> run qcxms first!"
+    exit
+fi
+
+usage()
+{
+  echo " (local) Parallel-QCxMS run-script"
+  echo 
+  echo " usage: pqcxms  "
+  echo "                -j <number of Jobs> "
+  echo "                -t <number of OMP_threads> "
+  echo ">> If nothing is defined, maximum number of <nproc> is used. <<" 
+  echo
+  echo " Run QCxMS twice before production runs can start. "
+}
+
+
+#########################################################################
+# Balance to get nproc == njob * nthread
+nthread=1
+njob=$(nproc | awk "{print \$1/$nthread}")
+qcxms=$(which qcxms)
+#########################################################################
+
+# Set options
+while [ "$1" != "" ]; do
+
+  PARAM=$(echo "$1" | awk  '{print $1}')
+  VALUE=$(echo "$2" | awk  '{print $1}')
+
+  case $PARAM in
+
+    -h | --help)
+      usage
+      exit
+      ;;
+
+    # set number of jobs
+    -j | --jobs)
+        if [ $VALUE -le $njob ]; then
+          njob=$VALUE
+        elif [ $VALUE -gt $njob ]; then
+          echo "Cannot exceed max number of threads. Reduced to $njob parallel calculations."
+          echo
+        else
+          echo "Provide number of jobs you want to run - E X I T "
+          echo
+          exit
+        fi
+        ;;
+
+    # set number of threads (OMP)
+    -t | --threads)
+      nthread=$VALUE
+      njob=$(nproc | awk "{print int(\$1/$nthread)}")
+      ;;
+
+    *)
+      echo "Invalid option - see below "
+      usage
+      exit
+      ;;
+  esac
+
+  shift 
+  shift 
+
+done
+
+echo 
+echo "Starting $njob qcxms runs, each using $nthread threads."
+echo
+
+# Remove old files to avoid confusion if job is finished
+rm -f qcxms.out 2> /dev/null
+rm -f qcxms.res 2> /dev/null
+rm -f $TMPDIR/*/qcxms.out 2> /dev/null
+rm -f $TMPDIR/*/qcxms.res 2> /dev/null
+
+
+cat > wrapped_qcxms <<-EOF
+if [ -d "\$1" ]; then
+  cd "\$1" > /dev/null 2>&1
+  OMP_NUM_THREADS=$nthread  exec "$qcxms" -prod > qcxms.out 2>&1 
+fi
+EOF
+
+chmod +x wrapped_qcxms
+wrapper=$(realpath wrapped_qcxms)
+
+printf "%s\0" $TMPDIR/*/ | xargs -n 1 -P $njob -0 "$wrapper" 
+rm "$wrapper"
+
+cat $TMPDIR/*/qcxms.out >> qcxms.out || exit 1
+cat $TMPDIR/*/qcxms_cid.res >> qcxms_cid.res 2> /dev/null || rm qcxms_cid.res
+cat $TMPDIR/*/qcxms.res >> qcxms.res 2> /dev/null || rm qcxms.res

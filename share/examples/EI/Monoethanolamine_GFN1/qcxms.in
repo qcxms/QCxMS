@@ -1,0 +1,5 @@
+xtb
+ntraj 300  
+tmax  10    
+tinit 500 
+ieeatm 0.6 
