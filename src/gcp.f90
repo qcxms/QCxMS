@@ -87,7 +87,7 @@ enddo
 !* A '#' and the beginning will tell the program to read a different format *
 !****************************************************************************
 if(method.eq.''.or.method.eq.'file')then
-  call system('hostname > .tmpx')
+  call execute_command_line('hostname > .tmpx')
   open(unit=43,file='.tmpx')
   read(43,'(a)')ftmp
   close(43,status='delete')  

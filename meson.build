@@ -44,6 +44,7 @@ qcxms_exe = executable(
   sources: prog,
   dependencies: qcxms_dep,
   install: install,
+  link_language: 'fortran',
 )
 
 if install

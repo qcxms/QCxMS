@@ -3,7 +3,6 @@
 os = host_machine.system()
 fc = meson.get_compiler('fortran')
 fc_id = fc.get_id()
-static = get_option('default_library') == 'static' and get_option('fortran_link_args').contains('-static')
 
 if fc_id == 'gcc'
   add_project_arguments(
@@ -23,6 +22,9 @@ elif fc_id == 'intel'
     '-DLINUX',
     language: 'c',
   )
+  if fc.version().version_compare('<19.1')
+    error('Intel version 19.1 or higher is required.')
+  endif
 elif fc_id == 'pgi' or fc_id == 'nvidia_hpc'
   add_project_arguments(
     '-Mbackslash',
@@ -47,23 +49,27 @@ endif
 
 if lapack_vendor == 'mkl'
   mkl_dep = []
+  cc = fc
+  if add_languages('c', required: false, native: false)
+    cc = meson.get_compiler('c')
+  endif
   if fc_id == 'intel'
-    mkl_dep += fc.find_library('mkl_intel_lp64')
+    mkl_dep += cc.find_library('mkl_intel_lp64')
     if get_option('openmp')
-      mkl_dep += fc.find_library('mkl_intel_thread')
+      mkl_dep += cc.find_library('mkl_intel_thread')
     endif
   elif fc_id == 'gcc'
-    mkl_dep += fc.find_library('mkl_gf_lp64')
+    mkl_dep += cc.find_library('mkl_gf_lp64')
     if get_option('openmp')
-      mkl_dep += fc.find_library('mkl_gnu_thread')
+      mkl_dep += cc.find_library('mkl_gnu_thread')
     endif
   else
     error('MKL not supported for this compiler')
   endif
   if not get_option('openmp')
-    mkl_dep += fc.find_library('mkl_tbb_thread')
+    mkl_dep += cc.find_library('mkl_tbb_thread')
   endif
-  mkl_dep += fc.find_library('mkl_core')
+  mkl_dep += cc.find_library('mkl_core')
   exe_deps += mkl_dep
 
 elif lapack_vendor == 'mkl-rt'
@@ -100,23 +106,21 @@ endif
 # Create the tool chain library as subproject
 mctc_dep = dependency(
   'mctc-lib',
-  version: '>=0.2',
+  version: '>=0.3',
   fallback: ['mctc-lib', 'mctc_dep'],
-  default_options: ['default_library=static'],
-  static: static,
+  default_options: ['default_library=static', 'json=disabled'],
 )
 exe_deps += mctc_dep
 
 # Create the tight-binding framework as subproject
 tblite_dep = dependency(
   'tblite',
-  version: '>=0.1',
+  version: '>=0.2',
   fallback: ['tblite', 'tblite_dep'],
-  default_options: ['default_library=static'],
-  static: static,
+  default_options: ['default_library=static', 'api=false'],
 )
 exe_deps += tblite_dep
 
-if tblite_dep.version().version_compare('>=0.2')
-  error('tblite version 0.2 or higher is not supported yet.')
+if tblite_dep.version().version_compare('>=0.3')
+  error('tblite version 0.3 or higher is not supported yet.')
 endif

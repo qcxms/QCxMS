@@ -22,11 +22,11 @@ module qcxms_mo_energy
       nex = .false.
 
       inquire(file='tmp.mspec',exist=ex)
-      if(ex) call system('rm tmp.mspec')
+      if(ex) call execute_command_line('rm tmp.mspec')
       open(file='tmp.mspec',newunit=io_tmp,status='new')
 
       inquire(file='qcxms.Mspec.tbxtb',exist=nex)
-      if(nex) call system('rm qcxms.Mspec.tbxtb')
+      if(nex) call execute_command_line('rm qcxms.Mspec.tbxtb')
       open(file='qcxms.Mspec.tbxtb',newunit=io_mspec,status='new')
 
       do ia=1,nat
@@ -103,7 +103,7 @@ module qcxms_mo_energy
           if (io < 0) exit  
        end do
        close(io_tmp, status='delete')
-!       call system('rm tmp.mspec')
+!       call execute_command_line('rm tmp.mspec')
     end subroutine readpopmo
 
 end module qcxms_mo_energy

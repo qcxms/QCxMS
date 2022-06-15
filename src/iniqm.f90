@@ -101,7 +101,7 @@ module qcxms_iniqm
        ! DFTB+
        if(prog == 0)then
           write(*,*)'initializing dftb+ ...'
-          call system('rm -f charges.bin')
+          call execute_command_line('rm -f charges.bin')
           call dftbout(nat,xyz,iat,chrg,spin,.false.,etemp,1.d-5)
           call qccall(0,'job.last')
           call dftbenergy(edum)
@@ -111,7 +111,7 @@ module qcxms_iniqm
              call qccall(0,'job.last')
              call dftbenergy(edum)
           endif
-          call system('rm -f band.out dftb_*in.hsd tmp-broyden*')
+          call execute_command_line('rm -f band.out dftb_*in.hsd tmp-broyden*')
        endif
 
        ! MOPAC
@@ -125,10 +125,10 @@ module qcxms_iniqm
        if(prog == 2)then
           call wrcoord(nat,xyz,iat)
           write(*,*)'initializing TM ...'
-          call system('rm -f control gradient energy')
+          call execute_command_line('rm -f control gradient energy')
           call initm(nat,iat,chrg,spin)
           if(etemp > 0) call setfermi(etemp)
-          call system('kdg scfdump')
+          call execute_command_line('kdg scfdump')
           call qccall(2,'job.last')
           call rdtmenergy('energy',edum)
        endif
@@ -136,11 +136,11 @@ module qcxms_iniqm
        ! ORCA
        if(prog == 3)then
           write(*,*)'initializing ORCA ...'
-          call system('rm -f ORCA.INPUT.gbw')
+          call execute_command_line('rm -f ORCA.INPUT.gbw')
           call orcaout(nat,xyz,iat,chrg,spin,etemp,.false.,ECP)
           call qccall(3,'job.last')
           call rdorcagrad('job.last',nat,grad,dum,dum2,edum)
-          call system('rm -f ORCA.INPUT.prop')
+          call execute_command_line('rm -f ORCA.INPUT.prop')
        endif
 
        ! MSINDO
@@ -148,13 +148,13 @@ module qcxms_iniqm
           write(*,*)'initializing MSINDO ...'
           call getmsindograd(.true.,nat,iat,chrg,spin,xyz,&
           &etemp,14,grad,edum,dum,dum2)
-          call system('rm -f fort.*')
+          call execute_command_line('rm -f fort.*')
        endif
     
        ! MNDO
        if(prog == 5)then
           write(*,*)'initializing MNDO99 ...'
-          call system('rm -f fort.11 fort.15')
+          call execute_command_line('rm -f fort.11 fort.15')
           call mndoout(nat,xyz,iat,chrg,spin,etemp,4,10)
           call qccall(5,'job.last')
           call mndograd('job.last',nat,grad,dum,dum2,edum)
@@ -169,7 +169,7 @@ module qcxms_iniqm
              call qccall(5,'job.last')
              call mndograd('job.last',nat,grad,dum,dum2,edum)
           endif
-          call system('rm -f fort.15 fort.11')
+          call execute_command_line('rm -f fort.15 fort.11')
        endif
     
     
@@ -285,7 +285,7 @@ module qcxms_iniqm
 
        ! DFTB+
        if(prog == 0)then
-          call system('rm -f charges.bin')
+          call execute_command_line('rm -f charges.bin')
           call dftbout(nat,xyz,iat,chrg,spin,.false.,etemp,1.d-5)
           if(chrg == 0)then
              call qccall(0,'neutral.out')
@@ -303,31 +303,31 @@ module qcxms_iniqm
 
        ! TURBOMOLE
        if(prog == 2)then
-          call system('rm -f control gradient energy')
+          call execute_command_line('rm -f control gradient energy')
           call wrcoord(nat,xyz,iat)
     
           if(chrg == 0)then
              call initm(nat,iat,chrg,spin)
              if(etemp > 0) call setfermi(etemp)
-             call system('kdg scfdump')
+             call execute_command_line('kdg scfdump')
              call qccall(2,'neutral.out')
-             call system('cp energy energy.neutral')
-             call system('cp gradient gradient.neutral')
+             call execute_command_line('cp energy energy.neutral')
+             call execute_command_line('cp gradient gradient.neutral')
              call rdtmenergy('energy.neutral',energy)
           else
              call initm(nat,iat,chrg,spin)
              if(etemp > 0) call setfermi(etemp)
-             call system('kdg scfdump')
+             call execute_command_line('kdg scfdump')
              call qccall(2,'ion.out')
-             call system('cp energy energy.ion')
-             call system('cp gradient gradient.ion')
+             call execute_command_line('cp energy energy.ion')
+             call execute_command_line('cp gradient gradient.ion')
              call rdtmenergy('energy.ion',energy)
           endif
        endif
 
        ! ORCA
        if(prog == 3)then
-          if(newcalc) call system('rm -f ORCA.INPUT.gbw')
+          if(newcalc) call execute_command_line('rm -f ORCA.INPUT.gbw')
           call orcaout(nat,xyz,iat,chrg,spin,etemp,.false.,ECP)
           if(chrg == 0)then
              call qccall(3,'neutral.out')
@@ -351,12 +351,12 @@ module qcxms_iniqm
        if(prog == 4)then
           call getmsindograd(.true.,nat,iat,chrg,spin,xyz,etemp,14, &
             gradient,energy,qat,dum2)
-          call system('rm -f fort.*')
+          call execute_command_line('rm -f fort.*')
        endif
     
        ! MNDO
        if(prog == 5)then
-          call system('rm fort.11 fort.15')
+          call execute_command_line('rm fort.11 fort.15')
           call mndoout(nat,xyz,iat,chrg,spin,etemp,4,10)
           if(chrg == 0)then
              call qccall(5,'neutral.out')
@@ -373,9 +373,9 @@ module qcxms_iniqm
           call callxtb(nat,xyz,iat,chrg,spin,etemp,energy,gradient,qat,dum2)
           write(*,*)
           if(chrg == 0)then
-             call system('mv xtb.last neutral.out')
+             call execute_command_line('mv xtb.last neutral.out')
           else
-             call system('mv xtb.last ion.out')
+             call execute_command_line('mv xtb.last ion.out')
           endif
        end if
     

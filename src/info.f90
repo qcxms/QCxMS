@@ -224,7 +224,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   ! Set xTB environment
   if ( prog == 6 .or. prog == 7 .or. prog == 8 ) then
     xtbhome=''
-    call getenv('XTBHOME',xtbhome)
+    call get_environment_variable('XTBHOME',xtbhome)
     if(xtbhome.eq.'') xtbhome='~/.XTBPARAM/'
     i=len(trim(xtbhome))
     if(xtbhome(i:i).ne.'/') xtbhome(i+1:i+1)='/'
