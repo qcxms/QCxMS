@@ -131,6 +131,5 @@ rmsd_dep = dependency(
   version: '>=0.1',
   fallback: ['rmsd-tool', 'rmsd_dep'],
   default_options: ['default_library=static'],
-  static: static,
 )
 exe_deps += rmsd_dep
