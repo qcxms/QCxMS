@@ -15,7 +15,7 @@ module qcxms_info
 
   subroutine start_info
 
-    call system('date')
+    call execute_command_line('date')
     write(*,'(//&
     &          22x,''*********************************************'')')
     write(*,'(22x,''*                                           *'')')
@@ -25,6 +25,7 @@ module qcxms_info
     call version(1)
     write(*,'(22x,''*                                           *'')')
     write(*,'(22x,''*                S. Grimme                  *'')')
+    write(*,'(22x,''*                J. Koopman                 *'')')
     write(*,'(22x,''* Mulliken Center for Theoretical Chemistry *'')')
     write(*,'(22x,''*             Universitaet Bonn             *'')')
     write(*,'(22x,''*                                           *'')')

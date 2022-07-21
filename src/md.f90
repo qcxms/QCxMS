@@ -505,172 +505,34 @@ CID:  if (method == 3) then
         !> set conditions to start counting if fragmentation occurs
         if (nfrag > check_fragmented ) then
           count_average = .true.
-          count_fragmented = .true.
+          !count_fragmented = .true.
           check_fragmented = nfrag
           max_steps = nstep + add_steps !* nfrag
           write(*,*) 'Do a total of', max_steps, 'steps'
         endif
 
-        if ( count_fragmented) then
-          count_fragmented = .false.
-          !fconst = 0
-          !start_cnt = 0
-          max_steps = nmax
-          check_fragmented = 1
-          !write(*,*) 'RESET!'
-          !start_cnt = 0
-          !max_steps = nmax
-          endif
-      endif
-
-
-      if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
-        !fconst = fconst + 1
-        !start_cnt = start_cnt + 1 
-        if ( abs(mchrg) == 1) cnt_start = 0
-        if ( abs(mchrg) > 1) cnt_start = max_steps - cnt_steps
-      endif
-
-      !> start counting  
-avct: if ( count_average .and. nstep > cnt_start ) then 
-        cg = 0
-        cnt = cnt + 1
-        avxyz2  = avxyz2  + xyz
-
-        store_avxyz  = avxyz2 / cnt
-
-        call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
-
-
-cntfrg: do i = 1, nfrag
-
-            if (cnt == 1) then
-              save_natf(i) = natf(i)
-            endif
-
-            if(natf(i) /= save_natf(i))then
-              write(*,*) 'Fragment changed. Re-started count'
-              cnt = 0
-              store_avxyz  = 0 ! avxyz2 / cnt
-              avxyz2 = 0
-              cg = 0
-              exit cntfrg
-            endif
-
-            allocate(nxyz1(3,natf(i)), &
-                    nxyz2(3,natf(i)))
-            !> start-strucutre
-            normmass = 0
-
-            !> compute the center-of-geometry of current structure
-            do j = 1, natf(i)
-              !>> get the current fragment structure
-              rmsd_check(:,j,i,cnt) = xyzf(:,j,i)
-
-              !>> get the current center-of-geometry
-              cg(:,i,cnt) = cg(:,i,cnt) + 1 * rmsd_check(:,j,i,cnt)
-
-              normmass  = normmass + 1 
-            enddo
-
-            cg(:,i,cnt) = cg(:,i,cnt) / normmass
-
-
-            !> calculate the difference betwen the two c-of-g
-            diff_cg(:,i,cnt) = cg(:,i,cnt) - cg(:,i,1)
-
-
-            !> shift the c-of-g by the difference of c-of-g
-            do j=1,natf(i)
-              rmsd_check(:,j,i,cnt) = rmsd_check(:,j,i,cnt) - diff_cg(:,i,cnt)
-            enddo
-
-            !> transform into right array size for rmsd routine
-            do j = 1, natf(i)
-              !>> the right compare-structure is taken
-              nxyz1(:,j) = rmsd_check(:,j,i,1)
-              nxyz2(:,j) = rmsd_check(:,j,i,cnt)
-            enddo
-
-            !>>>> write for test
-            !write(s1,*) natf(i)
-            !write(s1,*) 
-            !do j= 1, natf(i)
-            !  write(s1,*) toSymbol(iatf(j,i)), nxyz1(:,j)*autoaa
-            !enddo
-
-            write(s2,*) natf(i)
-            write(s2,*) 
-            do j= 1, natf(i)
-              write(s2,*) toSymbol(iatf(j,i)), nxyz2(:,j)*autoaa
-            enddo
-
-            !> calculate root-mean-sqare-deviation of the two structures
-            call get_rmsd( nxyz1, nxyz2, root_msd, gradient, trafo)
-
-
-            !write(*,*) 'RMSD',i,root_msd*autoaa
-            !write(*,*) 'trafo'
-            !write(*,*) trafo
-            !write(*,*)  
-            !write(*,*)  'TRANSFORM'
-
-            do j= 1, natf(i)
-              check_xyz (:,j) = matmul(nxyz2(:,j),trafo)
-            enddo
-
-            !write(s3,*) natf(i)
-            !write(s3,*) 
-            !do j= 1, natf(i)
-            !  write(s3,*) toSymbol(iatf(j,i)), check_xyz(:,j)*autoaa
-            !enddo
-
-            call get_rmsd( nxyz1, check_xyz, root_msd)!, gradient, trafo)
-
-            rmsd_frag(i) = root_msd !/cnt
-            !write(*,*)  
-            !write(*,*) 'RMSD new',i,(rmsd_frag(i)*aatoau)
-            if (rmsd_frag(i) > highest_rmsd(i)) highest_rmsd(i) = rmsd_frag(i)
-
-
-            deallocate(nxyz1, nxyz2)
-          enddo cntfrg
-
-
-          if (cnt == 50) then
-            store_avxyz  = avxyz2 / cnt
-            check_fragmented = nfrag
-            call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
-            write(*,*) 'Count', cnt
-
-            do i = 1, nfrag
-              write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
-            enddo
-             
-            !call get_rmsd CHARGES_avg_MDs
-            avxyz2 = 0
+        !> reset the count if it is no real fragmentation
+        if (nfrag < check_fragmented ) then
+          if ( count_average) then
+            !write(*,*) 'ReSet'
             cnt = 0
+            avxyz2 = 0
             rmsd_check = 0
+            store_avxyz  = 0
             cg = 0
             count_average = .false.
+            check_fragmented = 1
           endif
-        elseif (nfrag < check_fragmented) then
-          cnt = 0
-          rmsd_check = 0
-          store_avxyz  = 0!avxyz2 / cnt
-        endif
 
-
-        if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
-          !fconst = fconst + 1
-          !start_cnt = start_cnt + 1 
-          !if ( abs(mchrg) == 1) cnt_start = 0
-          !if ( abs(mchrg) > 1) cnt_start = max_steps - cnt_steps
-          cnt_start = max_steps - cnt_steps
+          !if ( count_fragmented) then
+          !  count_fragmented = .false.
+          !  max_steps = nmax
+          !  check_fragmented = 1
+          !endif
         endif
 
         !> start counting  
-avct:   if ( count_average .and. nstep > cnt_start ) then 
+avct:   if ( count_average ) then ! .and. nstep > cnt_start ) then 
           cg = 0
           cnt = cnt + 1
           avxyz2  = avxyz2  + xyz

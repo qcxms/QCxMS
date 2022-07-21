@@ -1090,8 +1090,6 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
   narg = command_argument_count()
 
 
-  write(*,*) 'COMM LINE ARGS: ', narg
-
   do while(iarg < narg)
     iarg = iarg + 1
     call get_argument(iarg, arg)

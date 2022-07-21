@@ -23,6 +23,7 @@ program QCxMS
 use cidcommon
 use common1
 use newcommon
+use readcommon
 use get_version
 use qcxms_boxmuller, only: vary_collisions, vary_energies
 use qcxms_cid_routine, only: cid, collision_setup, calc_ECOM

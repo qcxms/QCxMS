@@ -372,7 +372,7 @@ module qcxms_iniqm
        ! Call-xTB
        if (prog == 6) then
           call callxtb(nat,xyz,iat,mchrg,spin,etemp,energy,gradient,qat,dum2)
-          if(chrg == 0)then
+          if( mchrg == 0)then
              call execute_command_line('mv xtb.last neutral.out')
           else
              call execute_command_line('mv xtb.last ion.out')
@@ -526,7 +526,7 @@ module qcxms_iniqm
   !ccccccccccccccccccccccccccc
   
      if(prog == 2)then
-        call system('rm -rf gradient energy dscf_problem')
+        call execute_command_line('rm -rf gradient energy dscf_problem')
         open(unit=87,file='coord')
         write(87,'(a)')'$coord'
         do i=1,nuc

@@ -200,18 +200,9 @@ mult: if ( abs(mchrg) > 1 ) then
           ip_diff2(save_fragID(count_ip),save_chrgID(count_ip)) = huge(0.0_wp)
         enddo
 
-      !> if we have more than 1 chrg to distribute
-mult: if ( abs(mchrg) > 1 ) then
-
-        do count_ip = abs(mchrg), MATsize
-          !write(*,*) '--',ip_diff(save_fragID(count_ip),save_chrgID(count_ip))
-        enddo
-
-      endif mult !mchrg > 1
-    endif fg !nfrag > 0
-
-    !> set the correct charge for neg. ion mode
-    if (mchrg < 0 ) fragchrg2 = -1.0_wp * fragchrg2 
+        !do count_ip = abs(mchrg), MATsize
+        ! write(*,*) '--',ip_diff(save_fragID(count_ip),save_chrgID(count_ip))
+        !enddo
 
         !> for negative ions
         !if ( mchrg < 0 ) ip_diff2    = -1.0_wp * ip_diff2 

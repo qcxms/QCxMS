@@ -273,8 +273,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !> this is not sufficiently tested. It was experienced that higher charge (or maybe larger molecules)
   !> need more time for rearrangement and this can influence the IP assignment in the end
 
-  !>> for larges charge, start counting later than the direct fragmentation event
-
   if (nuc <= 10 ) add_steps = 0
   if (nuc > 10  ) add_steps = (nuc / 10) * 500
   if (nuc >= 40 ) add_steps = (nuc / 10) * 1000
@@ -724,7 +722,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 !  endif
 
   if ( prog == 3 ) then
-    call system('rm ORCA.INPUT.*')
+    call execute_command_line('rm ORCA.INPUT.*')
   endif
   
   spin = 0
@@ -883,15 +881,15 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   endif
 
 
-  if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
-    !fconst = fconst + 1
-    !start_cnt = start_cnt + 1 
-    !if ( abs(mchrg) == 1) cnt_start = 0
-    !if ( abs(mchrg) > 1) cnt_start = total_steps - cnt_steps
-    cnt_start = total_steps - cnt_steps
- endif
+  !if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
+  !  !fconst = fconst + 1
+  !  !start_cnt = start_cnt + 1 
+  !  !if ( abs(mchrg) == 1) cnt_start = 0
+  !  !if ( abs(mchrg) > 1) cnt_start = total_steps - cnt_steps
+  !  cnt_start = total_steps - cnt_steps
+  !endif
 
-    if ( count_average .and. nstep > cnt_start ) then 
+    if ( count_average ) then !.and. nstep > cnt_start ) then 
       cg = 0
       cnt = cnt + 1
       avxyz2  = avxyz2  + xyz0(:,:nuc)
