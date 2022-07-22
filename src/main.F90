@@ -2420,7 +2420,7 @@ frag:     if(tcont > 0 .and. maxsec > 0)then
 
   call timing(t2,w2)
   write(*,'(/,'' wall time (min)'',F10.2  )')(w2-w1)/60.0_wp
-  write(*,'(  '' # of QC calls  '',I10  ,/)')calls
+  !write(*,'(  '' # of QC calls  '',I10  ,/)')calls
 
   call execute_command_line('date')
   call version(2)

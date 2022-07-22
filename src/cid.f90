@@ -98,7 +98,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   
   !Rotation parameters
 !  real(wp) :: a,b,c
-  real(wp) :: d,f,g,lmin,lpos
+  real(wp) :: f,g,lmin,lpos
   real(wp) :: velo_rot(3,nuc), E_Rot
 
   ! Allocatables
@@ -512,50 +512,11 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
   call center_of_mass(nuc,mass,xyz,cm)
   
-  
-  !if (icoll == 1)then
-  !   call random_number(a)
-  !   call random_number(b)
-  !   call random_number(c)
-  !endif
-  call random_number(d)
   call random_number(f)
   call random_number(g)
   call random_number(lmin) ! Pos/Neg radomizer
   call random_number(lpos) ! Pos/Neg radomizer
   
-  !! Randomize the xyz direction in which the molecule is accelerated to ensure different collision angles 
-  !   a=0
-  !   b=0
-  !   c=1  ! set to z-axis, because Euler-rotation should account for collision angles
-  !!   write(*,*)  xyz
-  !if    (a >= b.and.a >= c)then
-  !   a=1
-  !   b=0
-  !   c=0
-  !   g=0
-  !   ! Random d,f
-  !   if(lmin < 0.5)f= (f * -1.0d0)
-  !   if(lpos < 0.5)d= (d * -1.0d0)
-  !   write(*,*) 'X-Axis'
-  !elseif(b >= a.and.b >= c)then
-  !   a=0
-  !   b=1
-  !   c=0
-  !   f=0
-  !   ! Random d,g
-  !   if(lmin < 0.5)d= (d * -1.0d0)
-  !   if(lpos < 0.5)g= (g * -1.0d0)
-  !   write(*,*) 'Y-Axis'
-  !elseif(c >= a.and.c >= b)then
-  !   a=0
-  !   b=0
-  !   c=1
-  !   d=0 
-  !   ! Random f,g
-  !   if(lmin < 0.5)f= (f * -1.0d0) 
-  !   if(lpos < 0.5)g= (g * -1.0d0) 
-  !   write(*,*) 'Z-Axis'
 
   !Vary the collision angle depending on the maximum radius of the molecule
   lowestx  =  huge(0.0_wp)
@@ -574,26 +535,25 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   enddo
   
   
-     if(lmin < 0.5)then
-       diff1 = (lowesty ) * f 
-     else
-       diff1 =  (highesty )* f 
-     endif
-     if(lpos < 0.5)then
-       diff2 = (lowestx )* g 
-     else
-       diff2 = highestx * g 
-     endif
+  if(lmin < 0.5)then
+    diff1 = (lowesty ) * f 
+  else
+    diff1 =  (highesty )* f 
+  endif
+  if(lpos < 0.5)then
+    diff2 = (lowestx )* g 
+  else
+    diff2 = highestx * g 
+  endif
   
-     if (g > 0.85) f = f*0.5 !reduce the amount of x-axis if y is very large
-     if (f > 0.85) g = g*0.5
-  !endif
+  if (g > 0.85) f = f*0.5 !reduce the amount of x-axis if y is very large
+  if (f > 0.85) g = g*0.5
  
-
-  
+ 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> First Collision starts here
   if(icoll == 1)then
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !> set (step) distance automatically
     if ( manual_dist == 0 ) then
       step_dist  =   2 * nuc * 10            ! set number of steps until collision depending on the size of the fragment/ion
@@ -626,11 +586,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
     xyzAr(1) = xyz_start(1) + diff2 *0.8 !(g * rtot)*0.6 
     xyzAr(2) = xyz_start(2) + diff1 *0.8 !(f * rtot)*0.6
-    xyzAr(3) = xyz_start(3) !+  !(d * rtot)*0.6
-  !  write(*,*) 'Ar XYZ', xyzAr/aatoau
-  !  write(*,*) 'randoms g=x',  g 
-  !  write(*,*) 'randoms f=y',  f 
-  !  write(*,*) 'randoms d=z',  d 
+    xyzAr(3) = xyz_start(3) 
   
     scale_velo = (direc * fasti)
   
@@ -659,7 +615,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
     xyzAr(1) = cm(1) + (direc(1) * start_dist) + diff2 * 0.7 !(g * rtot)*0.90 
     xyzAr(2) = cm(2) + (direc(2) * start_dist) + diff1 * 0.7 !(f * rtot)*0.90 
-    xyzAr(3) = cm(3) + (direc(3) * start_dist) !+ (d * rtot)*0.90 
+    xyzAr(3) = cm(3) + (direc(3) * start_dist) 
   !  xyzAr(:) = cm(:) + direc * start_dist 
     scale_velo = 0
   endif
@@ -987,7 +943,7 @@ cntfrg: do i = 1, nfrag
         if (cnt == cnt_steps) then
           store_avxyz  = avxyz2 / cnt
           call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
-          write(*,*) nstep, 'Count', cnt
+          !write(*,*) nstep, 'Count', cnt
           !write(*,*) 'Start Count', start_cnt
 
           !do i = 1, nfrag
@@ -1004,27 +960,6 @@ cntfrg: do i = 1, nfrag
 
     endif
 
-
-
-    !if(nfrag > 3) then ! nfragexit) then
-    !   !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-    !   !write(*,9001)
-    !   !fragstate=1
-    !   write(*,*) 'Too many frags'
-    !   exit
-    !endif   
-
-    ! add a few more cycles because fragmentation can directly proceed further and we don't want to miss this         
-    !if(nfrag >= 3 ) then !nfragexit) then
-    !   morestep=morestep+1
-    !   if(morestep > 250) then !more) then
-    !      !write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
-    !      !write(*,9003)
-    !      write(*,*) 'three or more frags'
-    !      !fragstate=1
-    !      exit
-    !   endif 
-    !endif        
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! D U M P s
@@ -1135,9 +1070,6 @@ cntfrg: do i = 1, nfrag
            
   E_velo = 0.5 * summass * ((new_velo*mstoau)**2)
   
-!  e_int0 = avgT*(0.5*3*nuc*kB)
-
-
   write(*,'(50(''#''))')
   write(*,*) 'Energetics after collision: '
   write(*,*)
@@ -1182,7 +1114,7 @@ cntfrg: do i = 1, nfrag
   
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!      
-  end subroutine
+  end subroutine cid
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   
@@ -1192,9 +1124,6 @@ cntfrg: do i = 1, nfrag
   !!! Routines
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
-  
- 
-
   !############################################################################
   !Distance coll atom to COM - N2 doesnt matter
   
@@ -1213,10 +1142,10 @@ cntfrg: do i = 1, nfrag
   
   new_dist = sqrt(dist(1)**2 + dist(2)**2 + dist(3)**2)
   
-  end subroutine
+  end subroutine distArCOM
   !############################################################################
   
-  !Calculate the  
+  !Calculate the  minimum and maximum distance from the COM
   subroutine minmaxCOM(new_dist,highestCOM,lowestCOM)
   use xtb_mctc_accuracy, only: wp
   implicit none

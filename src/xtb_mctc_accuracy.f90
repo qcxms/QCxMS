@@ -22,7 +22,7 @@ module xtb_mctc_accuracy
 
 
    !> Single precision real numbers
-!   integer, parameter :: sp = selected_real_kind(6)
+   integer, parameter :: sp = selected_real_kind(6)
 
    !> Double precision real numbers
    integer, parameter :: dp = selected_real_kind(15)

@@ -106,13 +106,11 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
    real(wp) :: trafo(3,3)
   !type(fragment_info) :: frag
   logical :: count_average = .false.
-  logical :: count_fragmented = .false.
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !Stuff for count start
   integer :: cnt_start, start_cnt
-  integer :: fconst_max
   integer :: cnt_steps
   integer :: max_steps, add_steps
  
@@ -224,16 +222,13 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
 
   
   cnt_start = 0
-  fconst_max = 1000
+
+  !> increase the time for rearangement for large structures or charge (not sufficiently tested)
   !if ( abs(mchrg) == 1) cnt_start = 0
   !if ( abs(mchrg) > 1) cnt_start = 1000
   !if ( abs(mchrg) > 2) cnt_start = 3000
 
-  !>> for larges charge, start counting later than the direct fragmentation event
-  !if ( abs(mchrg) == 1) add_steps = 1000
-  !if ( abs(mchrg) == 2) add_steps = 2000
-  !if ( abs(mchrg) >= 3) add_steps = 6000
-
+  !> for larges charge, start counting later than the direct fragmentation event
   if (nuc <= 10 ) add_steps = 0
   if (nuc > 10  ) add_steps = (nuc / 10) * 500
   if (nuc >= 40 ) add_steps = (nuc / 10) * 1000
@@ -275,7 +270,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      velof=1.0d0
      screendump=500
   endif
-  !mdump=screendump
+  mdump=screendump
   
   
   write(*,'(''step   time [fs]'',4x,''Epot'',7x,''Ekin'',7x,''Etot'',4x,''error'',2x,''#F   eTemp   frag. T'')')
@@ -498,14 +493,15 @@ ifit:if(it > 0)then
       ! the counted structures
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 CID:  if (method == 3) then
-        root_msd=0
-        highest_rmsd=0
+
+        !> there was an idea to check the rmsd for large deviation, but it was not found usefull
+        !root_msd=0
+        !highest_rmsd=0
         !normmass = 0
 
         !> set conditions to start counting if fragmentation occurs
         if (nfrag > check_fragmented ) then
           count_average = .true.
-          !count_fragmented = .true.
           check_fragmented = nfrag
           max_steps = nstep + add_steps !* nfrag
           write(*,*) 'Do a total of', max_steps, 'steps'
@@ -517,18 +513,12 @@ CID:  if (method == 3) then
             !write(*,*) 'ReSet'
             cnt = 0
             avxyz2 = 0
-            rmsd_check = 0
             store_avxyz  = 0
-            !cg = 0
             count_average = .false.
             check_fragmented = 1
+            !cg = 0
+            !rmsd_check = 0
           endif
-
-          !if ( count_fragmented) then
-          !  count_fragmented = .false.
-          !  max_steps = nmax
-          !  check_fragmented = 1
-          !endif
         endif
 
         !> start counting  
@@ -556,6 +546,9 @@ cntfrg:   do i = 1, nfrag
               !cg = 0
               exit cntfrg
             endif
+
+          !!! > this is the RMSD part - can be deleted, but was not easily implemented
+          ! >> saved here for easy re-implementation
 
           !  allocate(nxyz1(3,natf(i)), &
           !          nxyz2(3,natf(i)))
@@ -614,19 +607,14 @@ cntfrg:   do i = 1, nfrag
           if (cnt == cnt_steps) then
             store_avxyz  = avxyz2 / cnt
             call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
-            write(*,*) 'Count', cnt
+            if (verbose) write(*,*) 'Count', cnt
             write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
 
-            !do i = 1, nfrag
-            !  write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
-            !enddo
-             
-            !call get_rmsd CHARGES_avg_MDs
             avxyz2 = 0
             cnt = 0
-            rmsd_check = 0
-            !cg = 0
             count_average = .false.
+            !rmsd_check = 0
+            !cg = 0
           endif
 
         endif avct
