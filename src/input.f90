@@ -238,7 +238,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   FullAuto        = .False.     
   cell%TGas       = 300.0 ! (K) Temperatur of Gas 
   cell%PGas       = 0.132 ! (Pa = 1mTorr) Pressure of Gas
-  cell%lchamb     = 0.250 ! (m = 25,0 cm) coll. cell. length
+  cell%lchamb     = 0.200 ! (m = 20,0 cm) coll. cell. length
     
   ! 3) Thermal activation run-type
   TempRun    = .False.  
@@ -334,7 +334,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
           method=3
           gas%Iatom = 3 !Argon
           ! length of MFP runs in ps
-          tmax = 5
+          tmax = 3
         endif
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

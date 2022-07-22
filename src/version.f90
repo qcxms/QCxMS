@@ -7,7 +7,7 @@ contains
      integer,intent(in) :: i
      character(len=:), allocatable  :: line
 
-     line ='Jul 21 14:50:00 CEST 2022 '
+     line ='Jul 22 16:00:00 CEST 2022 '
 
      if (i.eq.0)then
        write(*,' (22x,''*'',18x,''V5.2.0'',18x,'' *'')'  )

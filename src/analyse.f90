@@ -63,33 +63,6 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
   write(*,'('' computing average fragment structures ...'')')
   call avg_frag_struc(nuc,iat,iatf,axyz,list,nfrag, natf, xyzf)
 
-  !write(*,'('' computing average fragment structures ...'')')
-  !
-  !xyzf = 0
-  !iatf = 0
-  !do i=1,nuc
-  !  j=list(i)
-  !  xyzf(1:3,i,j)=axyz(1:3,i)
-  !  iatf(    i,j)=iat(    i)
-  !enddo   
-
-  !dum  = xyzf
-  !idum = iatf
-  !
-  !xyzf = 0
-  !iatf = 0 
-  !do i=1,nfrag
-  !  k=0
-  !  do j=1,nuc
-  !    if(idum(j,i) /= 0)then
-  !      k=k+1
-  !      xyzf(1:3,k,i)=dum(1:3,j,i)     
-  !      iatf(    k,i)=idum(   j,i)     
-  !    endif
-  !  enddo   
-  !  natf(i)=k
-  !enddo    
-  
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !write fragments with average geometries      
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -397,9 +370,8 @@ mult_i:   do k=1,fiter         !ITER OVER MULTIPLICITES
               fragip(i,lpchrg) = (lowest_ion - lowest_neut) * autoev
               endif
   
-              ! the sign of EA is opposite to IP
-              !if( mchrg < 0 ) fragip(i,lpchrg) = -1.0_wp * fragip(i,lpchrg)
 
+              !> For 3d metal containing species
               if (metal) then
                 write(*,'('' fragment '',i2,'' E(N)='',F12.4,''  E(I)='',F12.4,5x,'' &
                   &       IP/EA(eV)='',F8.2,5x,'' Mult.:'',i2,'' (N) and '',i2,'' (I)'')') &

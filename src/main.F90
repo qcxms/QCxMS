@@ -34,7 +34,7 @@ use qcxms_impact, only: calctrelax
 use qcxms_iniqm, only: iniqm
 use qcxms_input, only: input, command_line_args
 use qcxms_mdinit, only: mdinitu, ekinet
-use qcxms_molecular_dynamics, only: md, center_of_mass
+use qcxms_molecular_dynamics, only: md
 !use readcommon
 use qcxms_info, only: info_main, info_sumup, cidcheck, start_info
 use qcxms_use_orca, only: copyorc
@@ -64,7 +64,7 @@ integer  :: mchrg, mchrg_prod
 integer  :: maxsec,idum,edistri
 integer  :: ihomo,nb,nuc,mo1,mo2,fragstate
 integer  :: num_frags
-integer  :: itrj,icoll,isec,prestep
+integer  :: itrj,icoll,isec !,prestep
 integer  :: scani
 integer  :: fragat(200,10)
 integer  :: imassn(10000)
@@ -73,7 +73,7 @@ integer  :: CollSec(3),CollNo(3)
 integer  :: collisions
 integer  :: minmass,numb
 integer  :: frag_counter,new_counter,save_counter
-integer  :: simMD, manual_simMD, save_simMD
+integer  :: simMD, manual_simMD
 integer  :: rand_int,dep,convetemp
 integer  :: manual_dist
 integer  :: arg_list
@@ -394,19 +394,21 @@ if (method == 3 .and. prod)then
    endif
 endif
 
-!> Check if the sim. MD time has been manually set
-if ( method == 3 .and. manual_simMD > 0 ) simMD = manual_simMD
 
-
-!if (method == 3 ) nmax = simMD 
 ! change time to fs      
 tmax = tmax*1000.0_wp
 ! # MD steps in a frag run
 nmax = tmax / tstep
+! for CID make dependend on atom size
+if(method == 3) then
+  nmax = nuc * 100
+  tmax = nmax * tstep
+endif
 
 ! timesteps in au
 tstep = tstep * fstoau
-! the "70" eV in a.u.
+
+! the "70" eV in a.u. for EI
 eimp0 = eimp0 * evtoau
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1343,35 +1345,30 @@ ESI_loop: do
           if (.not. TempRun)then
 
             if (isec == 1)then
-              prestep = nint(ENe(4)) * nuc !*100 ! * 10 !/100)
-              prestep = prestep / (4*nuc/10)  !200
-              pretadd = float(prestep)*fstoau *(tstep*autofs) * 0.75_wp
+              nmax = nint(ENe(4) * 2.5 )
+              !prestep = prestep / (4*nuc/10)  !200
+              pretadd = float(nmax)*fstoau *(tstep*autofs) * 0.75_wp
               starting_MD = .true.
             else
-              !prestep=simMD
-              prestep=nmax
               pretadd = 0.0_wp
               starting_MD = .false.
-              !if(fragstate == 2) prestep=simMD * 0.75
-              if(fragstate == 2) prestep=nmax * 0.75
+              if(fragstate == 2) nmax = nmax0 * 0.75
             endif
 
           elseif (TempRun .and. isec == 1) then
-            !prestep = simMD
-            prestep = nmax
-            pretadd = float(prestep)*fstoau *(tstep*autofs) * 0.75_wp
+            pretadd = float(nmax)*fstoau *(tstep*autofs) * 0.75_wp
             starting_MD = .true.
           elseif (TempRun .and. isec > 1) then
             starting_MD = .false.
             pretadd = 0.0_wp
-            if(fragstate == 2) prestep = prestep * 0.75
+            if(fragstate == 2) nmax = nmax0 * 0.75
           endif
 
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !! Pre-CID MD Loop => ESI MD
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          call md(itrj,icoll,isec,nuc,prestep,xyz,iat,mass,imass,mchrg,     &
+          call md(itrj,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,     &
           & grad,velo,velof,list,tstep,j,nfragexit,fragm,fragf,             &
           & fragat,dumpstep,etemp_in,md_ok,atm_charge,spin,axyz,tscale,pretadd,&
           & E_Scale*evtoau, .false.,Tav,Epav,Ekav,ttime,aTlast,fragstate,dtime,      &
@@ -1463,7 +1460,7 @@ ESI_loop: do
 
 
           ! reduce the simulation time
-          if ( nuc < 10 ) nmax = nmax0 / 4 !CID may fragment more
+          if ( nuc < 12 ) nmax = nmax0 / 4 
 
           ! do not continue with small fragments
           if ( nuc <= 7 ) then
@@ -1537,7 +1534,6 @@ ESI_loop: do
 cnt:  if (.not. TempRun .and. .not. small) then
 
       starting_md = .false.
-      !save_simMD = nmax
       new_counter = 0
 
       ! Full Auto = Total Program control depending on mol. size, pressure cham. length etc.
@@ -1833,42 +1829,42 @@ MFPloop:  do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !> reduce the simulation timings for performance
 
-          !> store the old value to reset later
-          !save_simMD = simMD
+          !> Check if the sim. MD time has been manually set
+          if ( method == 3 .and. manual_simMD > 0 ) simMD = manual_simMD
 
           !> change MFP times to reduce timings (empirical values)
           !> but only if not set manually
-          if ( manual_simMD == 0 ) then
-            simMD = icoll * 0.6 * nuc * 100
-            if ( simMD > 6000 .and. frag_counter <= 2 ) simMD = 6000
-            
-            !>> make some timing adjustments
-            if ( simMD > 6000 .and. frag_counter > 2  ) then
-              simMD = 6000 * 0.75_wp
-            elseif ( simMD > 6000 .and. frag_counter > 3  ) then
-              simMD = 6000 * 0.6_wp
-            elseif ( simMD > 6000 .and. frag_counter >= 4  ) then
-              simMD = 6000 * 0.5_wp
-            endif
+          !if ( manual_simMD == 0 ) then
+          !  simMD = icoll * 0.6 * nuc * 100
+          !  if ( simMD > 6000 .and. frag_counter <= 2 ) simMD = 6000
+          !  
+          !  !>> make some timing adjustments
+          !  if ( simMD > 6000 .and. frag_counter > 2  ) then
+          !    simMD = 6000 * 0.75_wp
+          !  elseif ( simMD > 6000 .and. frag_counter > 3  ) then
+          !    simMD = 6000 * 0.6_wp
+          !  elseif ( simMD > 6000 .and. frag_counter >= 4  ) then
+          !    simMD = 6000 * 0.5_wp
+          !  endif
 
-            !>> not too short simulations
-            if ( simMD < 2000 ) simMD = 2000
-          else
-            simMD = nmax
-          endif
+          
+          nmax = nuc * 100
 
           !> reduce the MD time if fragmentation in MFP occurs
           !> even if manually set
-          if (isec == 3) simMD =int(simMD * 0.75_wp)
-          if (isec == 4) simMD =int(simMD * 0.6_wp )
-          if (isec >= 5) simMD =int(simMD * 0.5_wp )
+          if (isec == 3) nmax =int(nmax * 0.75_wp)
+          if (isec == 4) nmax =int(nmax * 0.6_wp )
+          if (isec >= 5) nmax =int(nmax * 0.5_wp )
           !if ( fragstate == 2 ) simMD = simMD / 2
 
+          !>> not too short/long simulations
+          if ( nmax < 1000   ) nmax = 1000
+          if ( nmax > 10000  ) nmax = 10000
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !! Do Mean-free-path (MFP) MD with simMD timesteps
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          call md(itrj,icoll,isec,nuc,simMD,xyz,iat,mass,imass,mchrg,grad,&
+          call md(itrj,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad,&
           &       velo,velof,list,tstep,j,nfragexit,                      &
           &       fragm,fragf,fragat,dumpstep,etemp_in,                   &
           &       md_ok,atm_charge,spin,axyz,                             &
@@ -1887,9 +1883,6 @@ MFPloop:  do
             write(*,'('' Temp without acc '',F12.1)')new_Temp
             write(*,'('' average last T   '',F12.1)')aTlast
           endif !verbose
-
-          ! reset sim MD time
-          simMD = nmax
 
           ! calculate the new center-of-mass as reference
           call center_of_mass(nuc,mass,xyz,cm)
@@ -1965,9 +1958,6 @@ MFPloop:  do
 
           ! move to Center-of-mass
           cema(1:3) = cema(1:3) / dum
-
-          ! reduce the simulation time
-          if ( nuc < 10 ) nmax = nmax0 / 4 !CID may fragment more
 
           ! do not continue with small fragments
           if ( nuc <= 7 ) then

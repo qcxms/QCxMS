@@ -9,7 +9,8 @@ module qcxms_cid_routine
   use qcxms_fragments
   use qcxms_iniqm, only: iniqm, egrad
   use qcxms_mdinit, only: ekinet
-  use qcxms_molecular_dynamics, only: leapfrog, intenergy, center_of_mass
+  use qcxms_molecular_dynamics, only: leapfrog, intenergy
+  use qcxms_utility, only: center_of_mass, center_of_geometry
   use xtb_mctc_accuracy, only: wp
   use xtb_mctc_convert
   use xtb_mctc_constants, only:pi,kB
@@ -1245,7 +1246,7 @@ cntfrg: do i = 1, nfrag
   real(wp),intent(in)  :: xyz(3,nuc),mass(nuc)
 !  real(wp),intent(in)  :: TGas,PGas,lchamb
   real(wp),intent(out) :: r_mol,cross,mfpath
-  real(wp) :: cm(3),mol_rad,rtot
+  real(wp) :: cg(3),mol_rad,rtot
   real(wp) :: r_atom,calc_collisions
 
   real(wp),parameter :: kB_J   = 1.38064852E-23
@@ -1253,11 +1254,11 @@ cntfrg: do i = 1, nfrag
   mol_rad = 0
   rtot    = 0
 
-  call center_of_mass(nuc,mass,xyz,cm)
+  call center_of_geometry(nuc,xyz,cg)
 
   ! Determine the radii by checking the largest distance from the center of mass
   do i=1,nuc
-      mol_rad   = sqrt((xyz(1,i)-cm(1))**2 + (xyz(2,i)-cm(2))**2 + (xyz(3,i)-cm(3))**2) + Rad(iat(i))
+      mol_rad   = sqrt((xyz(1,i)-cg(1))**2 + (xyz(2,i)-cg(2))**2 + (xyz(3,i)-cg(3))**2) + Rad(iat(i))
 
       if (mol_rad > rtot) rtot = mol_rad 
   enddo

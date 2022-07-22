@@ -21,7 +21,7 @@ module qcxms_molecular_dynamics
   use qcxms_iniqm, only: egrad
   use qcxms_fragments
   use qcxms_mdinit, only: ekinet
-  use qcxms_utility, only: setetemp
+  use qcxms_utility, only: setetemp, center_of_mass
   use xtb_mctc_accuracy, only: wp            
   use xtb_mctc_convert
   use xtb_mctc_constants
@@ -93,8 +93,8 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   integer :: natf(10)
   integer :: save_natf(10)
   integer :: s1,s2, s3
-  real(wp) :: normmass
-  real(wp) :: cg(3,10,50)
+  !real(wp) :: normmass
+  !real(wp) :: cg(3,10,50)
   real(wp) :: diff_cg(3,10,50)
   real(wp),allocatable :: nxyz1(:,:)!(3,nuc)
   real(wp),allocatable :: nxyz2(:,:)!(3,nuc)
@@ -204,8 +204,8 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   new_temp=0
   summass =0
 
-  normmass =0
-  cg = 0
+  !normmass =0
+  !cg = 0
   diff_cg = 0
   check_fragmented = 1
   cnt = 0
@@ -275,7 +275,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      velof=1.0d0
      screendump=500
   endif
-  mdump=screendump
+  !mdump=screendump
   
   
   write(*,'(''step   time [fs]'',4x,''Epot'',7x,''Ekin'',7x,''Etot'',4x,''error'',2x,''#F   eTemp   frag. T'')')
@@ -500,7 +500,7 @@ ifit:if(it > 0)then
 CID:  if (method == 3) then
         root_msd=0
         highest_rmsd=0
-        normmass = 0
+        !normmass = 0
 
         !> set conditions to start counting if fragmentation occurs
         if (nfrag > check_fragmented ) then
@@ -519,7 +519,7 @@ CID:  if (method == 3) then
             avxyz2 = 0
             rmsd_check = 0
             store_avxyz  = 0
-            cg = 0
+            !cg = 0
             count_average = .false.
             check_fragmented = 1
           endif
@@ -533,7 +533,7 @@ CID:  if (method == 3) then
 
         !> start counting  
 avct:   if ( count_average ) then ! .and. nstep > cnt_start ) then 
-          cg = 0
+          !cg = 0
           cnt = cnt + 1
           avxyz2  = avxyz2  + xyz
 
@@ -553,7 +553,7 @@ cntfrg:   do i = 1, nfrag
               cnt = 0
               store_avxyz  = 0 ! avxyz2 / cnt
               avxyz2 = 0
-              cg = 0
+              !cg = 0
               exit cntfrg
             endif
 
@@ -625,7 +625,7 @@ cntfrg:   do i = 1, nfrag
             avxyz2 = 0
             cnt = 0
             rmsd_check = 0
-            cg = 0
+            !cg = 0
             count_average = .false.
           endif
 
@@ -783,46 +783,5 @@ subroutine leapfrog(nat,grad,amass,tstp,xyz,vel,ke)
 
 end subroutine leapfrog
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!subroutine center_of_geometry
-!
-!  do j = 1, natf(i)
-!    rmsd_check(:,j,i,1) = xyzf(:,j,i)
-!    nxyz1(:,j) = rmsd_check(:,j,i,1)
-!  
-!    cg(:,i,1) = cg(:,i,1) + 1 * rmsd_check(:,j,i,1)
-!  
-!    normmass  = normmass + 1 
-!  enddo
-!  
-!  cg(:,i,1) = cg(:,i,1) / normmass
-!
-!end subroutine center_of_geometry
-
-  !Calculates center of mass and returns it in variable cm      
-  subroutine center_of_mass(nuc,mass,xyz,cm)
-  !use xtb_mctc_accuracy, only: wp
-  !implicit none      
-
-  integer  :: i, nuc
-
-  real(wp) :: totmass
-  real(wp),intent(in) :: xyz(3,nuc), mass(nuc)
-  real(wp),intent(out) :: cm(3)
-
-
-  totmass = 0.0d0
-  cm = 0.0d0
-  do i = 1,nuc
-     cm(1) = cm(1) + mass(i) * xyz(1,i)
-     cm(2) = cm(2) + mass(i) * xyz(2,i)
-     cm(3) = cm(3) + mass(i) * xyz(3,i)
-     totmass  = totmass + mass(i)
-  end do
-  cm(1) = cm(1) / totmass
-  cm(2) = cm(2) / totmass
-  cm(3) = cm(3) / totmass
-  end subroutine
 
 end module qcxms_molecular_dynamics

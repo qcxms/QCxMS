@@ -526,5 +526,58 @@ module qcxms_utility
    if ( rnd > n ) rnd = n
    
    end function irand
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine center_of_geometry(nuc, xyz, cg)
+
+  integer, intent(in) :: nuc
+  integer :: j
+  integer :: normmass
+
+  real(wp), intent(in) :: xyz(3,nuc)
+  real(wp), intent(out) :: cg(3)
+
+  do j = 1, nuc
+  
+    cg(:) = cg(:) + 1 * xyz(:,j)
+  
+    normmass  = normmass + 1 
+  enddo
+  
+  cg(1) = cg(1) / normmass
+  cg(2) = cg(2) / normmass
+  cg(3) = cg(3) / normmass
+
+end subroutine center_of_geometry
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!Calculates center of mass and returns it in variable cm      
+subroutine center_of_mass(nuc,mass,xyz,cm)
+
+  integer  :: i, nuc
+ 
+  real(wp) :: totmass
+  real(wp),intent(in) :: xyz(3,nuc), mass(nuc)
+  real(wp),intent(out) :: cm(3)
+ 
+ 
+  totmass = 0.0d0
+  cm = 0.0d0
+  do i = 1,nuc
+     cm(1) = cm(1) + mass(i) * xyz(1,i)
+     cm(2) = cm(2) + mass(i) * xyz(2,i)
+     cm(3) = cm(3) + mass(i) * xyz(3,i)
+     totmass  = totmass + mass(i)
+  end do
+  cm(1) = cm(1) / totmass
+  cm(2) = cm(2) / totmass
+  cm(3) = cm(3) / totmass
+
+end subroutine center_of_mass
+
+
    
 end module qcxms_utility
