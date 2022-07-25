@@ -2,6 +2,7 @@ module qcxms_info
   use cidcommon
   use common1
   use newcommon
+  use get_version
   use qcxms_mdinit, only: ekinet
   use xtb_mctc_accuracy, only : wp
   use xtb_mctc_symbols, only: toSymbol 
@@ -12,20 +13,74 @@ module qcxms_info
 
   contains
 
+  subroutine start_info
 
-  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
-      & ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl, CollNo, CollSec,  &
-      & ESI, tempESI, eTempin, maxsec, betemp, nfragexit, iseed, iprog, edistri, legacy)
+    call execute_command_line('date')
+    write(*,'(//&
+    &          22x,''*********************************************'')')
+    write(*,'(22x,''*                                           *'')')
+    write(*,'(22x,''*            Q   C   x   M   S              *'')')
+    write(*,'(22x,''*                                           *'')')
+    call version(0)
+    call version(1)
+    write(*,'(22x,''*                                           *'')')
+    write(*,'(22x,''*                S. Grimme                  *'')')
+    write(*,'(22x,''*                J. Koopman                 *'')')
+    write(*,'(22x,''* Mulliken Center for Theoretical Chemistry *'')')
+    write(*,'(22x,''*             Universitaet Bonn             *'')')
+    write(*,'(22x,''*                                           *'')')
+    write(*,'(22x,''*********************************************'')')
+    write(*,*)
+    write(*,'('' QCxMS is free software: you can redistribute it and/or &
+            &modify it under'')')
+    write(*,'('' the terms of the GNU Lesser General Public License as &
+            &published by '')') 
+    write(*,'('' the Free Software Foundation, either version 3 of the &
+            &License, or '')') 
+    write(*,'('' (at your option) any later version.'')')
+    write(*,*)
+    write(*,'('' QCxMS is distributed in the hope that it will be useful, '')')
+    write(*,'('' but WITHOUT ANY WARRANTY; without even the implied warranty of '')') 
+    write(*,'('' MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the '')')
+    write(*,'('' GNU Lesser General Public License for more details.'')')
+    write(*,*)
+    write(*,'(''Cite this work as:'')')
+    write(*,'(''S.Grimme, Angew.Chem.Int.Ed. 52 (2013) 6306-6312.'')')
+    write(*,*)
+    write(*,'(''for the CID module:'')')
+    write(*,'(''J. Koopman, S. Grimme, J. Am. Soc. Mass Spectrom., (2021), &
+             & DOI: 10.1021/jasms.1c00098 '')')
+    write(*,*)
+    write(*,'(''with respect to negative/multiple charges:'')')
+    write(*,'(''J. Koopman, S. Grimme, ChemRxiv, (2022), &
+             & DOI: 10.26434/chemrxiv-2022-w5260 '')')
+    write(*,*)
+    write(*,'(''for the GFN1-xTB implementation:'')')
+    write(*,'(''V. Asgeirsson, C.Bauer, S. Grimme, Chem. Sci. 8 (2017) 4879'')')
+    write(*,*)
+    write(*,'(''for the GFN2-xTB implementation:'')')
+    write(*,'('' J. Koopman, S. Grimme, ACS Omega 4 (12) (2019) 15120-15133, &
+             & DOI: 10.1021/acsomega.9b02011 '')')
+    write(*,*)
+
+  end subroutine start_info
+
+
+  subroutine info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, &
+      mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl,  &
+      CollNo, CollSec, ESI, tempESI, eTempin, maxsec, betemp, nfragexit, &
+      iprog, edistri, legacy)
       
-  integer  :: ntraj,iseed(1)
+  integer  :: ntraj
   integer  :: MaxColl
   integer  :: CollSec(3),CollNo(3)
+  integer  :: mchrg, mchrg_prod
   integer  :: maxsec
   integer  :: nfragexit
   integer  :: dumprint
   integer  :: iprog
   integer  :: edistri
-  integer  :: i
+  integer  :: i, simMD
 
   real(wp) :: tstep,tmax,etempin,betemp
   real(wp) :: Tinit,trelax
@@ -47,18 +102,22 @@ module qcxms_info
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! QC PROGRAMS
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! print the QC Protgram used 
+  !> print the QC Program used 
   call qcstring(prog,line,line2) 
   write(*,'('' QC Program            : '',(a))') trim(line)
 
-  ! print out extra information on SQM level or Basis/functional
+  !> print out extra information on SQM level or Basis/functional
   write(*,'('' QC Level              : '',(a))') trim(line2)
 
-  call qcstring(iprog,line,line2) 
-  if ( method == 2 .or. method == 4 ) then
-     write(*,'('' QC Prog. for EAs      : '',a)')line 
-  else
-     write(*,'('' QC Level for IPs      : '',a)')line2 
+  if ( prog /= iprog ) then
+    call qcstring(iprog,line,line2) 
+    if ( method == 2 .or. mchrg_prod < 0 ) then ! method == 4 ) then
+       write(*,'('' QC Prog. for EAs      : '',a)')line 
+       !write(*,'('' QC Level  for EAs     : '',(a))') trim(line2)
+    else
+       write(*,'('' QC Prog. for IPs      : '',a)')line 
+      !write(*,'('' QC Level  for IPs     : '',(a))') trim(line2)
+    endif
   endif
 
   if ( verbose .and. ax > 0 )then
@@ -99,7 +158,7 @@ module qcxms_info
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! MO spectrum calculations
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  if ( method /= 3 .and. method /= 4 ) then
+  if ( method /= 3 ) then !.and. method /= 4 ) then
     dumprint = 3 ! ORCA
     if ( XTBMO ) dumprint = 7 ! XTB
     call qcstring(dumprint,line,line2) 
@@ -107,13 +166,17 @@ module qcxms_info
   endif
 
   write(*,*)
+  write(*,'('' M+ Ion charge(charge) : '',i4  )')mchrg_prod
   write(*,'('' total traj.   (ntraj) : '',i4  )')ntraj
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep 
-  write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
+  !if ( method == 1 ) write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
+  !if ( method == 3 ) write(*,'('' MFP sim. time (simmd) : '',f7.2,'' ps'')')simmd/1000.0_wp
+  write(*,'('' sim. time / MD (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
 
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
+CHOSE:if ( method /= 3 ) then !.and. method /= 4 ) then ! not CID
 
     write(*,*)
     write(*,'(12(''-''),(a),11(''-''))') ' EI settings '
@@ -195,7 +258,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
        write(*,'('' Run - Type            : '',(a) )') 'Thermal'
        if( verbose ) write(*,*) ' Scale internal energy/temperature '
        if ( ESI > 0 )write(*,'('' Scaling to E(int)     : '', f7.2, '' eV'')') ESI
-       if ( tempESI > 0 )write(*,'('' Scaling to Temp.      : '', f7.2,'' K'')') tempESI
+       if ( tempESI > 0 )write(*,'('' Scaling to Temp.      : '', f8.1,'' K'')') tempESI
     endif
         
   endif CHOSE
@@ -214,7 +277,12 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
     write(*,'('' base eTemp            : '',f7.2,'' K'')')betemp
     write(*,'('' # ion tracks          : '',i4  )')maxsec
     write(*,'('' nfragexit             : '',i4  )')nfragexit
-    write(*,'('' iseed                 : '',i4  )')iseed
+  endif
+  !> write out if iseed is manually set
+  if (iseed(1) > 0) then
+    write(*,'(44(''!''))')
+    write(*,'('' iseed                 : '',i4  )')iseed(1)
+    write(*,'(44(''!''))')
   endif
 
   write(*,'(44(''-''))')
@@ -239,7 +307,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   !!! Sum up information after run is concluded (main.f90)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  subroutine info_sumup(ntraj, tstep, tmax, Tinit, trelax, eimp0, &
+  subroutine info_sumup(ntraj, mchrg_prod, tstep, tmax, Tinit, trelax, eimp0, &
       & ieeatm, iee_a, iee_b, ELAB, ECOM, ESI, tempESI,  & 
       & nfragexit, iprog, nuc, velo, mass)
 
@@ -249,6 +317,7 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
   integer  :: nfragexit
   integer,intent(in) :: nuc
   integer :: io_log
+  integer :: mchrg_prod
 
   real(wp) :: tstep,tmax
   real(wp) :: Tinit,trelax
@@ -278,21 +347,22 @@ CHOSE:if ( method /= 3 .and. method /= 4 ) then ! not CID
 
   if ( prog /= iprog ) then
     call qcstring(iprog,line,line2) 
-    if ( method == 2 .or. method == 4 ) then
-       write(*,'('' QC Prog. for EAs      : '',a)')line 
+    if ( method == 2 .or. mchrg_prod < 0 ) then  !method == 4 ) then
+       write(*,'('' QC Prog. for EAs      : '',a)') trim(line)
     else
-       write(*,'('' QC Level for IPs      : '',a)')line2 
+       write(*,'('' QC Level for IPs      : '',a)') trim(line2)
     endif
   end if
   write(*,*)
 
   write(*,'('' total traj.   (ntraj) : '',i4  )')ntraj
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep * autofs
-  write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
+  if ( method == 1 ) write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
+  write(*,'('' M+ Ion charge(charge) : '',i4  )')mchrg_prod
 
   !write out informations
-info: if ( method /= 3 .and. method /= 4 )then
+info: if ( method /= 3 ) then !.and. method /= 4 )then
 
     write(*,*)
     write(*,'(12(''-''),(a),11(''-''))') ' EI settings '
@@ -318,10 +388,10 @@ info: if ( method /= 3 .and. method /= 4 )then
       write(*,*)
       write(*,'(11(''-''),(a),11(''-''))') ' CID settings '
       write(*,'('' Collision Gas         : '',a2)')      toSymbol(gas%IndAtom)
-      if (ECOM > 0.0_wp) then
-        write(*,'('' E (COM)               : '',f7.2,'' eV'')') ECOM
-      else
+      if (ELAB > 0.0_wp) then
         write(*,'('' E (LAB)               : '',f7.2,'' eV'')') ELAB
+      else
+        write(*,'('' E (COM)               : '',f7.2,'' eV'')') ECOM
       endif
     endif
 
@@ -341,12 +411,19 @@ info: if ( method /= 3 .and. method /= 4 )then
 
     write(*,*)
     write(*,'('' internal Energy        : '',F6.2,'' eV'',a3)')E_int
-    if (ESI > 0)     write(*,'('' Scaling to             : '',F6.2, '' eV'')')ESI
+    if (ESI > 0)     write(*,'('' Scaling to             : '',F6.2, '' eV'')')ESI+E_int
     if (tempESI > 0) write(*,'('' Scaling to             : '',F6.2, '' K'')')tempESI
 
   endif info
 
   if (verbose) write(*,'('' nfragexit             : '',i8  )')nfragexit
+
+  !> write out if iseed is manually set
+  if (iseed(1) > 0) then
+    write(*,'(44(''!''))')
+    write(*,'('' iseed                 : '',i4  )')iseed(1)
+    write(*,'(44(''!''))')
+  endif
 
 
   !open(file='qcxms.log',unit=io_log,status='old')
@@ -441,7 +518,6 @@ info: if ( method /= 3 .and. method /= 4 )then
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   end subroutine cidcheck
-
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Write program strings
@@ -547,5 +623,8 @@ info: if ( method /= 3 .and. method /= 4 )then
   
   
   end subroutine qcstring
+
+
+
 
 end module qcxms_info

@@ -1,0 +1,4 @@
+[wrap-git]
+directory = rmsd-tool
+url = https://github.com/grimme-lab/rmsd-tool
+revision = main

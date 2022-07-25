@@ -21,8 +21,28 @@ The following files are being extracted: `qcxms` `pqcxms` `q-batch` `getres` `.X
 
 Place the executables into your ``$HOME/bin/`` directory or path. Place the `.XTBPARAM` folder and `.mass_raw.arg` file into your `$HOME` directory (these files can appear to be hidden). 
 
-### Spectra Plotting
-To evaluate the results and create a spectrum, download and use the [PlotMS](https://github.com/qcxms/PlotMS) program. For visualization of the calculated spectra, we recommend the usage of the **xmgrace** program. Furthermore, *JCAMP-DX* and *.csv* are plotted. Versions PlotMS v.6.0 and higher now provide **exact masses**. The `.mass_raw.agr` file was moved to the [PlotMS](https://github.com/qcxms/PlotMS) repository. 
+### Conda
+
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/qcxms.svg)](https://anaconda.org/conda-forge/qcxms)
+
+Installing `qcxms` from the `conda-forge` channel can be achieved by adding `conda-forge` to your channels with:
+
+```
+conda config --add channels conda-forge
+```
+
+Once the `conda-forge` channel has been enabled, `qcxms` can be installed with:
+
+```
+conda install qcxms
+```
+
+It is possible to list all of the versions of `qcxms` available on your platform with:
+
+```
+conda search qcxms --channel conda-forge
+```
+
 
 ### Meson
 
@@ -34,18 +54,37 @@ export FC=ifort CC=icc
 meson setup build -Dfortran_link_args=-static
 ninja -C build 
 ```
-Copy the binary from the `build/qcxms` file into a directory in your path, e.g. `~/bin/`.
+
+This will build a static linked binary in the ``build`` folder. Copy the binary from ``build/qcxms`` file into a directory in your path, e.g. ``~/bin/``.
+
 
 **Documentation**
 
-A more detailed documentation on topics like installation and input settings can be fond at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/qcxms_doc/qcxms.html). Examples to test QCxMS can be found in the `EXAMPLES` folder. Here, input and coordinate files are provided for either EI or CID run modes. 
-
+A more detailed documentation on topics like input settings can be fond at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/qcxms_doc/qcxms.html). 
+Examples to test QCxMS can be found in the `EXAMPLES` folder. Here, input and coordinate files are provided for either EI or CID run modes. 
 
 
 **From QCEIMS to QCxMS:**
 - All names have been changed from `qceims.xxx` to `qcxms.xxx`.
 - The `q-batch`, `pqcxms` and `plotms` script have been updated.
-- Collision induced dissociation (CID) calculations are now available. Set *cid* in the `qcxms.in` file. 
+- Collision induced dissociation (CID) calculations are now available. Set *cid* in the `qcxms.in` file (see
+  documentation) 
 
 **The tblite library for xTB calculations**
 - The [tblite](https://github.com/awvwgk/tblite) library has been included into the program code. This keeps xtb up-to-date and decreases the computational time for calculations done with GFN1- and GFN2-xTB when compared to earlier versions. 
+
+
+**Plotting Spectra**
+
+To evaluate the results and create a spectrum, download and use the [PlotMS](https://github.com/qcxms/PlotMS) program. 
+The [documentation](https://xtb-docs.readthedocs.io/en/latest/qcxms_doc/qcxms_plot.html) explains the basic
+functionalities of the program. 
+
+The program provides *mass.agr*, *JCAMP-DX* and *.csv* are files that can be analyzed. 
+For visualization of the calculated spectra, we recommend the usage of the **xmgrace** program. 
+
+### Updates
+
+Versions PlotMS v.6.0 and higher now provide **exact masses**.
+Experimental files in `.csv` format can now be read and plotted against the computed spectra.
+The `.mass_raw.agr` file was moved to the [PlotMS](https://github.com/qcxms/PlotMS) repository. 

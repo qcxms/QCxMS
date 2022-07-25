@@ -55,8 +55,8 @@ REAL FUNCTION snorm()
    &.7010474/
 
 !> In original, random seed was the same for each call. This made it pseudo-random.
-!> For legacy support, the random seed remains the same (but the call remains, if it 
-!> should be tested)
+!  For legacy support, the random seed remains the same (but the call remains, if it 
+!  should be tested)
 !   call random_seed()
 
 10 call random_number(u)

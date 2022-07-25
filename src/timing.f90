@@ -17,11 +17,11 @@
 
 subroutine timing(t,w)
    use xtb_mctc_accuracy, only : wp
-   real(wp) :: t,w
+   real(wp), intent(out) :: t,w
    integer :: time_count,time_rate,time_max
    call system_clock(time_count,time_rate,time_max)
    call cpu_time(t)
-   w = real(time_count,wp)/real(time_rate,wp)
+   w = float(time_count)/float(time_rate)
 end subroutine timing
 
 

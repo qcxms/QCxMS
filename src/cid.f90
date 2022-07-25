@@ -1,33 +1,44 @@
+module qcxms_cid_routine
+  use common1 
+  use cidcommon
+  use covalent_radii, only: Rad
+  use rmsd_ls, only : get_rmsd
+  use qcxms_analyse, only: avg_frag_struc 
+  use qcxms_boxmuller, only: vary_energies
+  use qcxms_cid_rotation
+  use qcxms_fragments
+  use qcxms_iniqm, only: iniqm, egrad
+  use qcxms_mdinit, only: ekinet
+  use qcxms_molecular_dynamics, only: leapfrog, intenergy
+  use qcxms_utility, only: center_of_mass, center_of_geometry
+  use xtb_mctc_accuracy, only: wp
+  use xtb_mctc_convert
+  use xtb_mctc_constants, only:pi,kB
+  use xtb_mctc_symbols, only: toSymbol 
+  implicit none
+
+  contains
+
+
+
 subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     stopcid, ELAB, ECOM, axyz, ttime, eExact, ECP, manual_dist,     &
     vScale, MinPot, ConstVelo, cross,                               &
     mfpath, r_mol, achrg, icoll, collisions, direc, velo_cm,        &
     aTlast, calc_collisions,imass)
 
-  use common1 
-  use cidcommon
-  use qcxms_boxmuller, only: vary_energies
-  use qcxms_cid_rotation
-  use qcxms_fragments
-  use qcxms_iniqm, only: iniqm
-  use qcxms_mdinit, only: ekinet
-  use xtb_mctc_accuracy, only: wp
-  use xtb_mctc_convert
-  use xtb_mctc_constants, only:pi,kB
-  use xtb_mctc_symbols, only: toSymbol 
-  implicit none
-  
   ! note that xyz from main code is in bohr
   real(wp),parameter :: kB_eV  = kB*autoev
   real(wp),parameter :: kB_J   = 1.38064852E-23
   
-  integer  :: nuc,mchrg,spin,iat(nuc)
-  integer  :: nstp
+  integer  :: nuc,spin,iat(nuc)
+  integer  :: nstep
   integer  :: dumpavg,dumpxyz,dumpscreen,dumpcoord,dumpdist
   integer  :: average_dump,xyzavg_dump,screen_dump,coord_dump,distance_dump
   integer  :: i,j,k,ind,m
   integer  :: time_step_count
   integer  :: icoll
+  integer  :: mchrg
   integer  :: collisions
   integer  :: step_counter
   integer  :: gsolvstate
@@ -36,13 +47,18 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   integer  :: list(nuc),nfrag
   integer  :: fragat(200,10)  
   integer  :: imass(nuc)
-  integer  :: istep, step_dist, manual_dist
+  integer  :: step_dist, manual_dist
   integer  :: io_cid, io_rotate, io_test
+  integer  :: morestep , fconst
+  integer  :: scale_chrg_steps
 
   real(wp) :: calc_collisions
   real(wp) :: etemp,E,ke
   real(wp) :: xyz(3,nuc),velo(3,nuc),grad(3,nuc)
-  real(wp) :: avxyz(3,nuc),axyz(3,nuc)
+  real(wp), intent(out) :: axyz(3,nuc)
+  real(wp) :: avxyz(3,nuc)
+  real(wp) :: avxyz2(3,nuc)
+  real(wp) :: store_avxyz(3,nuc)
   real(wp) :: ttime
   real(wp) :: mass(nuc)
   real(wp) :: new_velo,velo_diff,velo_cm
@@ -82,7 +98,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   
   !Rotation parameters
 !  real(wp) :: a,b,c
-  real(wp) :: d,f,g,lmin,lpos
+  real(wp) :: f,g,lmin,lpos
   real(wp) :: velo_rot(3,nuc), E_Rot
 
   ! Allocatables
@@ -103,21 +119,58 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: stopcid
   logical :: eExact
   logical :: gradfail
-  logical :: xstps
+  logical :: xstps = .false.
+  logical :: avg_struc 
+  logical :: fragmented = .false.
+  logical :: collided = .false.
 
-  interface
-    function calc_ECOM(beta,e_kin) result(E_COM)
-      !use cidcommon
-      use xtb_mctc_accuracy, only: wp
-      !use xtb_mctc_convert
-      implicit none
-    
-      real(wp) :: beta, e_kin, E_COM
-    end function calc_ECOM
-  end interface
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Stuff for checking RMSD
+  integer :: check_fragmented
+  integer :: cnt
+  integer :: iatf(nuc,10)
+  integer :: natf(10)
+  integer :: save_natf(10)
+  integer :: s1,s2, s3
+  real(wp) :: normmass
+  real(wp) :: cg(3,10,50)
+  real(wp) :: diff_cg(3,10,50)
+  real(wp),allocatable :: nxyz1(:,:)!(3,nuc)
+  real(wp),allocatable :: nxyz2(:,:)!(3,nuc)
+  real(wp) :: check_xyz(3,nuc)
+  real(wp) :: xyzf(3,nuc,10)
+  real(wp) :: rmsd_check (3,nuc,10,50)
+   real(wp) :: root_msd, rmsd_frag(10), highest_rmsd(10)
+   real(wp) :: gradient(3,nuc)
+   real(wp) :: trafo(3,3)
+  !type(fragment_info) :: frag
+  logical :: count_average = .false.
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !Stuff for count start
+  integer :: cnt_start, start_cnt
+  integer :: fconst_max
+  integer :: cnt_steps
+  integer :: max_steps, add_steps
+  integer :: total_steps
+ 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  !interface
+  !  function calc_ECOM(beta,e_kin) result(E_COM)
+  !    !use cidcommon
+  !    use xtb_mctc_accuracy, only: wp
+  !    !use xtb_mctc_convert
+  !    implicit none
+  !  
+  !    real(wp) :: beta, e_kin, E_COM
+  !  end function calc_ECOM
+  !end interface
 
   ! initiate random numbers
-  call random_seed()
+  if (iseed(1) == 0) then
+    call random_seed()
+  endif
 
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -125,13 +178,13 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   if(gas%Iatom /= 6)nuc0 = nuc+1
   if(gas%Iatom == 6)nuc0 = nuc+2 !N2, but has to be fixed for more atoms
-  allocate(xyz0(3,nuc0))
-  allocate(velo0(3,nuc0))
-  allocate(grad0(3,nuc0))
-  allocate(mass0(nuc0))
-  allocate(iat0(nuc0))
-  allocate(achrg0(nuc0))
-  allocate(aspin0(nuc0))
+  allocate(xyz0(3,nuc0), &
+          velo0(3,nuc0), &
+          grad0(3,nuc0), &
+          mass0(nuc0), &
+          iat0(nuc0), &
+          achrg0(nuc0), &
+          aspin0(nuc0)) 
   
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -159,8 +212,8 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
   open(file=fname,newunit=io_cid,status='replace')
   
- open(file='avgxyz.xyz',newunit=io_test,status='replace')
-  
+  !open(file='avgxyz.xyz',newunit=io_test,status='replace')
+
   
   !---------------------------------------------------------
   !logical
@@ -168,7 +221,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   iniok      = .True.
   stopcid    = .False.
   gradfail   = .False.
-  xstps      = .False.
+  avg_struc =  .False.
   
   !------------------------------------------------------     
   
@@ -189,15 +242,56 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   step_counter = 0
   
   avxyz = 0
+  avxyz2 = 0
+
+  normmass =0
+  cg = 0
+  diff_cg = 0
+  cnt = 0
+  trafo = 0
+  gradient = 0
+
   set_grad = huge(0.0_wp)
 
-  !velo_rot(3,3) = 0.0d0
-  
   T_GBSA=300
   solvent='h2o'
   gsolvstate=0
   !------------------------------------------------------     
   nfrag = 1 
+  !!!!!!!!!!!
+  !> count steps after frag
+  morestep = 0
+  !fconst = 0
+  check_fragmented = 1
+  start_cnt = 0
+  !!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!
+  !> count the number of steps that are used for averaging structures for IP calc
+  cnt_steps = 50
+  !if ( abs(mchrg) == 1) cnt_steps = 50
+  !if ( abs(mchrg) > 1) cnt_steps = 100
+  !> this is not sufficiently tested. It was experienced that higher charge (or maybe larger molecules)
+  !> need more time for rearrangement and this can influence the IP assignment in the end
+
+  if (nuc <= 10 ) add_steps = 0
+  if (nuc > 10  ) add_steps = (nuc / 10) * 500
+  if (nuc >= 40 ) add_steps = (nuc / 10) * 1000
+
+
+  !if ( abs(mchrg) == 1) add_steps = 1000
+  !if ( abs(mchrg) == 2) add_steps = 2000
+  !if ( abs(mchrg) >= 3) add_steps = 3000
+  
+  !if ( abs(mchrg) == 1) cnt_start = 0
+  !if ( abs(mchrg) > 1) cnt_start = 1000
+  !if ( abs(mchrg) > 2) cnt_start = 3000
+
+  !>> for larges charge, start counting later than the direct fragmentation event
+  !if ( abs(mchrg) == 1) fconst_max = 1000
+  !if ( abs(mchrg) == 2) fconst_max = 2000
+  !if ( abs(mchrg) >= 3) fconst_max = 4000
+
+  !!!!!!!!!!!!!!!!!!
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
@@ -212,7 +306,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   if (icoll == 1)then
 
     !> Calculate center of mass
-    call cofmass(nuc,mass,xyz,cm)
+    call center_of_mass(nuc,mass,xyz,cm)
 
     !> translate center of mass to origin
     xyz(1,:) = xyz(1,:)-cm(1)
@@ -266,14 +360,11 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     !1. Get Impact Energy! Than vary it via box-muller distribution
     if (.not. eExact) then
       E_Distr = 0.1_wp
-      E_Scale = vary_energies(Eimpact, E_Distr)
+      E_velo = vary_energies(Eimpact, E_Distr) * evtoau
     !2. Or set Impact Energy as given value
     else
-      E_Scale = Eimpact !set Energy constant in all prod runs 
+      E_velo = Eimpact * evtoau !set Energy constant in all prod runs 
     endif
-
-    ! To a.u. and E_velo
-    E_velo = E_Scale * evtoau
 
   !>> For consecutive collisions
   else
@@ -311,13 +402,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
      write(*,'(80(''=''))')
      write(*,*) '    CID settings:   '
   
-     if ( mchrg == 1) then
+     if ( mchrg > 0 ) then
        write(*,*) '    + Positive Ion mode +   '
-     elseif ( mchrg == -1 ) then
+     elseif ( mchrg < 0 ) then
        write(*,*) '    - Negative Ion mode -   '
-     else 
-       write(*,*) 'Something is wrong in CID - E X I T'
-       stop
      endif
   
      write(*,'(80(''=''),/)')
@@ -397,7 +485,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   endif
   
   if (ConstVelo .and. icoll  >  1)then
-     W = sqrt(2*E_Scale/summass) !take the FIRST energy
+     W = sqrt(2*E_velo/summass) !take the FIRST energy
      W = W - (velo_cm * mstoau)
      write(*,*) 'W scale m/s',velo_cm+ W/mstoau
 
@@ -421,90 +509,50 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Argon placement and initial velocity determination
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
-  call cofmass(nuc,mass,xyz,cm)
+  call center_of_mass(nuc,mass,xyz,cm)
   
-  
-  !if (icoll == 1)then
-  !   call random_number(a)
-  !   call random_number(b)
-  !   call random_number(c)
-  !endif
-  call random_number(d)
   call random_number(f)
   call random_number(g)
   call random_number(lmin) ! Pos/Neg radomizer
   call random_number(lpos) ! Pos/Neg radomizer
   
-  !! Randomize the xyz direction in which the molecule is accelerated to ensure different collision angles 
-  !   a=0
-  !   b=0
-  !   c=1  ! set to z-axis, because Euler-rotation should account for collision angles
-  !!   write(*,*)  xyz
-  !if    (a >= b.and.a >= c)then
-  !   a=1
-  !   b=0
-  !   c=0
-  !   g=0
-  !   ! Random d,f
-  !   if(lmin < 0.5)f= (f * -1.0d0)
-  !   if(lpos < 0.5)d= (d * -1.0d0)
-  !   write(*,*) 'X-Axis'
-  !elseif(b >= a.and.b >= c)then
-  !   a=0
-  !   b=1
-  !   c=0
-  !   f=0
-  !   ! Random d,g
-  !   if(lmin < 0.5)d= (d * -1.0d0)
-  !   if(lpos < 0.5)g= (g * -1.0d0)
-  !   write(*,*) 'Y-Axis'
-  !elseif(c >= a.and.c >= b)then
-  !   a=0
-  !   b=0
-  !   c=1
-  !   d=0 
-  !   ! Random f,g
-  !   if(lmin < 0.5)f= (f * -1.0d0) 
-  !   if(lpos < 0.5)g= (g * -1.0d0) 
-  !   write(*,*) 'Z-Axis'
 
   !Vary the collision angle depending on the maximum radius of the molecule
-     lowestx  =  huge(0.0_wp)
-     lowesty  =  huge(0.0_wp)
-     highestx = -huge(0.0_wp)
-     highesty = -huge(0.0_wp)
-     do i=1,nuc
-     lowx  = xyz(1,i)
-     lowy  = xyz(2,i)
-     highx = xyz(1,i)
-     highy = xyz(2,i)
-     if (lowx  < lowestx)  lowestx  = lowx
-     if (highx > highestx) highestx = highx
-     if (lowy  < lowesty)  lowesty  = lowy
-     if (highy > highesty) highesty = highy
-     enddo
+  lowestx  =  huge(0.0_wp)
+  lowesty  =  huge(0.0_wp)
+  highestx = -huge(0.0_wp)
+  highesty = -huge(0.0_wp)
+  do i=1,nuc
+    lowx  = xyz(1,i)
+    lowy  = xyz(2,i)
+    highx = xyz(1,i)
+    highy = xyz(2,i)
+    if (lowx  < lowestx)  lowestx  = lowx
+    if (highx > highestx) highestx = highx
+    if (lowy  < lowesty)  lowesty  = lowy
+    if (highy > highesty) highesty = highy
+  enddo
   
   
-     if(lmin < 0.5)then
-       diff1 = (lowesty ) * f 
-     else
-       diff1 =  (highesty )* f 
-     endif
-     if(lpos < 0.5)then
-       diff2 = (lowestx )* g 
-     else
-       diff2 = highestx * g 
-     endif
+  if(lmin < 0.5)then
+    diff1 = (lowesty ) * f 
+  else
+    diff1 =  (highesty )* f 
+  endif
+  if(lpos < 0.5)then
+    diff2 = (lowestx )* g 
+  else
+    diff2 = highestx * g 
+  endif
   
-     if (g > 0.85) f = f*0.5 !reduce the amount of x-axis if y is very large
-     if (f > 0.85) g = g*0.5
-  !endif
+  if (g > 0.85) f = f*0.5 !reduce the amount of x-axis if y is very large
+  if (f > 0.85) g = g*0.5
  
-
-  
+ 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> First Collision starts here
   if(icoll == 1)then
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !> set (step) distance automatically
     if ( manual_dist == 0 ) then
       step_dist  =   2 * nuc * 10            ! set number of steps until collision depending on the size of the fragment/ion
@@ -537,11 +585,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
     xyzAr(1) = xyz_start(1) + diff2 *0.8 !(g * rtot)*0.6 
     xyzAr(2) = xyz_start(2) + diff1 *0.8 !(f * rtot)*0.6
-    xyzAr(3) = xyz_start(3) !+  !(d * rtot)*0.6
-  !  write(*,*) 'Ar XYZ', xyzAr/aatoau
-  !  write(*,*) 'randoms g=x',  g 
-  !  write(*,*) 'randoms f=y',  f 
-  !  write(*,*) 'randoms d=z',  d 
+    xyzAr(3) = xyz_start(3) 
   
     scale_velo = (direc * fasti)
   
@@ -570,7 +614,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     ! Set the collision gas atom away from the COM by random factors depending on the axis-of-flight
     xyzAr(1) = cm(1) + (direc(1) * start_dist) + diff2 * 0.7 !(g * rtot)*0.90 
     xyzAr(2) = cm(2) + (direc(2) * start_dist) + diff1 * 0.7 !(f * rtot)*0.90 
-    xyzAr(3) = cm(3) + (direc(3) * start_dist) !+ (d * rtot)*0.90 
+    xyzAr(3) = cm(3) + (direc(3) * start_dist) 
   !  xyzAr(:) = cm(:) + direc * start_dist 
     scale_velo = 0
   endif
@@ -593,7 +637,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   
   old_cm(:) = cm(:)
   
-  call cofmass(nuc,mass,xyz,cm)
+  call center_of_mass(nuc,mass,xyz,cm)
   
   ! Set the molecule, atom, grads and velos        
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -632,6 +676,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 !  !   call ekinet(nuc0,velo0,mass0,edum,t)
 !     call init_gbsa(nuc0,iat0,solvent,gsolvstate,T_GBSA)
 !  endif
+
+  if ( prog == 3 ) then
+    call execute_command_line('rm ORCA.INPUT.*')
+  endif
   
   spin = 0
   call iniqm(nuc0,xyz0,iat0,mchrg,spin,etemp,edum,iniok,ECP)
@@ -656,7 +704,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
              achrg0,aspin0,ECP,gradfail)
   
   write(*,*)
-  write(*,'('' Est. no. steps (collision): '',i4,3x,'' Distance (A): '',f9.6)') &
+  write(*,'('' Est. no. steps (collision): '',i4,3x,'' Distance (A): '',f12.6)') &
     & step_dist, start_dist
   write(*,*)
   write(*,'(''   step  time [fs]'',4x,''Epot'',7x,''Ekin'',7x, &
@@ -666,11 +714,13 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   distance_dump = 0
   xyzavg_dump = 0 
   average_dump = 0 
-  nstp  = 0
+  nstep  = 0
   Tav   = 0.0d0
   m     = 0
   xtra  = 0
-  
+ 
+  max_steps = ntot
+  total_steps = ntot
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! MD loops
@@ -678,80 +728,239 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !Calculate the distance between COM and Ar atom; set lowest distance as 
   !criteri for rest calculations
   
-  call cofmass(nuc,mass,xyz,cm)
+  call center_of_mass(nuc,mass,xyz,cm)
   call distArCOM(nuc0,xyz0,cm,new_dist)
   call minmaxCOM(new_dist,highestCOM,lowestCOM)
 
   lowestCOM = new_dist
   distcrit = 1.05d0 * lowestCOM  !say at which point the sim ends (by distance)
-  
-  do istep = 1, ntot
-     ! increase the step coutners
-     ttime = ttime + time_step * autofs 
-     screen_dump   = screen_dump   + 1 ! counter for screen dump
-     coord_dump    = coord_dump    + 1 ! counter for coord dump
-     distance_dump = distance_dump + 1 ! counter for distance criterion
-     xyzavg_dump   = xyzavg_dump   + 1 ! counter for average xyz structure
-     average_dump   = average_dump   + 1 ! counter for average 
  
-     ! Do the leap frog step 
-     call leapfrog(nuc0,grad0,mass0,time_step,xyz0,velo0,ke,nstp)
+  !> start the leapfrog algorithm loop
+  do 
+    nstep = nstep + 1
+
+    !> re-set xyz_avg structures
+    if (xyzavg_dump == dumpavg) then
+      xyzavg_dump = 0
+      avxyz = 0
+    endif
+
+    ! increase the step counters
+    ttime = ttime + time_step * autofs 
+    screen_dump   = screen_dump   + 1 ! counter for screen dump
+    coord_dump    = coord_dump    + 1 ! counter for coord dump
+    distance_dump = distance_dump + 1 ! counter for distance criterion
+    xyzavg_dump   = xyzavg_dump   + 1 ! counter for average xyz structure
+    average_dump   = average_dump   + 1 ! counter for average 
+ 
+
+    ! Do the leap frog step 
+    call leapfrog(nuc0,grad0,mass0,time_step,xyz0,velo0,ke)
 
     ! Calculate Grad for entire system
-     call egrad(.False.,nuc0,xyz0,iat0,mchrg,spin,etemp,E,grad0,achrg0,aspin0,ECP,gradfail)
+    call egrad(.False.,nuc0,xyz0,iat0,mchrg,spin,etemp,E,grad0,achrg0,aspin0,ECP,gradfail)
   
-     if (gradfail)then !If 'grad seems to be bogus!' in egrad
-        stopcid=.true.
-        exit
-     endif
+    if (gradfail)then !If 'grad seems to be bogus!' in egrad
+       stopcid=.true.
+       exit
+    endif
 
-     ! Calculate center-of-mass
-     call cofmass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
+    ! Calculate center-of-mass
+    call center_of_mass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
   
-     diff_cm(:) = cm(:) - old_cm(:)
-     cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 +  diff_cm(3)**2)
-     old_cm(:) = cm(:)
+    diff_cm(:) = cm(:) - old_cm(:)
+    cm_out = sqrt(diff_cm(1)**2 + diff_cm(2)**2 +  diff_cm(3)**2)
+    old_cm(:) = cm(:)
   
-     ! compute new velocity and convert to m/s
-     if (istep /= 1)then
-       new_velo = (cm_out / time_step ) / mstoau 
-     else !i.e. in the first step: 
-       new_velo = 0
-     endif
+    ! compute new velocity and convert to m/s
+    if (nstep /= 1)then
+      new_velo = (cm_out / time_step ) / mstoau 
+    else !i.e. in the first step: 
+      new_velo = 0
+    endif
 
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     ! Calculate different energies/temperatures 
-     call ekinet(nuc,velo0(:,:nuc),mass0(:nuc),Ekin,T)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Calculate different energies/temperatures 
+    call ekinet(nuc,velo0(:,:nuc),mass0(:nuc),Ekin,T)
   
-     E_velo = 0.5 * summass * ((new_velo*mstoau)**2) 
-     E_kin_diff = Ekin - E_velo
+    E_velo = 0.5 * summass * ((new_velo*mstoau)**2) 
+    E_kin_diff = Ekin - E_velo
   
-     new_temp = (2*E_kin_diff) / (3 * kB * nuc)
-     if (istep == 1) new_temp = tinit
-     Tav = Tav + new_temp
+    new_temp = (2*E_kin_diff) / (3 * kB * nuc)
+    if (nstep == 1) new_temp = tinit
+    Tav = Tav + new_temp
   
-     m    = m + 1
-     avgT = Tav / m
+    m    = m + 1
+    avgT = Tav / m
 
-     !set collision energy (eV)
-     E_COM_calc = calc_ECOM(beta,E_velo)  !(beta * E_velo)/evtoau
+    !set collision energy (eV)
+    E_COM_calc = calc_ECOM(beta,E_velo)  !(beta * E_velo)/evtoau
 
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     ! increase number of steps to allow longer collision MD if fragmentation occured
-     call fragment_structure(nuc,iat0(:nuc),xyz0(:,:nuc),3.0d0,1,0,list)
-     call fragmass(nuc,iat0(:nuc),list,mass0(:nuc),imass(:nuc),nfrag,fragm,fragf,fragat)
-     if (nfrag > 1) then
-!        call intenergy(nuc,list,mass0(:nuc),velo0(:,:nuc),nfrag,fragT,E_int)
-        xstps=.true.
-     endif
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! increase number of steps to allow longer collision MD if fragmentation occured
+    call fragment_structure(nuc,iat0(:nuc),xyz0(:,:nuc),3.0d0,1,0,list)
+    call fragmass(nuc,iat0(:nuc),list,mass0(:nuc),imass(:nuc),nfrag,fragm,fragf,fragat)
  
+     !> get the average structure of the ion/fragments
+    avxyz  = avxyz  + xyz0(:,:nuc)
+     
+    root_msd=0
+    highest_rmsd=0
+    normmass = 0
+
+    if (nfrag > check_fragmented ) then
+      count_average = .true.
+      !count_fragmented = .true.
+      check_fragmented = nfrag
+    endif
+
+    if (nfrag < check_fragmented)then
+      if(count_average) then
+      cnt = 0
+      avxyz2 = 0
+      rmsd_check = 0
+      store_avxyz  = 0!avxyz2 / cnt
+      cg = 0
+      count_average = .false.
+      check_fragmented = 1
+    endif
+
+    !if (count_fragmented) then
+    !  count_fragmented = .false.
+    !  check_fragmented = 1
+    !endif
+  endif
+
+
+  !if ( count_fragmented ) then !.and. start_cnt > cnt_start ) then 
+  !  !fconst = fconst + 1
+  !  !start_cnt = start_cnt + 1 
+  !  !if ( abs(mchrg) == 1) cnt_start = 0
+  !  !if ( abs(mchrg) > 1) cnt_start = total_steps - cnt_steps
+  !  cnt_start = total_steps - cnt_steps
+  !endif
+
+    if ( count_average ) then !.and. nstep > cnt_start ) then 
+      cg = 0
+      cnt = cnt + 1
+      avxyz2  = avxyz2  + xyz0(:,:nuc)
+
+      store_avxyz  = avxyz2 / cnt
+
+      call avg_frag_struc(nuc,iat,iatf, store_avxyz,list, nfrag, natf, xyzf)
+      !call avg_frag_struc(nuc,iat,iatf, xyz, list, nfrag, natf, xyzf)
+
+
+cntfrg: do i = 1, nfrag
+
+          if (cnt == 1) then
+            save_natf(i) = natf(i)
+          endif
+
+          if(natf(i) /= save_natf(i))then
+            !write(*,*) 'Fragment changed. Re-started count'
+            cnt = 0
+            store_avxyz  = 0 ! avxyz2 / cnt
+            avxyz2 = 0
+            cg = 0
+            exit cntfrg
+          endif
+
+          !allocate(nxyz1(3,natf(i)), &
+          !        nxyz2(3,natf(i)))
+          !!> start-strucutre
+          !normmass = 0
+
+          !!> compute the center-of-geometry of current structure
+          !do j = 1, natf(i)
+          !  !>> get the current fragment structure
+          !  rmsd_check(:,j,i,cnt) = xyzf(:,j,i)
+
+          !  !>> get the current center-of-geometry
+          !  cg(:,i,cnt) = cg(:,i,cnt) + 1 * rmsd_check(:,j,i,cnt)
+
+          !  normmass  = normmass + 1 
+          !enddo
+
+          !cg(:,i,cnt) = cg(:,i,cnt) / normmass
+
+
+          !!> calculate the difference betwen the two c-of-g
+          !diff_cg(:,i,cnt) = cg(:,i,cnt) - cg(:,i,1)
+
+
+          !!> shift the c-of-g by the difference of c-of-g
+          !do j=1,natf(i)
+          !  rmsd_check(:,j,i,cnt) = rmsd_check(:,j,i,cnt) - diff_cg(:,i,cnt)
+          !enddo
+
+          !!> transform into right array size for rmsd routine
+          !do j = 1, natf(i)
+          !  !>> the right compare-structure is taken
+          !  nxyz1(:,j) = rmsd_check(:,j,i,1)
+          !  nxyz2(:,j) = rmsd_check(:,j,i,cnt)
+          !enddo
+
+
+
+          !!> calculate root-mean-sqare-deviation of the two structures
+          !call get_rmsd( nxyz1, nxyz2, root_msd, gradient, trafo)
+
+          !do j= 1, natf(i)
+          !  check_xyz (:,j) = matmul(nxyz2(:,j),trafo)
+          !enddo
+
+
+          !call get_rmsd( nxyz1, check_xyz, root_msd)!, gradient, trafo)
+
+          !rmsd_frag(i) = root_msd !/cnt
+          !!write(*,*)  
+          !!write(*,*) 'RMSD new',i,(rmsd_frag(i)*aatoau)
+          !if (rmsd_frag(i) > highest_rmsd(i)) highest_rmsd(i) = rmsd_frag(i)
+
+          !!>>>> write for test
+          !if ( rmsd_frag(i)*autoaa > 1.0 ) then
+          !  write(*,*) 'HIGH RMSD'
+          !  !wr_file = wr_file + 1
+          !  !open(file=
+          !  write(s1,*) natf(i)
+          !  write(s1,*) 
+          !  do j= 1, natf(i)
+          !    write(s1,*) toSymbol(iatf(j,i)), nxyz1(:,j)*autoaa
+          !  enddo 
+          !endif
+
+          !deallocate(nxyz1, nxyz2)
+        enddo cntfrg
+
+
+        if (cnt == cnt_steps) then
+          store_avxyz  = avxyz2 / cnt
+          call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
+          !write(*,*) nstep, 'Count', cnt
+          !write(*,*) 'Start Count', start_cnt
+
+          !do i = 1, nfrag
+          !  write(*,*) 'Higest RMSD',i, highest_rmsd(i) * autoaa
+          !enddo
+           
+          !call get_rmsd CHARGES_avg_MDs
+          avxyz2 = 0
+          cnt = 0
+          rmsd_check = 0
+          cg = 0
+          count_average = .false.
+        endif
+
+    endif
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! D U M P s
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !DUMP coordinates to CID.xyz and DUMP text to screen                  
     
-    if (coord_dump == dumpcoord .or. istep == 1)then
+    if (coord_dump == dumpcoord .or. nstep == 1)then
        coord_dump = 0
        write(io_cid,*) nuc0
        write(io_cid,*) 'E=',ke+E
@@ -761,7 +970,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
                ,' ',xyz0(2,ind) * autoaa     &
                ,' ',xyz0(3,ind) * autoaa 
        end do        
-       if (istep == 1)coord_dump=1
+       if (nstep == 1)coord_dump=1
     end if
     
     ! Screen dump
@@ -769,7 +978,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
        screen_dump = 0
        
        write(*,'(i7,f8.0,3x,F11.4,2x,F8.4,F11.4,2x,F8.0,F12.3)') &
-         &      nstp,ttime,E/evtoau,ke/evtoau,E+ke/evtoau,etemp,avgT
+         &      nstep,ttime,E/evtoau,ke/evtoau,E+ke/evtoau,etemp,avgT
     end if
 
     if (average_dump == dumpavg)then
@@ -778,31 +987,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     end if
 
     aTlast = avgT    
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! WORK IN PROGRESS
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !if (xyzavg_dump == dumpavg) then
-    !  xyzavg_dump = 0
-    !  avxyz =0
-    !  ! hier muss ich die average xyz coords rausfinden
-    !  set_grad = huge(0.0_wp)
-    !end if
-
-    !save_grad = sum(grad0(:,:nuc))
-    !if (save_grad < set_grad)then
-    !  set_grad = save_grad
-    !  avxyz  = xyz0(:,:nuc)
-    !endif
-    
-    !do j = 1, nuc
-    !   avxyz(1,j)  = avxyz(1,j)  + (xyz(1,j)) ! - cm(1)) 
-    !   avxyz(2,j)  = avxyz(2,j)  + (xyz(2,j)) ! - cm(2)) 
-    !   avxyz(3,j)  = avxyz(3,j)  + (xyz(3,j)) ! - cm(3)) 
-    !enddo
-   !!! CID muss angepasst werden, die rotationsgeschwindigkeit der einzelnen
-   !!! atome von den xyz coords abzeihen um average xyz zu bekommen
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
@@ -815,7 +999,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
     
        !1.Stop MD loop if shortest distance between Ar and molecule is more 
        !  than initial dist or if after impact a certain time has passed
-       call cofmass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
+       call center_of_mass(nuc,mass0(:nuc),xyz0(:,:nuc),cm)
        call distArCOM(nuc0,xyz0,cm,new_dist)
        call minmaxCOM(new_dist,highestCOM,lowestCOM)
   
@@ -825,62 +1009,43 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
           step_counter = 0
        endif
 
-       if (step_counter == 10)then !100 steps (see dumpdist)
+       if (step_counter == 5)then !100 steps (see dumpdist)
           write(*,*)
-          write(*,'(''COLLISION after '',i6,a6)') nstp,' steps'
+          write(*,'(''COLLISION after '',i6,a6)') nstep -50 ,' steps'
   
-          time_step_count = nstp + nint(800.0_wp * (2 * time_step * autofs)) 
+          total_steps = nstep + nint(800.0_wp * (2 * time_step * autofs)) 
+          !time_step_count = nint(800.0_wp * (2 * time_step * autofs)) 
 
-          write(*,'(''STOP      after '',i6,a6)') time_step_count,' steps'
+          collided = .true.
+
+          write(*,'(''STOP      after '',i6,a6)') total_steps,' steps'
           write(*,*) 
           Tav = 0  !Start counting again to ensure only the
           m   = 0  !temp after the coll. is taken
        endif
 
-       if (xstps.and.step_counter == 50)then !500 steps (we need some time after frag)
-          xtra = 600  !should be made dependend on the velocity of fragment
-                
-          write(*,'('' FRAGMENTATION occured!'')')
-          write(*,'('' Do '',i3,a12)') xtra, ' extra steps'
-       endif
   
-      ! Stop if either the dist-criterion...
-       if (lowestCOM > distcrit)then
-          stopcid = .False.
-          write(*,*) 'The collision MD finished in',nstp,' steps'
-          write(*,*) 'Collision MD finished due to DISTANCE!'
-  !        write(*,*) ''
-  !        write(*,*) 'The LAB velocity:',  new_velo, 'm/s'
-          velo_diff = velo_cm - new_velo
-          time_step_count = 0
-          exit
-       endif
+    endif
+ 
+    if ( nfrag > 1 .and. collided .and. .not. fragmented)then !500 steps (we need some time after frag)
 
-     ! ...or the step-criterion is fullfilled
-       if (nstp == time_step_count+xtra)then  ! 800 Steps + xtra Steps
-          stopcid = .False.
-          write(*,*) 'Collision MD finished due to STEPS!'
-          write(*,*) ''
-          velo_diff = velo_cm - new_velo
-          E_velo = (0.5_wp * summass * ((new_velo)**2)) !/ evtoau
-          !write(*,*) ''
-          !write(*,*) 'Velo Difference' , velo_diff
-          !write(*,*) 'Velocity now  :',  new_velo, 'm/s'
-          !write(*,*) ''
-          time_step_count = 0
-          exit
-       endif
+      !xtra = 150 * int(nuc/10)  !should be made dependend on the velocity of fragment
+
+      total_steps = nstep + add_steps +xtra
+      write(*,'('' FRAGMENTATION occured!'')')
+      !write(*,*) 'scale chrg steps', scale_chrg_steps
+      !write(*,'('' Do '',i5,a)') xtra+scale_chrg_steps, ' extra steps'
+      write(*,'(''STOP      after '',i6,a6)') total_steps,' steps'
+      fragmented = .true.
+
     endif
   
-  
   !2.Stop simulation because the max nsteps are reached. 
-     if (istep == ntot)then
-        write(*,*) 'Attention:'
-        write(*,*) '-----------------------------------------------'
-        write(*,*) 'Maximum number of steps has been reached, but  '
-        write(*,*) 'probably no collision occured.                 '
-        write(*,*) '-----------------------------------------------'
-        stopcid = .False.
+     if (nstep >= total_steps)then
+       velo_diff = velo_cm - new_velo
+       write(*,*) 'The collision MD finished in',nstep,' steps'
+       stopcid = .False.
+       exit
      endif
   
   
@@ -899,9 +1064,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
            
   E_velo = 0.5 * summass * ((new_velo*mstoau)**2)
   
-!  e_int0 = avgT*(0.5*3*nuc*kB)
-
-
   write(*,'(50(''#''))')
   write(*,*) 'Energetics after collision: '
   write(*,*)
@@ -927,18 +1089,26 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   write(*,*) 'E X I T - the CID module is finished'
   write(*,*) ''
   xyz (1:3,1:nuc) = xyz0  (1:3,1:nuc) 
-  axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) !/ dumpavg
   velo(1:3,1:nuc) = velo0(1:3,1:nuc)
   grad(1:3,1:nuc) = grad0(1:3,1:nuc)
   achrg(1:nuc)    = achrg0(1:nuc)
   velo_cm         = new_velo
+
+  if (check_fragmented > 1 ) then 
+    !axyz (1:3,1:nuc) = avxyz2  (1:3,1:nuc) 
+    axyz (1:3,1:nuc) = store_avxyz  (1:3,1:nuc) 
+  else
+   axyz (1:3,1:nuc) = avxyz  (1:3,1:nuc) / xyzavg_dump
+  endif
+  fragmented = .false.
+
   deallocate(xyz0,velo0,grad0,mass0,iat0,achrg0,aspin0)
   
   close(io_cid)
   
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!      
-  end subroutine
+  end subroutine cid
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   
@@ -948,39 +1118,12 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   !!! Routines
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
-  
-  !Calculates center of mass and returns it in variable cm      
-  subroutine cofmass(nuc,mass,xyz,cm)
-  use xtb_mctc_accuracy, only: wp
-  implicit none      
-
-  integer  :: i, nuc
-
-  real(wp) :: totmass
-  real(wp),intent(in) :: xyz(3,nuc), mass(nuc)
-  real(wp),intent(out) :: cm(3)
-
-
-  totmass = 0.0d0
-  cm = 0.0d0
-  do i = 1,nuc
-     cm(1) = cm(1) + mass(i) * xyz(1,i)
-     cm(2) = cm(2) + mass(i) * xyz(2,i)
-     cm(3) = cm(3) + mass(i) * xyz(3,i)
-     totmass  = totmass + mass(i)
-  end do
-  cm(1) = cm(1) / totmass
-  cm(2) = cm(2) / totmass
-  cm(3) = cm(3) / totmass
-  end subroutine
- 
-
   !############################################################################
   !Distance coll atom to COM - N2 doesnt matter
   
   subroutine distArCOM(nuc0,xyz0,cm,new_dist)
-  use xtb_mctc_accuracy, only: wp
-  implicit none
+  !use xtb_mctc_accuracy, only: wp
+  !implicit none
   integer  :: j
   integer  :: nuc0
   real(wp), intent(in) :: xyz0(3,nuc0),cm(3)
@@ -993,10 +1136,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   
   new_dist = sqrt(dist(1)**2 + dist(2)**2 + dist(3)**2)
   
-  end subroutine
+  end subroutine distArCOM
   !############################################################################
   
-  !Calculate the  
+  !Calculate the  minimum and maximum distance from the COM
   subroutine minmaxCOM(new_dist,highestCOM,lowestCOM)
   use xtb_mctc_accuracy, only: wp
   implicit none
@@ -1018,12 +1161,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 ! Calcualte the molecular radius, cross section and mean-free-path
 !#########################################################################
   subroutine collision_setup(nuc,iat,xyz,mass,r_mol,cross,mfpath,calc_collisions)
-  use cidcommon
-  use covalent_radii, only: Rad
-  use xtb_mctc_accuracy, only: wp
-  use xtb_mctc_convert
-  use xtb_mctc_constants, only: pi
-  implicit none
 
   integer  :: nuc
   integer  :: iat(nuc)
@@ -1032,7 +1169,7 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   real(wp),intent(in)  :: xyz(3,nuc),mass(nuc)
 !  real(wp),intent(in)  :: TGas,PGas,lchamb
   real(wp),intent(out) :: r_mol,cross,mfpath
-  real(wp) :: cm(3),mol_rad,rtot
+  real(wp) :: cg(3),mol_rad,rtot
   real(wp) :: r_atom,calc_collisions
 
   real(wp),parameter :: kB_J   = 1.38064852E-23
@@ -1040,11 +1177,11 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   mol_rad = 0
   rtot    = 0
 
-  call cofmass(nuc,mass,xyz,cm)
+  call center_of_geometry(nuc,xyz,cg)
 
   ! Determine the radii by checking the largest distance from the center of mass
   do i=1,nuc
-      mol_rad   = sqrt((xyz(1,i)-cm(1))**2 + (xyz(2,i)-cm(2))**2 + (xyz(3,i)-cm(3))**2) + Rad(iat(i))
+      mol_rad   = sqrt((xyz(1,i)-cg(1))**2 + (xyz(2,i)-cg(2))**2 + (xyz(3,i)-cg(3))**2) + Rad(iat(i))
 
       if (mol_rad > rtot) rtot = mol_rad 
   enddo
@@ -1060,9 +1197,9 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   cross  = pi * ((r_mol + r_atom)**2)
   mfpath = (kB_J * cell%TGas) / (cross * cell%PGas) 
 
-  calc_collisions = cell%lchamb/mfpath
+  calc_collisions = cell%lchamb / mfpath
 
-  end subroutine
+  end subroutine collision_setup
   
 
 !#########################################################################
@@ -1070,12 +1207,11 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 !#########################################################################
 
 function calc_ECOM(beta,e_kin) result(E_COM)
-  use xtb_mctc_accuracy, only: wp
-  use xtb_mctc_convert
-  implicit none
 
   real(wp) :: beta, e_kin, E_COM
 
   E_COM = (beta * E_KIN) * autoev
 
 end function calc_ECOM
+
+end module qcxms_cid_routine

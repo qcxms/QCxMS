@@ -3,26 +3,25 @@ module common1
   implicit none
 
   !!!!!!!!!!!!!!!!!!!!!!!
-  integer  ::  shell
-  integer  ::  bas
-  integer  ::  func
-  integer  ::  method
-  integer  ::  gfnver
-  integer  ::  prog
-  integer  ::  qcmem
-  integer  ::  ihamilt
-  integer  ::  orca_version
-  integer  ::  grid_orca
+  integer  :: shell
+  integer  :: bas
+  integer  :: func
+  integer  :: method
+  integer  :: gfnver
+  integer  :: prog
+  integer  :: qcmem
+  integer  :: ihamilt
+  integer  :: orca_version
+  integer  :: grid_orca
   !integer  ::  grid_tmol
   integer  :: nproc_orca
+  integer  :: iseed(1)
 
   real(wp) ::  a1,a2,s8
   real(wp) ::  ax
   real(wp) ::  ieetemp
   real(wp) ::  cab(100,100)
   real(wp) ::  alpc
-  real(wp) ::  ipshift,eashift
-
 
   logical  ::  gcp
   logical  ::  hhmod
@@ -31,6 +30,7 @@ module common1
   logical  ::  noconv
   logical  ::  slowconv
   logical  ::  XTBMO
+  logical  ::  No_eTemp
   !!!!!!!!!!!!!!!!!!!!!!!!!
 
 end module common1

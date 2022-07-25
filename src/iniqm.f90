@@ -40,6 +40,8 @@ module qcxms_iniqm
        endif
     end function get_core_e
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     subroutine electrons_amount(nat, iat, chrg, nel, nb, z)
 
        integer, intent(in) :: nat, iat(nat), chrg
@@ -236,11 +238,10 @@ module qcxms_iniqm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
     
     ! compute energies only as used in fragment IP calc
-    subroutine eqm(prog,nat,xyz,iat,chrg,dumspin,etemp,newcalc,iok, &
-                   energy,nel,nb,ECP,spec_calc)
+    subroutine eqm(prog,nat,xyz,iat,mchrg,dumspin, &
+        & etemp,newcalc,ipok,energy,nel,nb,ECP,spec_calc)
     
-       integer  :: prog,nat,iat(nat),chrg
-       integer  :: iok
+       integer  :: prog,nat,iat(nat),mchrg
        integer  :: spin
        integer  :: dumspin
        integer  :: nb
@@ -252,20 +253,21 @@ module qcxms_iniqm
     
        logical  :: newcalc, spec_calc
        logical  :: ECP
+       logical  :: ipok
     
        integer :: stat
        character(len=:), allocatable :: output_name
     
-       call electrons_amount(nat, iat, chrg, nel, nb, z)
-    
+       call electrons_amount(nat, iat, mchrg, nel, nb, z)
+
     ! spec.f and regular IP/EA evaluations will use this input option
     ! where the algorithm assigns the spin automatically
     ! However, because metals need to vary the spin, it needs to be an
     ! input variable as well.
     ! NOTE: IF SPIN IS INPUT VARIABLE IT SHOULD COME IN AS MULTIPLICITY?
-    
+   
        if(dumspin == -1)then
-          call getspin(nat,iat,chrg,spin)
+          call getspin(nat,iat,mchrg,spin)
        else
           spin = dumspin
        endif
@@ -273,10 +275,9 @@ module qcxms_iniqm
        energy=0
       ! no electrons 
       ! we do not want this for XTB since proton has 0.2 Ha energy in XTB
-       if(prog /= 7.and. prog /= 6.and. prog /= 8)then
+       if(prog < 6)then
           if(spin < 1) then
              energy=1.d-6
-             iok=iok+1
              return
           endif
        endif
@@ -286,8 +287,8 @@ module qcxms_iniqm
        ! DFTB+
        if(prog == 0)then
           call execute_command_line('rm -f charges.bin')
-          call dftbout(nat,xyz,iat,chrg,spin,.false.,etemp,1.d-5)
-          if(chrg == 0)then
+          call dftbout(nat,xyz,iat,mchrg,spin,.false.,etemp,1.d-5)
+          if(mchrg == 0)then
              call qccall(0,'neutral.out')
           else
              call qccall(0,'ion.out')
@@ -297,7 +298,7 @@ module qcxms_iniqm
 
        ! MOPAC
        if(prog == 1)then
-          call getmopgrad(nat,iat,xyz,gradient,chrg,etemp, &
+          call getmopgrad(nat,iat,xyz,gradient,mchrg,etemp, &
             .true.,energy,qat,dum2)
        endif
 
@@ -306,8 +307,8 @@ module qcxms_iniqm
           call execute_command_line('rm -f control gradient energy')
           call wrcoord(nat,xyz,iat)
     
-          if(chrg == 0)then
-             call initm(nat,iat,chrg,spin)
+          if(mchrg == 0)then
+             call initm(nat,iat,mchrg,spin)
              if(etemp > 0) call setfermi(etemp)
              call execute_command_line('kdg scfdump')
              call qccall(2,'neutral.out')
@@ -315,7 +316,7 @@ module qcxms_iniqm
              call execute_command_line('cp gradient gradient.neutral')
              call rdtmenergy('energy.neutral',energy)
           else
-             call initm(nat,iat,chrg,spin)
+             call initm(nat,iat,mchrg,spin)
              if(etemp > 0) call setfermi(etemp)
              call execute_command_line('kdg scfdump')
              call qccall(2,'ion.out')
@@ -328,8 +329,8 @@ module qcxms_iniqm
        ! ORCA
        if(prog == 3)then
           if(newcalc) call execute_command_line('rm -f ORCA.INPUT.gbw')
-          call orcaout(nat,xyz,iat,chrg,spin,etemp,.false.,ECP)
-          if(chrg == 0)then
+          call orcaout(nat,xyz,iat,mchrg,spin,etemp,.false.,ECP)
+          if(mchrg == 0)then
              call qccall(3,'neutral.out')
              call rdorcaen('neutral.out',energy)
           else
@@ -337,7 +338,7 @@ module qcxms_iniqm
              call rdorcaen('ion.out',energy)
           endif
           if(abs(energy) < 1.d-10)then
-             if(chrg == 0)then
+             if(mchrg == 0)then
                 call qccall(3,'neutral.out')
                 call rdorcaen('neutral.out',energy)
              else
@@ -349,7 +350,7 @@ module qcxms_iniqm
 
        ! MSINDO
        if(prog == 4)then
-          call getmsindograd(.true.,nat,iat,chrg,spin,xyz,etemp,14, &
+          call getmsindograd(.true.,nat,iat,mchrg,spin,xyz,etemp,14, &
             gradient,energy,qat,dum2)
           call execute_command_line('rm -f fort.*')
        endif
@@ -357,8 +358,8 @@ module qcxms_iniqm
        ! MNDO
        if(prog == 5)then
           call execute_command_line('rm fort.11 fort.15')
-          call mndoout(nat,xyz,iat,chrg,spin,etemp,4,10)
-          if(chrg == 0)then
+          call mndoout(nat,xyz,iat,mchrg,spin,etemp,4,10)
+          if(mchrg == 0)then
              call qccall(5,'neutral.out')
              call mndograd('neutral.out',nat,gradient,qat,dum2,energy)
           else
@@ -370,9 +371,8 @@ module qcxms_iniqm
     
        ! Call-xTB
        if (prog == 6) then
-          call callxtb(nat,xyz,iat,chrg,spin,etemp,energy,gradient,qat,dum2)
-          write(*,*)
-          if(chrg == 0)then
+          call callxtb(nat,xyz,iat,mchrg,spin,etemp,energy,gradient,qat,dum2)
+          if( mchrg == 0)then
              call execute_command_line('mv xtb.last neutral.out')
           else
              call execute_command_line('mv xtb.last ion.out')
@@ -381,7 +381,7 @@ module qcxms_iniqm
     
        ! GFN1-xTB
        if (prog == 7) then
-          if (chrg == 0) then
+          if (mchrg == 0) then
              output_name = "neutral.out"
           else
              output_name = "ion.out"
@@ -390,14 +390,14 @@ module qcxms_iniqm
             call eself(nat,iat,z,energy)
             qat    = 0.0_wp
           else
-            call get_xtb_egrad(iat, xyz, chrg, spin, ipea1_xtb, etemp, &
+            call get_xtb_egrad(iat, xyz, mchrg, spin, ipea1_xtb, etemp, &
                    & output_name, qat, energy, gradient, stat, spec_calc)
           end if
        end if
     
        ! GFN2-xTB
        if (prog == 8) then
-          if (chrg == 0) then
+          if (mchrg == 0) then
              output_name = "neutral.out"
           else
              output_name = "ion.out"
@@ -406,7 +406,7 @@ module qcxms_iniqm
             call eself(nat,iat,z,energy)
             qat    = 0.0_wp
           else
-            call get_xtb_egrad(iat, xyz, chrg, spin, gfn2_xtb, etemp, &
+            call get_xtb_egrad(iat, xyz, mchrg, spin, gfn2_xtb, etemp, &
                 &    output_name, qat, energy, gradient, stat, spec_calc)
             if (stat /= 0) then
               error stop "[Fatal] Calculation in tblite library failed"
@@ -419,10 +419,9 @@ module qcxms_iniqm
        if (abs(energy) < 1.d-10 .or. stat/=0) then
           write(*,*)'QM code failure'
           write(*,*)'prog   = ',prog
-          write(*,*)'charge = ',chrg
+          write(*,*)'charge = ',mchrg
           write(*,*)'mult   = ',spin
-       else
-          iok=iok+1
+          ipok = .false.
        endif
 
     end subroutine eqm
@@ -449,6 +448,287 @@ module qcxms_iniqm
        edum = e
     !      call wren(e)
     
-    end
+    end subroutine eself
+
+  !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+  ! get energy, gradient, charge and spin density on atoms from QC
+  !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+  
+  subroutine egrad(first,nuc,xyz,iat,mchrg,spin,etemp,E,grad,qat,aspin,ECP,gradfail)
+     use common1
+     use qcxms_tblite, only: get_xtb_egrad, gfn1_xtb, gfn2_xtb
+     use qcxms_use_mndo, only: mndoout, mndograd 
+     use qcxms_use_msindo, only: getmsindograd 
+     use qcxms_use_orca, only: orcaout, rdorcagrad 
+     use qcxms_use_turbomole, only: initm, rdtmgrad, setfermi
+     use qcxms_utility, only: qccall, getspin
+     use xtb_mctc_accuracy, only: wp
+     use xtb_mctc_convert
+     use xtb_mctc_symbols, only: toSymbol 
+     implicit none
+  
+     integer :: nuc
+     integer :: mchrg
+     integer :: spin
+     integer :: iat(nuc)
+     integer :: i,idum,stat
+  
+     real(wp) :: xyz (3,nuc)
+     real(wp) :: grad(3,nuc)
+     real(wp) :: qat(nuc) ! atomic charge (q-at)
+     real(wp) :: aspin(nuc)
+     real(wp) :: E,etemp
+     real(wp) :: d3a1,d3a2,d3s8,d3atm
+     real(wp) :: cn(nuc),dcn(3,nuc,nuc)
+     real(wp) :: egcp,ggcp(3,nuc),disp
+  
+     character(len=20) :: atmp
+  
+     logical :: first
+     logical :: ECP
+     logical :: ok,gradfail
+  
+     disp   = 0
+     E    = 0
+     grad = 0
+     aspin= 0
+     qat= 0
+     gradfail=.false.
+  
+    !ccccccccccccccccccccccccccc
+    ! dftb+ (DFTB3-D3(BJ))
+    !ccccccccccccccccccccccccccc
+  
+     if(prog == 0)then
+        call dftbout(nuc,xyz,iat,mchrg,spin,.true.,etemp,1.d-5)
+        call qccall(0,'job.last')
+        call dftbgrad(nuc,grad,qat,aspin,E)
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+        if(.not.ok) then
+           call dftbout(nuc,xyz,iat,mchrg,spin,.false.,etemp,1.d-4)
+           call qccall(0,'job.last2')
+           call dftbgrad(nuc,grad,qat,aspin,E)
+           call checkqc(nuc,E,grad,qat,ok,mchrg)
+           if(ok)write(*,*)'healed!'
+        endif
+     endif
+  
+  !ccccccccccccccccccccccccccc
+  ! mopac
+  !ccccccccccccccccccccccccccc
+     if(prog == 1)then
+        call getmopgrad(nuc,iat,xyz,grad,mchrg,etemp,.false.,E,qat,aspin)
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+     endif
+  
+  !ccccccccccccccccccccccccccc
+  ! TM
+  !ccccccccccccccccccccccccccc
+  
+     if(prog == 2)then
+        call execute_command_line('rm -rf gradient energy dscf_problem')
+        open(unit=87,file='coord')
+        write(87,'(a)')'$coord'
+        do i=1,nuc
+           write(87,'(3F16.10,10x,a2)')&
+           &xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(iat(i))
+        enddo
+        write(87,'(a)')'$end'
+        close(87)
+        if(etemp.gt.0) call setfermi(etemp)
+        call qccall(2,'job.last')
+        call rdtmgrad (nuc,grad,qat,aspin,E)
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+     endif
+  
+  !ccccccccccccccccccccccccccc
+  ! ORCA
+  !ccccccccccccccccccccccccccc
+  
+     if(prog == 3)then
+        call orcaout(nuc,xyz,iat,mchrg,spin,etemp,.true.,ECP)
+        call qccall(3,'job.last')
+        call rdorcagrad('job.last',nuc,grad,qat,aspin,E)
+  ! second attempt
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+        if(.not.ok) then
+           call qccall(3,'job.last2')
+           call rdorcagrad('job.last2',nuc,grad,qat,aspin,E)
+           call checkqc(nuc,E,grad,qat,ok,mchrg)
+           if(ok)write(*,*)'healed!'
+        endif
+     endif
+  
+  !ccccccccccccccccccccccccccc
+  ! MSINDO
+  !ccccccccccccccccccccccccccc
+  
+     if(prog == 4)then
+        call getmsindograd(first,nuc,iat,mchrg,spin,xyz,etemp,4,grad,E,qat,aspin)
+ 
+        !> for msindo, this was originally checkqc2, but no warning was triggered
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+        if(.not.ok) call getmsindograd(first,nuc,iat,mchrg,spin,xyz,etemp,14,grad,E,qat,aspin)
+  
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+        if(.not.ok) call getmsindograd(first,nuc,iat,mchrg,spin,xyz,etemp,16,grad,E,qat,aspin)
+  
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+     endif
+  
+  !ccccccccccccccccccccccccccc
+  ! MNDO99
+  !ccccccccccccccccccccccccccc
+  
+     if(prog == 5)then
+        call mndoout(nuc,xyz,iat,mchrg,spin,etemp,5,10)
+        call qccall(5,'job.last')
+        call mndograd('job.last',nuc,grad,qat,aspin,E)
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+        if(.not.ok) then
+           call mndoout(nuc,xyz,iat,mchrg,spin,etemp,5,20)
+           call qccall(5,'job.last2')
+           call mndograd('job.last2',nuc,grad,qat,aspin,E)
+           call checkqc(nuc,E,grad,qat,ok,mchrg)
+           if(ok)write(*,*)'healed!'
+        endif
+        if(.not.ok) then
+           call mndoout(nuc,xyz,iat,mchrg,spin,etemp,4,2)
+           call qccall(5,'job.last2')
+           call mndograd('job.last2',nuc,grad,qat,aspin,E)
+           call checkqc(nuc,E,grad,qat,ok,mchrg)
+           if(ok)write(*,*)'healed!'
+        endif
+     endif
+  
+  
+  !cccccccccccccccccccccccccc
+  !  XTB
+  !ccccccccccccccccccccccccc
+     if(prog == 6)then
+  ! idum = spin
+        call getspin(nuc,iat,mchrg,idum)
+        call callxtb(nuc,xyz,iat,mchrg,idum,etemp,E,grad,qat,aspin)
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+        if(.not.ok)then
+           gradfail=.true.
+           write(*,*) 'GRAD failed!'
+        endif
+     endif
+  
+  !cccccccccccccccccccccccccc
+  ! GFN1-xTB
+  !ccccccccccccccccccccccccc
+     if(prog == 7)then
+        call getspin(nuc,iat,mchrg,idum)
+  !      if (with_tblite) then
+           call get_xtb_egrad(iat, xyz, mchrg, idum, gfn1_xtb, etemp, &
+              & "xtb.last", qat, E, grad, stat, .false.)
+           ok = stat == 0
+  !      else
+  !         call qcxtb2(nuc,xyz,iat,mchrg,idum,E,etemp,grad,qat,aspin,.false.)
+  !      end if
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+        if(.not.ok)then
+           gradfail=.true.
+           write(*,*) 'QC calc failed!'
+        endif
+     endif
+  
+  !cccccccccccccccccccccccccc
+  ! GFN2-xTB
+  !ccccccccccccccccccccccccc
+     if(prog == 8)then
+        call getspin(nuc,iat,mchrg,idum)
+  !      if (with_tblite) then
+           call get_xtb_egrad(iat, xyz, mchrg, idum, gfn2_xtb, etemp, &
+              &               "xtb.last", qat, E, grad, stat, .false.)
+           ok = stat == 0
+  !      else
+  !         call qcxtb2(nuc,xyz,iat,mchrg,idum,E,etemp,grad,qat,aspin,.false.)
+  !      end if
+        call checkqc(nuc,E,grad,qat,ok,mchrg)
+        if(.not.ok)then
+           gradfail=.true.
+           write(*,*) 'QC calc failed!'
+        endif
+     endif
+  
+     if(.not.ok) return
+  
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! gcp and D3
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     if(gcp) then
+        atmp='dft/sv'
+        if(bas == 2)atmp='dft/svx'
+        if(bas == 3.or.bas == 9)atmp='dft/sv(p)'
+        if(bas == 4.or.bas == 10)atmp='dft/svp'
+        call calcgcp(nuc,iat,xyz,.false.,atmp,egcp,ggcp)
+        grad(1:3,1:nuc)=grad(1:3,1:nuc)+ggcp(1:3,1:nuc)
+        E=E+egcp
+     endif
+  
+    ! return with ec=0 if parameters are zero (see input.f)
+    ! make d3 standalone only available for dftb(0), msindo(4) or mndo99(5)
+     if (prog == 0 .or. prog ==  4 .or. prog ==  5)then
+        call gdisp(nuc,iat,xyz,d3a1,d3a2,d3s8,d3atm,disp,grad,cn,dcn,.false.)
+        E = E + disp
+     endif
+  
+  end subroutine egrad
+  
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! is E, grad and charge reasonable ?
+  subroutine checkqc(nuc,e,grad,qat,ok,mchrg)
+  
+     integer  :: nuc,mchrg
+     real(wp) :: grad(3,nuc),e,qat(nuc)
+     real(wp) :: gn
+     logical  :: ok
+  
+  
+     ok=.false.
+  
+     if(abs(E).lt.1.d-8) then
+        write(*,*)'energy seems to be bogus!'
+        return
+     endif
+  
+     gn=gnorm(nuc,grad)
+     if(gn.lt.1.d-8.or.gn.gt.20.0) then
+        write(*,*)'grad seems to be bogus!'
+        E=0
+        return
+     endif
+  
+     if ( mchrg > 0 ) then
+        if(abs(maxval(qat)).lt.1.d-5) then
+           write(*,*)'WF seems to be bogus!',sum(qat)
+           E=0
+           return
+        endif
+     endif
+     ok=.true.
+  
+  end subroutine checkqc
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! compute norm of electronic gradient for dftd3
+  function gnorm(nuc,grad)
+     integer  :: nuc,i
+     real(wp) :: gnorm 
+     real(wp) :: grad(3,nuc)
+     real(wp) :: gn
+  
+     gn=0
+     do i=1,nuc
+        gn=gn+grad(1,i)**2+grad(2,i)**2+grad(2,i)**2
+     enddo
+  
+     gnorm=sqrt(gn)
+  
+  end function gnorm
 
 end module qcxms_iniqm

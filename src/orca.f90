@@ -60,8 +60,12 @@ module qcxms_use_orca
         open(file='ORCA.INPUT', newunit=io_orca)
 
      ! hybrid vs other funcs.... nat is number of atoms
-        if ( func <= 4 .and. nat < 60 .and. .not.noconv ) then
-           write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
+        if ( func <= 4 .and. nat < 60 .and. .not. noconv ) then
+         !if ( No_eTemp ) then
+           write(io_orca,'(''! CONV SMALLPRINT NOSOSCF RIJK DEF2/JK'')')
+         !else 
+         !  write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
+         !endif
 
         elseif ( func  ==  7 .and. nat < 60 .and. .not.noconv ) then
            write(io_orca,'(''! CONV SMALLPRINT NORI NOSOSCF'')')
@@ -92,7 +96,9 @@ module qcxms_use_orca
      
         ! Set mayer and finalgrid
         if ( orca_version == 4 ) write(io_orca,'(''! NOFINALGRID NOMAYER'')')
-        if ( orca_version == 5 ) write(io_orca,'(''! NOFINALGRIDX NOMAYER'')')
+        if ( orca_version == 5 ) then
+           write(io_orca,'(''! NOFINALGRIDX NOMAYER'')')
+       endif
      
         write(io_orca,'(''! UHF'')')
 
@@ -117,14 +123,18 @@ module qcxms_use_orca
 
      ! func 0,1,2 are pbe hybrid family
      ! func 3 is lda (commented out)
-        if ( func == 0  ) write(io_orca,'(''! PBE0 D3'')')
-        if ( func == 1  ) write(io_orca,'(''! D3BJ'')')
-        if ( func == 2  ) write(io_orca,'(''! D3BJ'')')
+        if ( func == 0  ) write(io_orca,'(''! PBE0 D4'')')
+        if ( func == 1  ) write(io_orca,'(''! D4'')')
+        if ( func == 2  ) write(io_orca,'(''! D4'')')
+        !if ( func == 1  ) write(io_orca,'(''! D3BJ'')')
+        !if ( func == 2  ) write(io_orca,'(''! D3BJ'')')
      !  if ( func == 3  ) write(io_orca,'(''! D3BJ'')')
         if ( func == 4  ) write(io_orca,'(''! M062X D3zero'')')
-        if ( func == 5  ) write(io_orca,'(''! PBE D3BJ'')')
+        if ( func == 5  ) write(io_orca,'(''! PBE D4'')')
+        !if ( func == 5  ) write(io_orca,'(''! PBE D3BJ'')')
         if ( func == 6  ) write(io_orca,'(''! B97-D3 '')')
-        if ( func == 7  ) write(io_orca,'(''! B3LYP D3BJ'')')
+        if ( func == 7  ) write(io_orca,'(''! B3LYP D4'')')
+        !if ( func == 7  ) write(io_orca,'(''! B3LYP D3BJ'')')
         if ( func == 8  ) write(io_orca,'(''! PW6B95 D3BJ'')')
         if ( func == 9  ) write(io_orca,'(''! B3PW91 D3BJ'')')
         if ( func == 10 ) write(io_orca,'(''! BLYP D3BJ '')')
@@ -194,7 +204,8 @@ module qcxms_use_orca
         write(io_orca,'(''end'')')
      
         write(io_orca,'(''%scf'')')
-        if(etemp > 10.0) write(io_orca,'('' SmearTemp '',F7.0)') etemp
+        !> test if fermi-smearing is even important
+        if(etemp > 10.0 .and. .not. No_eTemp ) write(io_orca,'('' SmearTemp '',F7.0)') etemp
         write(io_orca,'('' maxcore   '',i6  )') qcmem
         write(io_orca,'('' MaxIter  400''     )')
 
@@ -287,21 +298,21 @@ module qcxms_use_orca
         if(.not.ex) return
      
         open(file='ORCA.INPUT.engrad', newunit=io_orca, status='old' )
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,*) i
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,*) edum
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
-        read(io_orca,'(a)')line
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,*) i       !no. of atms
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,*) edum    !The current total energy in Eh
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
+        read(io_orca,'(a)')line !#
         do j=1,nat
-           read(io_orca,*)g(1,j)
-           read(io_orca,*)g(2,j)
-           read(io_orca,*)g(3,j)
+           read(io_orca,*)g(1,j) ! The current gradient in Eh/bohr
+           read(io_orca,*)g(2,j) ! The current gradient in Eh/bohr
+           read(io_orca,*)g(3,j) !  The current gradient in Eh/bohr
         enddo
         close(io_orca)
      
@@ -345,12 +356,10 @@ module qcxms_use_orca
    integer :: line
    character(len=80) :: command
    
-   if(line >= 10000)stop 'error 1 inside copyorc'
+   if(line >= 10000)stop 'Too many folders. Please reduce size'
    
    if(line >= 1000)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i4)')line
-      call execute_command_line(command)
-      write(command,'(''cp coord TMPQCXMS/TMP.'',i4)')line
       call execute_command_line(command)
       return
    endif
@@ -358,23 +367,17 @@ module qcxms_use_orca
    if(line >= 100)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i3)')line
       call execute_command_line(command)
-      write(command,'(''cp coord TMPQCXMS/TMP.'',i3)')line
-      call execute_command_line(command)
       return
    endif
    
    if(line >= 10)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i2)')line
       call execute_command_line(command)
-      write(command,'(''cp coord TMPQCXMS/TMP.'',i2)')line
-      call execute_command_line(command)
       return
    endif
    
    if(line >= 0)then
       write(command,'(''cp qcxms.in TMPQCXMS/TMP.'',i1)')line
-      call execute_command_line(command)
-      write(command,'(''cp coord TMPQCXMS/TMP.'',i1)')line
       call execute_command_line(command)
       return
    endif

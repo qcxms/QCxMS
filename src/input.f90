@@ -1,35 +1,42 @@
-subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                        &
-        iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,          &
-        edistri,btf,ieeatm,                                                       &
-        scanI,lowerbound,upperbound,metal3d,ELAB,ECOM, eExact,ECP,unity,noecp,    &
-        nometal,vScale,CollNo,CollSec,ConstVelo,                                  & 
-        minmass,manual_simMD,convetemp,set_coll,MaxColl,                          & 
-        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
-!  use gbobc, only: lgbsa
+module qcxms_input
   use readcommon
   use cidcommon
   use common1 
   use newcommon
   use qcxms_info, only: qcstring
+  use mctc_env, only : error_type, get_argument!, fatal_error
+  use mctc_io, only : structure_type, read_structure, write_structure, &
+      & filetype, get_filetype, to_symbol
   use xtb_mctc_accuracy, only: wp
   use xtb_mctc_convert
+
+  use get_settings, only: collision_type
   implicit none
+
+  contains
+
+subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
+        iee_a,iee_b,eimp0,eimpw,fimp,iprog,trelax,hacc,nfragexit,maxsec,       &
+        edistri,btf,ieeatm,                                                    &
+        scanI,lowerbound,upperbound,ELAB,ECOM, eExact,ECP,unity,noecp,         &
+        nometal,vScale,CollNo,CollSec,ConstVelo,                               & 
+        minmass,manual_simMD,convetemp, coll,                       & 
+        MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
+!  use gbobc, only: lgbsa
     
   integer  :: iprog
   integer  :: ntraj
-  integer  :: iseed 
   integer  :: nfragexit
   integer  :: maxsec      
   integer  :: edistri     
-  integer  :: scanI 
   integer  :: nn,i,j
   integer  :: io_in
   integer  :: error
-  integer  :: mchrg
+  integer  :: mchrg_prod
   
   real(wp) :: tstep
   real(wp) :: tmax 
-  real(wp) :: etemp
+  real(wp) :: etemp_in
   real(wp) :: Tinit
   real(wp) :: eimp0
   real(wp) :: eimpw
@@ -44,32 +51,33 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   real(wp) :: upperbound
   
   
-  interface
-    function to_upper(strIn) result(strOut)
-      implicit none
-      character(len=*), intent(in) :: strIn
-      character(len=len(strIn)) :: strOut
-    end function
-  end interface
+!  interface
+!    function to_upper(strIn) result(strOut)
+!      implicit none
+!      character(len=*), intent(in) :: strIn
+!      character(len=len(strIn)) :: strOut
+!    end function
+!  end interface
   
   logical :: ex
-  logical :: metal3d,ECP
+  logical :: ECP
   logical :: unity
+  logical :: scanI 
   logical :: noecp,nometal
   logical :: Plasma
-  logical  :: legacy
+  logical :: legacy
   ! logical gbsa
   
   !-----------------------------------
   !----- CID related parameters ------
   
-  integer  :: MaxColl
+  !integer  :: MaxColl
   integer  :: CollNo(3)
   integer  :: CollSec(3)
   integer  :: minmass
   integer  :: manual_simMD
   integer  :: convetemp
-  integer  :: set_coll
+  !integer  :: set_coll
   integer  :: manual_dist
   
   real(wp) :: ELAB,ECOM
@@ -80,6 +88,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   logical  :: No_ESI
   logical  :: NoScale
   logical  :: eExact
+
+  type(collision_type) :: coll
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!! DEFAULTS: !!!!!!!!!!!!!!!!!!!
@@ -110,21 +120,26 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   ! IF =False then use ORCA
   XTBMO=.True.
 
+  ! make charge dependend on input (in Prods min. = 1)
+  mchrg_prod = 1
   
+  ! maximum simulation time
+  tmax = 5
   ! MD time step in fs (0.5-1 fs) 
   tstep = 0.5_wp
-  ! length of production runs in ps
-  tmax = 5
   ! # of frag traject 
   ntraj = -1  
   ! rand ini
-  iseed = 42
+  !iseed = 42
+  iseed = 0
   ! electronic temperature (Fermi smearing) and used for IP/Boltzmann
   ! -1 means automatic      
-  etemp = -1        
+  etemp_in = -1        
   ! neutral MD temperature 
   Tinit = 500
-  
+  !> switch on etemp 
+  No_eTemp = .false.
+
   !!!             !!!! 
   !!! QC Settings !!!!
   !!!             !!!! 
@@ -151,11 +166,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   a2 = 0
   axi=-1
   ! default parameters for scan
-  scanI = 0
   lowerbound = 0.0d0
   upperbound = 20.0d0
-  ! if metal3d then check for spin multiplicites in IP calculations
-  metal3d = .false.
   ! ECP
   ECP = .false.
   
@@ -168,21 +180,25 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
 !  lgbsa=.false.
   ! memory for QC prog in Mb, input in Gb
   qcmem = 5000      
+  ! ORCA version
+  orca_version = 0
+  ! ORCA nprocs
+  nproc_orca = 0
   
   !!!           !!!! 
   !!!!!!! EI !!!!!!!
   !!!           !!!! 
   ! 70 eV standard impact
-  eimp0 =70.0_wp
+  eimp0 = 70.0_wp
   ! width (rel)
-  eimpw =0.10_wp 
+  eimpw = 0.10_wp 
   ! average IEE per atom (eV)
-  ieeatm=0.6_wp
+  ieeatm = 0.6_wp
   ! relate IEE to eTemp in SCF
-  ieetemp=0.0_wp
+  ieetemp = 0.0_wp
   ! automatically det.
-  iee_a=-99
-  iee_b=-99
+  iee_a = -99
+  iee_b = -99
   ! scaling factor for Boltzmann/IP temp.
   btf = 1.0_wp
   ! scaling of comuted impact energy for fragmentation 
@@ -199,13 +215,13 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   nfragexit = 3     
   ! unity scaling
   unity = .False.
-  ! ORCA nprocs
-  nproc_orca = 0
+  ! Legacy IEE pseudo-randomized (default: NO)
+  legacy = .false.
   
   !!!           !!!! 
   !!!!!! CID !!!!!!!
-  !!!           !!!! 
-  ELAB       = 40.0_wp  ! The laboratory energy frame 
+  !!!           !!!!
+  ELAB       =  40.0_wp  ! The laboratory energy frame 
   ECOM       =  0.0_wp  ! The center-of-mass energy frame 
   gas%Iatom  = 0        ! Index of collision atom
   manual_dist  = 0
@@ -217,13 +233,13 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
 
   ! 1) Forced activation run-type
   CollAuto   = .False.    ! Coll. until Fragmentation
-  set_coll   = 10         ! set_coll max. collisions 
+  coll%set_coll   = 10         ! set_coll max. collisions 
 
   ! 2) General activation run-type using coll. cell parameters
   FullAuto        = .False.     
   cell%TGas       = 300.0 ! (K) Temperatur of Gas 
   cell%PGas       = 0.132 ! (Pa = 1mTorr) Pressure of Gas
-  cell%lchamb     = 0.250 ! (m = 25,0 cm) coll. cell. length
+  cell%lchamb     = 0.200 ! (m = 20,0 cm) coll. cell. length
     
   ! 3) Thermal activation run-type
   TempRun    = .False.  
@@ -234,7 +250,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   ! More control / different run-types 
   ! Manual run-types
   Manual = .false.
-  MaxColl    = 0        ! Max coll.          -> only M+ + Gas (no fgc)
+  coll%max_coll    = 0        ! Max coll.          -> only M+ + Gas (no fgc)
 
   ! Max overall coll.  -> all coll. (fgc) 
   CollNo(1)  = 0        ! 3 Values can be set, that determine how many 
@@ -277,7 +293,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   else
      write(*,*) 'changed by input:'
      open ( file='qcxms.in', newunit = io_in, status = 'old' , iostat = error)
-     if ( error > 0 ) stop '!!! error while opening qcxms.in !!!'
+     if ( error > 0 ) error stop '!!! error while opening qcxms.in !!!'
   
      ! Read line-by-line
      do
@@ -294,27 +310,30 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
 
        ! Read the file
        else
-         write(*,'(''>'',a)') line
+        write(*,'(''>'',a)') line
   
-         ! USE TO_UPPER TO MAKE THE STRING CAPITALIZED
-         line = to_upper(line)
-         ! TRIM THE LINE
-         line = trim(line)
+        ! USE TO_UPPER TO MAKE THE STRING CAPITALIZED
+        line = to_upper(line)
+        ! TRIM THE LINE
+        line = trim(line)
   
-         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         ! METHODS 
-         if(line == 'EI')           method=0
-         if(line == 'CSC')          method=1
-         if(line == 'DEA')          method=2
-         if(line == 'CID')then
-                                    method=3
-           gas%Iatom = 3 !Argon
-         endif
-         if(line == 'NCID')then
-                                    method=4
-           gas%Iatom = 3 !Argon
-         endif
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! METHODS 
+        if(line == 'EI') then
+          method=0
+          ! length of production runs in ps
+        endif
+        if(line == 'CSC') then
+          method=1
+        endif
+        if(line == 'DEA') then
+          mchrg_prod = -1
+        endif
 
+        if(line == 'CID')then
+          method=3
+          gas%Iatom = 3 !Argon
+        endif
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! PROGRAMS 
@@ -392,11 +411,18 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! IP CALCULATIONS
          if ( line == 'IP-MOPAC')     iprog=1
+         if ( line == 'IP-TMOL')      iprog=2
          if ( line == 'IP-MNDO')      iprog=5  !OM2 standard
          if ( line == 'IP-XTB')       iprog=7  !Use XTB  
          if ( line == 'IP-XTB2')      iprog=8  !Use XTB2 (default)
-         if ( line == 'IP-ORCA')      iprog=3
-         if ( line == 'IP-TMOL')      iprog=2
+         if ( (line == 'IP-ORCA' .or. line == 'IP-ORCA5') &
+           .and. orca_version == 0) then
+                                      iprog = 3
+                                      orca_version = 5
+         elseif ( line == 'IP-ORCA4' .and. orca_version == 0 ) then
+                                      iprog = 3
+                                      orca_version = 4
+         endif
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! SEMI-EMPIRCAL HAMILTONIANS
@@ -443,7 +469,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
          if ( line == 'TPSS')         func=12
          if ( line == 'REVPBE')       func=13
          if ( line == 'PBEH3C')       func=14
-         !func=14 (according to orca.f) is supposed to be PBEh-3c ASK CHRISTOPH!
          if ( line == 'BHLYP')        func=15
 
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -463,7 +488,8 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
          if ( line == 'NO-ECP')       noecp=.true.    !Do not check for ECP
          if ( line == 'NO-METAL')     nometal=.true.  !Do not check for metal
          if ( line == 'PLASMA')       Plasma = .True.  ! switch off ESI energy distribution
-         if ( line == 'LEGACY')       Legacy = .True.  ! Legacy support (for IEE dist.)
+         if ( line == 'LEGACY')       Legacy = .True. ! Legacy support (for IEE dist.)
+         if ( line == 'NOETEMP')      No_eTemp = .True. ! Shut off etemp (test for CID)
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          !! CID Logicals 
@@ -574,6 +600,19 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
              call readl(line,xx,nn)
              ntraj=int(xx(1))
           endif
+
+  !       CHARGE IN PROD. RUNS
+          if(index(line,'CHARGE') /= 0)then            
+             call readl(line,xx,nn)
+             mchrg_prod=int(xx(1))
+          endif
+
+  !       IMPACT ENERGY SREAD (also scaling for CID-ESI)
+          if(index(line,'EIMPW') /= 0)then            
+             call readl(line,xx,nn)
+             eimpw = xx(1)
+          endif
+
   !       NUMBER OF FRAGMENTS FOR EXIT
           if(index(line,'NFRAGEXIT') /= 0)then            
              call readl(line,xx,nn)
@@ -607,7 +646,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   !       ELECTRONIC TEMP. (Fermi Smearing) in prod runs
           if(index(line,'ETEMP') /= 0)then            
              call readl(line,xx,nn)
-             if(nn.gt.0)  etemp=xx(1)
+             if(nn.gt.0)  etemp_in=xx(1)
           endif
           ! set etemp in equilibration MD
           if(index(line,'CONVETEMP') /= 0)then            
@@ -635,16 +674,6 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
           !endif
 
   
-  !       SCAN FUNCTION 
-          if(index(line,'SCANI' ) /= 0)scanI = 1   
-          if(index(line,'UPPER') /= 0)then            
-             call readl(line,xx,nn)
-             upperbound=xx(1)
-          endif
-          if(index(line,'LOWER') /= 0)then            
-             call readl(line,xx,nn)
-             lowerbound=xx(1)
-          endif
   !       Boltzmann factor/weight
           if(index(line,'BTF') /= 0)then            
              call readl(line,xx,nn)
@@ -702,16 +731,27 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
              call readl(line,xx,nn)
              ieetemp=xx(1)
           endif
+  !       SCAN FUNCTION 
+          if(index(line,'UPPER') /= 0)then            
+             call readl(line,xx,nn)
+             upperbound=xx(1)
+             scanI = .true.
+          endif
+          if(index(line,'LOWER') /= 0)then            
+             call readl(line,xx,nn)
+             lowerbound=xx(1)
+             scanI = .true.
+          endif
   ! ---------------------------------------------------------------
   !!! CID PARAMETERS !!! 
   ! ---------------------------------------------------------------
   ! Collision energy (eImpact)     
-          !> LAB frame (DEFAULT: ON)
+          !> LAB frame (DEFAULT: OFF)
           if(index(line,'ELAB') /= 0)then            
              call readl(line,xx,nn)
              ELAB=xx(1)
           endif
-          !> COM frame (DEFAULT: OFF)
+          !> COM frame (DEFAULT: ON)
           if(index(line,'ECOM') /= 0)then            
              call readl(line,xx,nn)
              ECOM=xx(1)
@@ -721,7 +761,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
           ! fragmentation with maximum of 'SetColl' collisions
           if(index(line,'SETCOLL') /= 0)then           
              call readl(line,xx,nn)
-             Set_Coll=xx(1)
+             coll%set_coll=xx(1)
           endif
           !  Vary the different collision number parameters
           if(index(line,'COLLNO') /= 0)then           
@@ -747,7 +787,7 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
           ! maximum number of Collisions (in FullColl)
           if(index(line,'MAXCOLL') /= 0)then            
              call readl(line,xx,nn)
-             MaxColl=xx(1)
+             coll%max_coll=xx(1)
              Manual = .True.
           endif
           ! Minimum e-field potential for re-acceleration 
@@ -1026,23 +1066,132 @@ subroutine input(tstep,tmax,ntraj,iseed,etemp,Tinit,mchrg,                      
   endif
   
   
-  ! change to fs      
-  tmax=tmax*1000
-
 end subroutine input
+ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+
+subroutine read_struc_commandline(mol, check, prod, noeq, eonly0, eonly1, &
+    eonly, input_file)
+
+
+  integer :: iarg, narg
+  integer, allocatable :: input_format
+
+  character(len=:), allocatable :: arg
+  character(len=:), allocatable :: input_file
+  logical :: check,eonly,eonly0,eonly1,noeq, prod
+  logical :: ex = .false.
+
+  type(error_type), allocatable :: error
+   type(structure_type) :: mol
+
+  iarg = 0
+  prod = .false.
+  narg = command_argument_count()
+
+
+  do while(iarg < narg)
+    iarg = iarg + 1
+    call get_argument(iarg, arg)
+
+    select case(arg)
+    case("--check","-c")
+      check = .true.
+    case("--prod","-p")
+      prod = .true.
+    case("--verbose","-v")
+      verbose = .true.
+    case("-e0")
+      eonly0 = .true.
+    case("-e1")
+      eonly1 = .true.
+    case("-eonly")
+      eonly = .true.
+    case("-qcp", "--qcpath")
+      iarg = iarg + 1
+      call get_argument(iarg, arg)
+      if (.not.allocated(arg)) then
+        write(*,*)
+        write(*,'(60(''-''))')
+        write(*,'("No QC-Path provided! - Using default: ", a)') &
+        & , path
+        write(*,'(60(''-''))')
+        write(*,*)
+        exit
+      end if
+      path = arg 
+
+    case("-i", "--input")
+      iarg = iarg + 1
+      call get_argument(iarg, arg)
+      if (.not.allocated(arg)) then
+        write(*,*)
+        write(*,'(60(''-''))')
+        write(*,'("No input file provided")')
+        write(*,'(60(''-''))')
+        write(*,*)
+        stop
+      else
+        input_format = get_filetype("."//arg)
+        call read_structure(mol, arg, error, input_format)
+        input_file = arg
+      end if
+
+    case default
+      error stop ' -- Unrecognized Keyword -- '
+    end select
+  enddo
+
+  !> If production run, search for start.xyz
+  if (mol%nat < 1 .and. prod ) then
+    call read_structure(mol, 'start.xyz', error, filetype%xyz)
+
+    if (mol%nat < 1) then
+      inquire(file='start.xyz', exist=ex)
+
+      if (ex) error stop ' -- something wrong in start.xyz - aborting! -- '
+
+      if (.not. ex) then
+        write(*,*) ' -- no reasonable molecule found (searched for start.xyz)! --'
+        error stop ' -- provide strucutre with qcxms -i <structure.xyz> -- ' 
+      endif
+
+    endif
+     
+    if(mol%nat > 10000) error stop ' -- too many atoms! (exceeding 10000 atms) --'
+
+
+  !> If no input is provided, check for coord  
+  elseif (mol%nat < 1 .and. .not. prod ) then
+
+
+    call read_structure(mol, 'coord', error, filetype%tmol )
+
+    !>> check if input provides reasonable molecule
+    if (mol%nat < 1) then
+      write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+      write(*,*) '--- No structure provided! ---'
+      write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+      write(*,*) 'Provide structure with -i flag or &
+      (turbomole-style) coord file and check in number of atoms is correct'
+
+      write(*,*) 
+      error stop 'no reasonable molecule (coord) found! - EXIT'
+    endif
+
+    if(mol%nat > 10000) error stop 'too many atoms'
+
+  endif
+
+end subroutine read_struc_commandline
   
-  
-  !-----------------------------------------------------------------------
-  ! isotopes are read in subroutine read_isotopes using the option (in qcxms.in):
-  ! isotope <atom_numer> <mass>(integer) <atom_numer> <mass>(integer) ...
-  !-----------------------------------------------------------------------
-  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
   
 function to_upper(strIn) result(strOut)
 ! Adapted from http://www.star.le.ac.uk/~cgp/fortran.html (25 May 2012)                                         
 ! Original author: Clive Page 
 
-implicit none
+!implicit none
 
 character(len=*), intent(in) :: strIn
 character(len=len(strIn)) :: strOut
@@ -1059,3 +1208,4 @@ end do
 
 end function to_upper
 
+end module qcxms_input
