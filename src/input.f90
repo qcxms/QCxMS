@@ -29,7 +29,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   integer  :: nfragexit
   integer  :: maxsec      
   integer  :: edistri     
-  integer  :: scanI 
   integer  :: nn,i,j
   integer  :: io_in
   integer  :: error
@@ -63,6 +62,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   logical :: ex
   logical :: ECP
   logical :: unity
+  logical :: scanI 
   logical :: noecp,nometal
   logical :: Plasma
   logical :: legacy
@@ -123,6 +123,8 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   ! make charge dependend on input (in Prods min. = 1)
   mchrg_prod = 1
   
+  ! maximum simulation time
+  tmax = 5
   ! MD time step in fs (0.5-1 fs) 
   tstep = 0.5_wp
   ! # of frag traject 
@@ -164,7 +166,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   a2 = 0
   axi=-1
   ! default parameters for scan
-  scanI = 0
   lowerbound = 0.0d0
   upperbound = 20.0d0
   ! ECP
@@ -321,7 +322,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
         if(line == 'EI') then
           method=0
           ! length of production runs in ps
-          tmax = 5
         endif
         if(line == 'CSC') then
           method=1
@@ -333,8 +333,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
         if(line == 'CID')then
           method=3
           gas%Iatom = 3 !Argon
-          ! length of MFP runs in ps
-          tmax = 3
         endif
   
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -734,14 +732,15 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
              ieetemp=xx(1)
           endif
   !       SCAN FUNCTION 
-          if(index(line,'SCANI' ) /= 0)scanI = 1   
           if(index(line,'UPPER') /= 0)then            
              call readl(line,xx,nn)
              upperbound=xx(1)
+             scanI = .true.
           endif
           if(index(line,'LOWER') /= 0)then            
              call readl(line,xx,nn)
              lowerbound=xx(1)
+             scanI = .true.
           endif
   ! ---------------------------------------------------------------
   !!! CID PARAMETERS !!! 
@@ -1071,7 +1070,8 @@ end subroutine input
  
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 
-subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, input_file)
+subroutine read_struc_commandline(mol, check, prod, noeq, eonly0, eonly1, &
+    eonly, input_file)
 
 
   integer :: iarg, narg
@@ -1183,7 +1183,7 @@ subroutine command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inpu
 
   endif
 
-end subroutine command_line_args
+end subroutine read_struc_commandline
   
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
   

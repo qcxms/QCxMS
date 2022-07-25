@@ -97,26 +97,26 @@ module qcxms_utility
       calls = calls + 1
    
    ! DFTB+
-      if(iprog.eq.0) write(atmp,'(a,''dftb+ > '',a)') trim(path),trim(fout)
+      if(iprog == 0) write(atmp,'(a,''dftb+ > '',a)') trim(path),trim(fout)
    
    ! TM
-      if(iprog.eq.2)then
-         if(shell.eq.1) write(atmp,'(''( '',a,''ridft > '',a,'' ) > & /dev/null'')') trim(path),trim(fout)
-         if(shell.eq.2) write(atmp,'(''ridft > '',a,'' 2> /dev/null'')')trim(fout)
+      if(iprog == 2)then
+         if(shell == 1) write(atmp,'(''( '',a,''ridft > '',a,'' ) > & /dev/null'')') trim(path),trim(fout)
+         if(shell == 2) write(atmp,'(''ridft > '',a,'' 2> /dev/null'')')trim(fout)
       endif
    
    ! ORCA
-      if(iprog.eq.3) write(atmp,'(''orca ORCA.INPUT > '',a)') trim(fout)
+      if(iprog == 3) write(atmp,'(''orca ORCA.INPUT > '',a)') trim(fout)
    
    ! MNDO99
-      if(iprog.eq.5) write(atmp,'(a,''mndo99 < inp > '',a)') trim(path),trim(fout)
+      if(iprog == 5) write(atmp,'(a,''mndo99 < inp > '',a)') trim(path),trim(fout)
    
       call execute_command_line(atmp)
    
    ! TM GRAD
-      if(iprog.eq.2)then
-         if(shell.eq.1) write(atmp,'(''( '',a,''rdgrad >> '',a,'' ) > & /dev/null'')') trim(path),trim(fout)
-         if(shell.eq.2) write(atmp,'(''rdgrad >> '',a,'' 2> /dev/null'')')trim(fout)
+      if(iprog == 2)then
+         if(shell == 1) write(atmp,'(''( '',a,''rdgrad >> '',a,'' ) > & /dev/null'')') trim(path),trim(fout)
+         if(shell == 2) write(atmp,'(''rdgrad >> '',a,'' 2> /dev/null'')')trim(fout)
          call execute_command_line(atmp)
       endif
    
@@ -418,23 +418,6 @@ module qcxms_utility
  
      close(io_info)
 
-     !fname='qcxms.start'
-  
-     !open(file=fname,newunit=io_start,status='old', &
-     !  action='read',iostat=ierror)
-
-     !if(ierror > 0) stop ' - Missing qcxms.start file! -'
-
-     !read (io_start,*) itrj,ndum
-     !read (io_start,'(2D22.14)') eimp,tadd
-  
-     !if (ndum /= nat) stop '- error in rdstart -'
-  
-     !do j = 1, nat
-     !   read (io_start,'(7D22.14)') xyz(1:3,j), velo(1:3,j), velof(j)
-     !enddo
-  
-     !close(io_start)
 
   end subroutine rdstart
    

@@ -121,7 +121,6 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
   logical :: gradfail
   logical :: xstps = .false.
   logical :: avg_struc 
-  logical :: count_fragmented = .false.
   logical :: fragmented = .false.
   logical :: collided = .false.
 
@@ -811,15 +810,12 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
 
     if (nfrag > check_fragmented ) then
       count_average = .true.
-      count_fragmented = .true.
+      !count_fragmented = .true.
       check_fragmented = nfrag
-      !max_steps = nstep + add_steps !* nfrag
-      !write(*,*) 'Do a total of', max_steps, 'steps'
     endif
 
     if (nfrag < check_fragmented)then
       if(count_average) then
-      !write(*,*) 'ReSet'
       cnt = 0
       avxyz2 = 0
       rmsd_check = 0
@@ -829,12 +825,10 @@ subroutine cid( nuc, iat, mass, xyz, velo, time_step, mchrg, etemp, &
       check_fragmented = 1
     endif
 
-    if (count_fragmented) then
-      count_fragmented = .false.
-      !max_steps = total_steps
-      check_fragmented = 1
-       != nmax
-    endif
+    !if (count_fragmented) then
+    !  count_fragmented = .false.
+    !  check_fragmented = 1
+    !endif
   endif
 
 

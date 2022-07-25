@@ -254,7 +254,7 @@ module qcxms_use_turbomole
      call execute_command_line('kdg dft    ')
      call execute_command_line("echo '$dft' >> control")
   !     PBE0
-     if(func.eq.0) then
+     if(func == 0) then
         call execute_command_line("echo ' functional pbe0'   >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -266,7 +266,7 @@ module qcxms_use_turbomole
      elseif(func == 2.or.func == 3.or.func == 9.or.func == 13) then
         error stop 'PBE12/PBE38/B3PW91/REVPBE not implemented with Turbomole.'
   !     M062X without dispersion!
-     elseif(func.eq.4) then
+     elseif(func == 4) then
         call execute_command_line("echo ' functional m062x'   >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -274,7 +274,7 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$extol 2.500      '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     PBE-D3BJ
-     elseif(func.eq.5) then
+     elseif(func == 5) then
         call execute_command_line("echo ' functional pbe'   >> control")
         call execute_command_line("echo ' gridsize m3      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -282,7 +282,7 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     B97-D3BJ. CAB 27.10.15
-     elseif(func.eq.6) then
+     elseif(func == 6) then
         call execute_command_line("echo ' functional b97-d'   >> control")
         call execute_command_line("echo ' gridsize m3      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -290,7 +290,7 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     B3LYP-D3BJ
-     elseif(func.eq.7)  then
+     elseif(func == 7)  then
         call execute_command_line("echo ' functional b3-lyp'   >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -299,7 +299,7 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$extol 2.500      '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     PW6B95-D3BJ
-     elseif(func.eq.8)  then
+     elseif(func == 8)  then
         call execute_command_line("echo ' functional pw6b95'   >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -308,7 +308,7 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$extol 2.500      '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     BLYP-D3BJ
-     elseif(func.eq.10)  then
+     elseif(func == 10)  then
         call execute_command_line("echo ' functional b-lyp'   >> control")
         call execute_command_line("echo ' gridsize m3      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -316,7 +316,7 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     BP86-D3BJ
-     elseif(func.eq.11)  then
+     elseif(func == 11)  then
         call execute_command_line("echo ' functional b-p'   >> control")
         call execute_command_line("echo ' gridsize m3      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -324,7 +324,7 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     TPSS-D3BJ
-     elseif(func.eq.12) then
+     elseif(func == 12) then
         call execute_command_line("echo ' functional tpss'   >> control")
         call execute_command_line("echo ' gridsize m3      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -332,7 +332,7 @@ module qcxms_use_turbomole
         call execute_command_line("echo '$disp3 -bj        '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     PBEh-3c
-     elseif(func.eq.14) then
+     elseif(func == 14) then
         call execute_command_line("echo ' functional pbeh-3c'  >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")
@@ -341,7 +341,7 @@ module qcxms_use_turbomole
         !call execute_command_line("echo '$disp4            '   >> control")
         call execute_command_line("echo '$end              '   >> control")
   !     BH-LYP-D3BJ
-     elseif(func.eq.15) then
+     elseif(func == 15) then
         call execute_command_line("echo ' functional bh-lyp'   >> control")
         call execute_command_line("echo ' gridsize m4      '   >> control")
         call execute_command_line("echo '$pop              '   >> control")

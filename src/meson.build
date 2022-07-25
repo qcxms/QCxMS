@@ -34,7 +34,6 @@ srcs += files(
   'newcommon.f90',
   'orca.f90',
   'prmat.f90',
-  'read_coordinates.f90',
   'write_fragments.f90',
   'readcommon.f90',
   'readl.f90',

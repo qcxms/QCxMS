@@ -32,10 +32,9 @@ use qcxms_fragments
 use qcxms_iee, only: getieeab, getmaxiee, gauss0, gauss1, poiss0
 use qcxms_impact, only: calctrelax
 use qcxms_iniqm, only: iniqm
-use qcxms_input, only: input, command_line_args
+use qcxms_input, only: input, read_struc_commandline
 use qcxms_mdinit, only: mdinitu, ekinet
 use qcxms_molecular_dynamics, only: md
-!use readcommon
 use qcxms_info, only: info_main, info_sumup, cidcheck, start_info
 use qcxms_use_orca, only: copyorc
 use qcxms_use_turbomole, only: copytm, copytm_ip
@@ -46,7 +45,7 @@ use xtb_mctc_convert
 use xtb_mctc_constants
 !use xtb_mctc_symbols, only: toSymbol 
 use mctc_env, only : error_type, get_argument
-use mctc_io, only : structure_type, new, to_symbol, read_structure
+use mctc_io, only : structure_type, new, to_symbol
 
 !use cid_module, only: cid_outer
 
@@ -65,7 +64,6 @@ integer  :: maxsec,idum,edistri
 integer  :: ihomo,nb,nuc,mo1,mo2,fragstate
 integer  :: num_frags
 integer  :: itrj,icoll,isec !,prestep
-integer  :: scani
 integer  :: fragat(200,10)
 integer  :: imassn(10000)
 integer  :: io_res, io_gs, io_log, io_eimp
@@ -137,6 +135,7 @@ character(len=:), allocatable :: inp_fname
 ! logicals
 logical :: ex
 logical :: md_ok
+logical :: scani = .false.
 logical :: nfrag_ok = .true.
 logical :: check,eonly,eonly0,eonly1,noeq
 logical :: prod,iniok
@@ -274,7 +273,7 @@ call input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,           &
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-call command_line_args(mol, check, prod, noeq, eonly0, eonly1, eonly, inp_fname)
+call read_struc_commandline(mol, check, prod, noeq, eonly0, eonly1, eonly, inp_fname)
 
 nuc = mol%nat !      nuc : Number of atoms in molecule
 
@@ -730,10 +729,10 @@ iee0: if (method /= 3 ) then
     call getspec(.true.,nuc,iat,xyz,0,emo,ehomo,mopop,ihomo,nb,ECP)
 
     ! adjust IEE distr. if necessary (max in intervall)
-    if (scani  ==  0 ) then
-       write(*,'(/,'' preparing the IEE distribution ...'')')
-    elseif (scani  ==  1) then
+    if (scani) then
        write(*,'(/,'' IEE scanning feature  ...'')')
+    else
+       write(*,'(/,'' preparing the IEE distribution ...'')')
     endif
 
     exc   = (eimp0 - ehomo) * autoev
@@ -754,13 +753,13 @@ iee1: if ( iee_a > 0 .and. iee_b > 0 ) then
 
     endif iee1 ! EI
 
-    if (scani  ==  0) then
+    if (scani) then
+       write(*,'('' minimum IEE (eV)               : '',f8.3)') lowerbound
+       write(*,'('' maximum IEE (eV)               : '',f8.3)') upperbound
+    else
        write(*,'('' maximum IEE (eV)               : '',f8.3)') exc
        write(*,'('' maximum of P(E) at (eV)        : '',f8.3)') dum
        write(*,'('' average E for P(E) (eV)        : '',f8.3)') dums
-    elseif (scani  ==  1) then
-       write(*,'('' minimum IEE (eV)               : '',f8.3)') lowerbound
-       write(*,'('' maximum IEE (eV)               : '',f8.3)') upperbound
     endif
     write(*,*)
 
@@ -816,15 +815,15 @@ iee2:do i = 1, ndumpGS
         if(dum >= randx)exit
       enddo
 
+      !> make the IEE range dependend on ntraj and nrun
+      if (scani) then
+        exc = lowerbound + (((upperbound-lowerbound)/dble(ntraj))*dble(nrun))
+      endif
+
       ! this is the IEE energy used -> Edum = exc
       ! fimp is a scaling factor (default = 1.0)
       ! exc is now randomly chosen, but at least larger than ehomo
-      if (scani  ==  0) then
-        edum = fimp * exc * evtoau 
-      elseif (scani  ==  1) then
-        exc = lowerbound + (((upperbound-lowerbound)/dble(ntraj))*dble(nrun))
-        edum = fimp * exc * evtoau 
-      endif
+      edum = fimp * exc * evtoau 
 
       ! map IEE to MO number, shake-up possibility (ie MO2>0)
       call momap(ihomo, emo, edum+ehomo, mo1, mo2)
@@ -1182,7 +1181,6 @@ else !prun - if production run == .true.
   inquire(file='ready', exist=ex)
   !if (.not. ex ) then
     !> Read the qcxms.start file
-    !call rdstart(itrj,mol,nuc,xyz,velo,velof,tadd,eimp)
     if (method < 3)                      call rdstart(itrj,nuc,velo,velof,tadd,eimp)
     if (method == 3 .and.       TempRun) call rdstart(itrj,nuc,velo,velof,tadd,eimp)
     if (method == 3 .and. .not. TempRun) call rdstart(itrj,nuc,velo,velof,tadd,eimp)

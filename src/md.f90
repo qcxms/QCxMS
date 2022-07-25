@@ -15,6 +15,7 @@
 module qcxms_molecular_dynamics
   use common1
   use cidcommon
+  use newcommon
   use rmsd, only : get_rmsd
   use qcxms_analyse, only: avg_frag_struc!, fragment_info 
   use qcxms_impact, only: impactscale
@@ -238,6 +239,7 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
   ndump=dumpstep
   kdump=avdump     
   vdump=avdump   
+  mdump=1
 
   err1 = .false.
   err2 = .false.
@@ -270,7 +272,6 @@ subroutine md(it,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
      velof=1.0d0
      screendump=500
   endif
-  mdump=screendump
   
   
   write(*,'(''step   time [fs]'',4x,''Epot'',7x,''Ekin'',7x,''Etot'',4x,''error'',2x,''#F   eTemp   frag. T'')')
@@ -504,7 +505,7 @@ CID:  if (method == 3) then
           count_average = .true.
           check_fragmented = nfrag
           max_steps = nstep + add_steps !* nfrag
-          write(*,*) 'Do a total of', max_steps, 'steps'
+          if (verbose) write(*,*) 'Do a total of', max_steps, 'steps'
         endif
 
         !> reset the count if it is no real fragmentation
@@ -539,7 +540,7 @@ cntfrg:   do i = 1, nfrag
             endif
 
             if(natf(i) /= save_natf(i))then
-              !write(*,*) 'Fragment changed. Re-started count'
+              if (verbose) write(*,*) 'Fragment changed. Re-started count'
               cnt = 0
               store_avxyz  = 0 ! avxyz2 / cnt
               avxyz2 = 0
@@ -607,7 +608,7 @@ cntfrg:   do i = 1, nfrag
           if (cnt == cnt_steps) then
             store_avxyz  = avxyz2 / cnt
             call avg_frag_struc(nuc, iat, iatf, store_avxyz, list, nfrag, natf, xyzf)
-            if (verbose) write(*,*) 'Count', cnt
+            if(verbose) write(*,*) 'Count', cnt
             write(*,8000)nstep,ttime,Epot,Ekin,Epot+Ekin,Eerror,nfrag,etemp,fragT(1:nfrag)
 
             avxyz2 = 0
