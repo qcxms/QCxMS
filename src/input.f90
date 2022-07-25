@@ -20,7 +20,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
         edistri,btf,ieeatm,                                                    &
         scanI,lowerbound,upperbound,ELAB,ECOM, eExact,ECP,unity,noecp,         &
         nometal,vScale,CollNo,CollSec,ConstVelo,                               & 
-        minmass,manual_simMD,convetemp, coll,                       & 
+        minmass,manual_convetemp, coll,                       & 
         MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
 !  use gbobc, only: lgbsa
     
@@ -75,7 +75,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   integer  :: CollNo(3)
   integer  :: CollSec(3)
   integer  :: minmass
-  integer  :: manual_simMD
   integer  :: convetemp
   !integer  :: set_coll
   integer  :: manual_dist
@@ -266,7 +265,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   ! Extra settings
   eExact       = .False.  ! switch off ELAB velocity scaling (exact velocities)
   minmass      = 45       ! set resolution (lower masses are cut)
-  manual_simMD = 0        ! set Mean-free-path steps manually
   No_ESI       = .false.  ! Don't do pre-scaling of int. Energy (if true)
   NoScale      = .false.  ! no distributing ESI energy (if true)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -836,12 +834,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
              minmass=xx(1)
           endif
   
-          ! set mean-free-path way (in fs; care timestep)
-          if(index(line,'SIMMD') /= 0)then            
-             call readl(line,xx,nn)
-             manual_simMD=xx(1)
-          endif
-
           ! set number of steps until collision (circa)
           if(index(line,'DIST') /= 0)then            
              call readl(line,xx,nn)
