@@ -493,7 +493,7 @@ ifit:if(it > 0)then
       ! Start counting to get average structure for IP calculation and the RMSD of 
       ! the counted structures
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-CID:  if (method == 3) then
+CID:  if (method == 3 .and. .not. Temprun) then
 
         !> there was an idea to check the rmsd for large deviation, but it was not found usefull
         !root_msd=0
@@ -620,7 +620,7 @@ cntfrg:   do i = 1, nfrag
 
         endif avct
 
-      elseif (method < 3) then ! if EI :
+      elseif (method < 3 .or. Temprun) then ! if EI :
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! Check out the fragments. If > 2, do 1000 steps. If more, do 250 steps. 

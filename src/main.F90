@@ -71,7 +71,6 @@ integer  :: CollSec(3),CollNo(3)
 integer  :: collisions
 integer  :: minmass,numb
 integer  :: frag_counter,new_counter,save_counter
-integer  :: simMD, manual_simMD
 integer  :: rand_int,dep,convetemp
 integer  :: manual_dist
 integer  :: arg_list
@@ -228,11 +227,6 @@ iniok  =.true.
 dumpstep=4
 ! counts the number of QC calls
 calls=0
-! GS Etemp (to converge radicals etc)
-etempGS=298.15 ! normal ! Maybe make this input relevant
-convetemp=0
-! introduce simmd
-simMD = 8000 ! =8000 * 0.5 fs => 4 ps
 ! set scaling temp to 0
 tscale = 0.0_wp
 
@@ -268,7 +262,7 @@ call input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,           &
 &          scani,lowerbound,upperbound,                                   &
 &          ELAB,ECOM,eExact,ECP,unity,noecp,nometal,                      &
 &          vScale,CollNo,CollSec,ConstVelo,                               &
-&          minmass,manual_simMD,convetemp,coll,               &
+&          minmass,etempGS,coll,               &
 &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -398,11 +392,11 @@ endif
 tmax = tmax*1000.0_wp
 ! # MD steps in a frag run
 nmax = tmax / tstep
-! for CID make dependend on atom size
-if(method == 3) then
-  nmax = nuc * 100
-  tmax = nmax * tstep
-endif
+!! for CID make dependend on atom size
+!if(method == 3) then
+!  nmax = nuc * 100
+!  tmax = nmax * tstep
+!endif
 
 ! timesteps in au
 tstep = tstep * fstoau
@@ -412,7 +406,7 @@ eimp0 = eimp0 * evtoau
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! printing runtype information and chosen parameters
-call info_main(ntraj, tstep/fstoau, tmax, simMD, Tinit, trelax, eimp0*autoev, mchrg, &
+call info_main(ntraj, tstep/fstoau, tmax, Tinit, trelax, eimp0*autoev, mchrg, &
   mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, coll%max_coll, &
   CollNo, CollSec, ESI, tempESI, etemp_in, maxsec, betemp, nfragexit, iprog, &
   edistri, legacy)
@@ -538,13 +532,8 @@ GS: if(.not.ex)then
     ! initilize the velocities, distribute among the atoms
     call mdinitu(nuc,velo,mass,edum)
 
-    if(convetemp /= 0)then
-       etempGS=convetemp
-       write(*,*)
-       write(*,*) 'Groundstate eTemp set to',etempGS
-    endif
-
     ! init the QM code  ! Here edum is total energy, not inner energy anymore!
+    write(*,*) 'Groundstate eTemp set to',etempGS
     call iniqm(nuc,xyz,iat,mchrg,mspin,etempGS,edum,iniok,ECP)
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1827,25 +1816,7 @@ MFPloop:  do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !> reduce the simulation timings for performance
 
-          !> Check if the sim. MD time has been manually set
-          if ( method == 3 .and. manual_simMD > 0 ) simMD = manual_simMD
-
           !> change MFP times to reduce timings (empirical values)
-          !> but only if not set manually
-          !if ( manual_simMD == 0 ) then
-          !  simMD = icoll * 0.6 * nuc * 100
-          !  if ( simMD > 6000 .and. frag_counter <= 2 ) simMD = 6000
-          !  
-          !  !>> make some timing adjustments
-          !  if ( simMD > 6000 .and. frag_counter > 2  ) then
-          !    simMD = 6000 * 0.75_wp
-          !  elseif ( simMD > 6000 .and. frag_counter > 3  ) then
-          !    simMD = 6000 * 0.6_wp
-          !  elseif ( simMD > 6000 .and. frag_counter >= 4  ) then
-          !    simMD = 6000 * 0.5_wp
-          !  endif
-
-          
           nmax = nuc * 100
 
           !> reduce the MD time if fragmentation in MFP occurs
@@ -1853,14 +1824,13 @@ MFPloop:  do
           if (isec == 3) nmax =int(nmax * 0.75_wp)
           if (isec == 4) nmax =int(nmax * 0.6_wp )
           if (isec >= 5) nmax =int(nmax * 0.5_wp )
-          !if ( fragstate == 2 ) simMD = simMD / 2
 
           !>> not too short/long simulations
           if ( nmax < 1000   ) nmax = 1000
           if ( nmax > 10000  ) nmax = 10000
 
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          !! Do Mean-free-path (MFP) MD with simMD timesteps
+          !! Do Mean-free-path (MFP) MD with nmax timesteps
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           call md(itrj,icoll,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad,&
           &       velo,velof,list,tstep,j,nfragexit,                      &

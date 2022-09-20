@@ -66,7 +66,7 @@ module qcxms_info
   end subroutine start_info
 
 
-  subroutine info_main(ntraj, tstep, tmax, simMD, Tinit, trelax, eimp0, mchrg, &
+  subroutine info_main(ntraj, tstep, tmax, Tinit, trelax, eimp0, mchrg, &
       mchrg_prod, ieeatm, iee_a, iee_b, btf, fimp, hacc, ELAB, ECOM, MaxColl,  &
       CollNo, CollSec, ESI, tempESI, eTempin, maxsec, betemp, nfragexit, &
       iprog, edistri, legacy)
@@ -80,7 +80,7 @@ module qcxms_info
   integer  :: dumprint
   integer  :: iprog
   integer  :: edistri
-  integer  :: i, simMD
+  integer  :: i
 
   real(wp) :: tstep,tmax,etempin,betemp
   real(wp) :: Tinit,trelax
@@ -170,7 +170,6 @@ module qcxms_info
   write(*,'('' total traj.   (ntraj) : '',i4  )')ntraj
   write(*,'('' time steps    (tstep) : '',f7.2,'' fs'')')tstep 
   !if ( method == 1 ) write(*,'('' max. sim. time (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
-  !if ( method == 3 ) write(*,'('' MFP sim. time (simmd) : '',f7.2,'' ps'')')simmd/1000.0_wp
   write(*,'('' sim. time / MD (tmax) : '',f7.2,'' ps'')')tmax/1000.0_wp
   write(*,'('' Initial temp. (tinit) : '',f7.2,'' K'')')Tinit
 
