@@ -227,9 +227,6 @@ iniok  =.true.
 dumpstep=4
 ! counts the number of QC calls
 calls=0
-! GS Etemp (to converge radicals etc)
-etempGS=298.15 ! normal ! Maybe make this input relevant
-convetemp=0
 ! set scaling temp to 0
 tscale = 0.0_wp
 
@@ -265,7 +262,7 @@ call input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,           &
 &          scani,lowerbound,upperbound,                                   &
 &          ELAB,ECOM,eExact,ECP,unity,noecp,nometal,                      &
 &          vScale,CollNo,CollSec,ConstVelo,                               &
-&          minmass,convetemp,coll,               &
+&          minmass,etempGS,coll,               &
 &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -395,11 +392,11 @@ endif
 tmax = tmax*1000.0_wp
 ! # MD steps in a frag run
 nmax = tmax / tstep
-! for CID make dependend on atom size
-if(method == 3) then
-  nmax = nuc * 100
-  tmax = nmax * tstep
-endif
+!! for CID make dependend on atom size
+!if(method == 3) then
+!  nmax = nuc * 100
+!  tmax = nmax * tstep
+!endif
 
 ! timesteps in au
 tstep = tstep * fstoau
@@ -535,13 +532,8 @@ GS: if(.not.ex)then
     ! initilize the velocities, distribute among the atoms
     call mdinitu(nuc,velo,mass,edum)
 
-    if(convetemp /= 0)then
-       etempGS=convetemp
-       write(*,*)
-       write(*,*) 'Groundstate eTemp set to',etempGS
-    endif
-
     ! init the QM code  ! Here edum is total energy, not inner energy anymore!
+    write(*,*) 'Groundstate eTemp set to',etempGS
     call iniqm(nuc,xyz,iat,mchrg,mspin,etempGS,edum,iniok,ECP)
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

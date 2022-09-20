@@ -20,7 +20,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
         edistri,btf,ieeatm,                                                    &
         scanI,lowerbound,upperbound,ELAB,ECOM, eExact,ECP,unity,noecp,         &
         nometal,vScale,CollNo,CollSec,ConstVelo,                               & 
-        minmass,manual_convetemp, coll,                       & 
+        minmass,etempGS, coll,                       & 
         MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist, legacy)
 !  use gbobc, only: lgbsa
     
@@ -49,6 +49,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   real(wp) :: xx(10),axi
   real(wp) :: lowerbound
   real(wp) :: upperbound
+  real(wp) :: eTempGS
   
   
 !  interface
@@ -75,7 +76,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   integer  :: CollNo(3)
   integer  :: CollSec(3)
   integer  :: minmass
-  integer  :: convetemp
   !integer  :: set_coll
   integer  :: manual_dist
   
@@ -138,6 +138,8 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   Tinit = 500
   !> switch on etemp 
   No_eTemp = .false.
+  ! GS Etemp (to converge radicals etc)
+  etempGS=298.15 ! normal 
 
   !!!             !!!! 
   !!! QC Settings !!!!
@@ -275,7 +277,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
   ConstVelo  = .False.  ! scale to const. velo after collision 
   MinPot     = 0        ! velocity scaling as well
   vScale     = 0.00     ! velocity scaling as well
-  convetemp  = 0        ! convergence temp for strange GS
   
   
   !--------------------------------------------------------------
@@ -593,6 +594,11 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
              call readl(line,xx,nn)
              Tinit=xx(1)
           endif
+  !       GS eTEMP
+          if(index(line,'ETEMP') /= 0)then            
+             call readl(line,xx,nn)
+             Tinit=xx(1)
+          endif
   !       NUMBER OF TRAJ.
           if(index(line,'NTRAJ') /= 0)then            
              call readl(line,xx,nn)
@@ -647,9 +653,9 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
              if(nn.gt.0)  etemp_in=xx(1)
           endif
           ! set etemp in equilibration MD
-          if(index(line,'CONVETEMP') /= 0)then            
+          if(index(line,'ETEMPGS') /= 0)then            
              call readl(line,xx,nn)
-             convetemp=xx(1)
+             etempGS=xx(1)
           endif
 
           ! set grid for TMOL (not yet implemnted)
