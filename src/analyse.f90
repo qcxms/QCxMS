@@ -161,7 +161,8 @@ subroutine analyse(iprog,nuc,iat,iatf,axyz,list,nfrag,etemp,fragip, mchrg, &
     endif
           
   else
-            bas = 3           !SV(P)
+            !bas = 3           !SV(P)
+            bas = isave
     if(ecp) bas = 9           !def2-SV(P)
   endif
   
