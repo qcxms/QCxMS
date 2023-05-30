@@ -58,7 +58,9 @@ module qcxms_use_orca
 
         ! open and write to ORCA input file
         open(file='ORCA.INPUT', newunit=io_orca)
-
+        
+        ! settings for ORCA 4, for ORCA 5 default settings should be fine
+        if ( orca_version == 4 ) then 
      ! hybrid vs other funcs.... nat is number of atoms
         if ( func <= 4 .and. nat < 60 .and. .not. noconv ) then
          !if ( No_eTemp ) then
@@ -93,11 +95,14 @@ module qcxms_use_orca
            write(io_orca,'(''!  DEF2/J SMALLPRINT NOSOSCF'')')
         endif
 
+        else
+           write(io_orca,'(''!  DEF2/J SMALLPRINT'')')
+        end if
      
         ! Set mayer and finalgrid
         if ( orca_version == 4 ) write(io_orca,'(''! NOFINALGRID NOMAYER'')')
         if ( orca_version == 5 ) then
-           write(io_orca,'(''! NOFINALGRIDX NOMAYER'')')
+           write(io_orca,'(''! NOMAYER'')')
        endif
      
         write(io_orca,'(''! UHF'')')
