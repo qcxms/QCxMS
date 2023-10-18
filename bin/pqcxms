@@ -88,7 +88,7 @@ rm -f $TMPDIR/*/qcxms.res 2> /dev/null
 cat > wrapped_qcxms <<-EOF
 if [ -d "\$1" ]; then
   cd "\$1" > /dev/null 2>&1
-  OMP_NUM_THREADS=$nthread  exec "$qcxms" -prod > qcxms.out 2>&1 
+  OMP_NUM_THREADS=$nthread  exec "$qcxms" --prod > qcxms.out 2>&1 
 fi
 EOF
 
