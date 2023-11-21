@@ -266,8 +266,6 @@ call input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,           &
 &          MinPot,ESI,tempESI,No_ESI,NoScale,manual_dist,legacy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-write(*,*) "func and basis are", func, bas
-
 
 call read_struc_commandline(mol, check, prod, noeq, eonly0, eonly1, eonly, inp_fname)
 
@@ -1353,7 +1351,6 @@ ESI_loop: do
             if(fragstate == 2) nmax = nmax0 * 0.75
           endif
 
-write(*,*) "nmax is!!!!!!!!!!!!!!!!!!!!!!!!!!!", nmax
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !! Pre-CID MD Loop => ESI MD
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1830,7 +1827,7 @@ MFPloop:  do
           !>> not too short/long simulations
           if ( nmax < 1000   ) nmax = 1000
           if ( nmax > 10000  ) nmax = 10000
-write(*,*) "nmax is!!!!!!!!!!!!!!!!!!!!!!!!!!!", nmax
+
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !! Do Mean-free-path (MFP) MD with nmax timesteps
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2257,7 +2254,6 @@ loop: do
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !>  do production MD run
         Tdum=0
-        write(*,*) "nmax is!!!!!!!!!!!!!!!!!!!!!!!!!!!", nmax
         call md(itrj,0,isec,nuc,nmax,xyz,iat,mass,imass,mchrg,grad, &
         &       velo,velof,list,tstep,j,nfragexit,                  &
         &       fragm,fragf,fragat,dumpstep,etemp_in,                &
