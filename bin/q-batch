@@ -64,7 +64,7 @@ tdir=\$(mktemp -d /tmp1/\$USER/${vz}__XXXXXX)
 cp $VZ_DIR/* \$tdir
 cd \$tdir
 
-qcxms -prod > qcxms.out 2>&1 
+qcxms --prod > qcxms.out 2>&1 
 touch ready
 
 cp * $VZ_DIR
