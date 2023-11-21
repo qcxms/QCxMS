@@ -468,8 +468,7 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
          if ( line == 'TPSS')         func=12
          if ( line == 'REVPBE')       func=13
          if ( line == 'PBEH3C')       func=14
-         if ( line == 'BHLYP')        func=15
-
+         if ( line == 'BHLYP')        func=15  
          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          ! DFTB3
          if( line == 'NO-HHMOD')     hhmod=.False.
@@ -591,11 +590,6 @@ subroutine input(tstep,tmax,ntraj,etemp_in,Tinit, mchrg_prod,                  &
           endif
   !       INITIAL TEMP
           if(index(line,'TINIT') /= 0)then            
-             call readl(line,xx,nn)
-             Tinit=xx(1)
-          endif
-  !       GS eTEMP
-          if(index(line,'ETEMP') /= 0)then            
              call readl(line,xx,nn)
              Tinit=xx(1)
           endif
