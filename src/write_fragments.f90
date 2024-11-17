@@ -116,7 +116,7 @@ ok: if ( nfrag_ok ) then !only do the following if nfrags are reasonable
 fg: if ( nfrag > 1 ) then
 
       do i = 1, nfrag
-        fragip(i,0) = 0.0_wp
+        fragip(i,1) = 0.0_wp
         do j = 1, abs(mchrg)
           ip_diff(i,j) = fragip(i,j) - fragip(i,j-1)
 
