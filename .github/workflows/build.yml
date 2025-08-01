@@ -53,9 +53,9 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v5
       with:
         python-version: ${{ env.PYTHON_V }}
 
@@ -102,7 +102,7 @@ jobs:
     - name: Cache Intel install
       if: ${{ matrix.compiler == 'intel' }}
       id: cache-install
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: /opt/intel/oneapi
         key: install-${{ matrix.compiler }}-${{ matrix.version }}-${{ matrix.os }}
@@ -227,11 +227,11 @@ jobs:
 
     - name: Upload package
       if: ${{ matrix.build == 'meson' && matrix.build-type != 'coverage' }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.QCXMS_OUTPUT }}
         path: ${{ env.QCXMS_OUTPUT }}
 
     - name: Upload coverage report
       if: ${{ matrix.build == 'meson' && matrix.build-type == 'coverage' }}
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v4
