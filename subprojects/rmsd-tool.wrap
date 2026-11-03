@@ -1,4 +1,5 @@
 [wrap-git]
 directory = rmsd-tool
 url = https://github.com/grimme-lab/rmsd-tool
-revision = main
+revision = 4e795f530e5a05269d017db1098421903632f12b
+diff_files = rmsd-tool-toml-f-0.5.patch

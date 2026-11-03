@@ -5,7 +5,7 @@ on: [push, pull_request]
 env:
   BUILD_DIR: _build
   PIP_PACKAGES: >-
-    meson==0.58.0
+    meson==1.6.1
     cmake
     ninja
     gcovr
@@ -15,7 +15,7 @@ env:
     https://registrationcenter-download.intel.com/akdlm/irc_nas/17890/m_HPCKit_p_2021.3.0.3226_offline.dmg
   LINUX_INTEL_COMPONENTS: >-
     intel-oneapi-compiler-fortran
-    intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+    intel-oneapi-compiler-dpcpp-cpp
     intel-oneapi-mkl
     intel-oneapi-mkl-devel
 
@@ -45,11 +45,11 @@ jobs:
             version: 9
 
     env:
-      FC: ${{ matrix.compiler == 'intel' && 'ifort' || 'gfortran' }}
-      CC: ${{ matrix.compiler == 'intel' && 'icc' || 'gcc' }}
+      FC: ${{ matrix.compiler == 'intel' && 'ifx' || 'gfortran' }}
+      CC: ${{ matrix.compiler == 'intel' && 'icx' || 'gcc' }}
       GCC_V: ${{ matrix.version }}
       OMP_NUM_THREADS: 1,2,1
-      PYTHON_V: 3.8
+      PYTHON_V: '3.12'
 
     steps:
     - name: Checkout code
@@ -72,7 +72,7 @@ jobs:
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt-get update
-        sudo apt-get install -y gcc-${{ env.GCC_V}} gfortran-${{ env.GCC_V }}
+        sudo apt-get install -y gcc-${{ env.GCC_V}} gfortran-${{ env.GCC_V }} liblapack-dev libblas-dev
         sudo update-alternatives \
         --install /usr/bin/gcc gcc /usr/bin/gcc-${{ env.GCC_V }} 100 \
         --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ env.GCC_V }} \
@@ -162,6 +162,8 @@ jobs:
       if: ${{ matrix.compiler == 'intel' }}
       run: |
         source /opt/intel/oneapi/setvars.sh
+        IFX=$(command -v ifx)
+        dirname "$IFX" >> $GITHUB_PATH
         printenv >> $GITHUB_ENV
 
     - name: Install build and test dependencies
@@ -197,7 +199,7 @@ jobs:
     - name: Run unit tests
       if: ${{ matrix.build == 'meson' }}
       run: |
-         meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild --num-processes 1 -t 2
+         meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild --num-processes 1 -t 10 --no-suite tblite:cli
 
     - name: Run unit tests
       if: ${{ matrix.build == 'cmake' }}

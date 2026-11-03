@@ -11,8 +11,8 @@ module qcxms_tblite
    use tblite_xtb_gfn1, only : new_gfn1_calculator
    use tblite_xtb_ipea1, only : new_ipea1_calculator
    use tblite_xtb_singlepoint, only : xtb_singlepoint
-   use tblite_integral_overlap !, only : get_overlap_lat
-   use tblite_cutoff !, only : get_lattice_points
+   use tblite_integral_native_integrals, only : get_overlap
+   use tblite_cutoff, only : get_lattice_points
    use tblite_basis_type, only : get_cutoff
    use qcxms_mo_energy, only: write_qmo 
    use xtb_mctc_convert
@@ -89,6 +89,8 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
    !> HOMO
    integer  :: ihomo
    real(wp) :: ehomo
+   !> Total occupation numbers (alpha + beta)
+   real(wp), allocatable :: focc(:)
    !> Calculate MO ?
    logical  :: spec_calc
 
@@ -120,14 +122,23 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
       return
    case(gfn2_xtb%id)
       call ctx%message(info_label//"Starting GFN2-xTB calculation in tblite")
-      call new_gfn2_calculator(calc, mol)
+      call new_gfn2_calculator(calc, mol, error)
    case(gfn1_xtb%id)
       call ctx%message(info_label//"Starting GFN1-xTB calculation in tblite")
-      call new_gfn1_calculator(calc, mol)
+      call new_gfn1_calculator(calc, mol, error)
    case(ipea1_xtb%id)
       call ctx%message(info_label//"Starting IPEA1-xTB calculation in tblite")
-      call new_ipea1_calculator(calc, mol)
+      call new_ipea1_calculator(calc, mol, error)
    end select
+
+   if (allocated(error)) then
+      call ctx%message(error_label//"Setup of tblite calculator failed")
+      call ctx%message("-> "//error%message)
+      stat = stat_fatal
+
+      close(ctx%unit)
+      return
+   end if
 
    ! Create a new wavefunction for every calculation
    call new_wavefunction(wfn, mol%nat, calc%bas%nsh, calc%bas%nao, 1, etemp * ktoau)
@@ -158,11 +169,19 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
       call get_overlap(mol, trans , cutoff, calc%bas, overlap)
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      ihomo  = max(wfn%homo(1), 1)
+      ! tblite no longer stores the HOMO index, derive it from the alpha electrons
+      ! with the same aufbau rule tblite uses for filling
+      ihomo  = floor(wfn%nel(1))
+      ihomo  = merge(ihomo+1, ihomo, mod(wfn%nel(1), 1.0_wp) > 0.5_wp)
+      ihomo  = max(ihomo, 1)
       ehomo  = wfn%emo(ihomo, 1)
 
+      ! For a restricted wavefunction tblite keeps alpha and beta occupations
+      ! in separate columns, sum them to obtain the total occupation
+      focc = sum(wfn%focc, dim=2)
+
       call write_qmo(mol%nat, calc%bas%nao, calc%bas%ao2at, wfn%coeff(:, :, 1), &
-         & overlap, wfn%emo(:, 1), wfn%focc(:, 1), ihomo)
+         & overlap, wfn%emo(:, 1), focc, ihomo)
    endif
 !   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

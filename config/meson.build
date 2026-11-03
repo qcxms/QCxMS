@@ -13,7 +13,7 @@ if fc_id == 'gcc'
   if fc.version().version_compare('<8')
     error('GCC version 8 or higher is required.')
   endif
-elif fc_id == 'intel'
+elif fc_id in ['intel', 'intel-llvm']
   add_project_arguments(
     '-traceback',
     language: 'fortran',
@@ -42,7 +42,7 @@ endif
 
 lapack_vendor = get_option('lapack')
 if lapack_vendor == 'auto'
-  if fc_id == 'intel'
+  if fc_id in ['intel', 'intel-llvm']
     lapack_vendor = 'mkl'
   endif
 endif
@@ -53,7 +53,7 @@ if lapack_vendor == 'mkl'
   if add_languages('c', required: false, native: false)
     cc = meson.get_compiler('c')
   endif
-  if fc_id == 'intel'
+  if fc_id in ['intel', 'intel-llvm']
     mkl_dep += cc.find_library('mkl_intel_lp64')
     if get_option('openmp')
       mkl_dep += cc.find_library('mkl_intel_thread')
@@ -106,7 +106,7 @@ endif
 # Create the tool chain library as subproject
 mctc_dep = dependency(
   'mctc-lib',
-  version: '>=0.3',
+  version: '>=0.7',
   fallback: ['mctc-lib', 'mctc_dep'],
   default_options: ['default_library=static', 'json=disabled'],
 )
@@ -115,15 +115,17 @@ exe_deps += mctc_dep
 # Create the tight-binding framework as subproject
 tblite_dep = dependency(
   'tblite',
-  version: '>=0.2',
+  version: '>=0.8',
   fallback: ['tblite', 'tblite_dep'],
-  default_options: ['default_library=static', 'api=false'],
+  default_options: [
+    'default_library=static',
+    'api=false',
+    'ddx=false',
+    'hdf5=disabled',
+    'trexio=disabled',
+  ],
 )
 exe_deps += tblite_dep
-
-if tblite_dep.version().version_compare('>=0.3')
-  error('tblite version 0.3 or higher is not supported yet.')
-endif
  
 # Create the rmsd tool as subproject
 rmsd_dep = dependency(
