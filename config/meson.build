@@ -13,7 +13,7 @@ if fc_id == 'gcc'
   if fc.version().version_compare('<8')
     error('GCC version 8 or higher is required.')
   endif
-elif fc_id == 'intel'
+elif fc_id in ['intel', 'intel-llvm']
   add_project_arguments(
     '-traceback',
     language: 'fortran',
@@ -42,7 +42,7 @@ endif
 
 lapack_vendor = get_option('lapack')
 if lapack_vendor == 'auto'
-  if fc_id == 'intel'
+  if fc_id in ['intel', 'intel-llvm']
     lapack_vendor = 'mkl'
   endif
 endif
@@ -53,7 +53,7 @@ if lapack_vendor == 'mkl'
   if add_languages('c', required: false, native: false)
     cc = meson.get_compiler('c')
   endif
-  if fc_id == 'intel'
+  if fc_id in ['intel', 'intel-llvm']
     mkl_dep += cc.find_library('mkl_intel_lp64')
     if get_option('openmp')
       mkl_dep += cc.find_library('mkl_intel_thread')

@@ -5,7 +5,7 @@ on: [push, pull_request]
 env:
   BUILD_DIR: _build
   PIP_PACKAGES: >-
-    meson==0.58.0
+    meson==1.6.1
     cmake
     ninja
     gcovr
@@ -45,11 +45,11 @@ jobs:
             version: 9
 
     env:
-      FC: ${{ matrix.compiler == 'intel' && 'ifort' || 'gfortran' }}
-      CC: ${{ matrix.compiler == 'intel' && 'icc' || 'gcc' }}
+      FC: ${{ matrix.compiler == 'intel' && 'ifx' || 'gfortran' }}
+      CC: ${{ matrix.compiler == 'intel' && 'icx' || 'gcc' }}
       GCC_V: ${{ matrix.version }}
       OMP_NUM_THREADS: 1,2,1
-      PYTHON_V: 3.8
+      PYTHON_V: '3.12'
 
     steps:
     - name: Checkout code
@@ -72,7 +72,7 @@ jobs:
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt-get update
-        sudo apt-get install -y gcc-${{ env.GCC_V}} gfortran-${{ env.GCC_V }}
+        sudo apt-get install -y gcc-${{ env.GCC_V}} gfortran-${{ env.GCC_V }} liblapack-dev libblas-dev
         sudo update-alternatives \
         --install /usr/bin/gcc gcc /usr/bin/gcc-${{ env.GCC_V }} 100 \
         --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ env.GCC_V }} \
