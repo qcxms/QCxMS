@@ -110,7 +110,7 @@ subroutine get_xtb_egrad(num, xyz, charge, multiplicity, method, etemp, &
    open(newunit=ctx%unit, file=output_file)
 
    ! Create a new molecular structure data container from the provided input
-   call new(mol, num, xyz, charge=real(charge, wp), uhf=min(multiplicity-1, 0))
+   call new(mol, num, xyz, charge=real(charge, wp), uhf=max(multiplicity-1, 0))
 
    ! Expand the method selector to an actual calculator
    select case(method%id)
