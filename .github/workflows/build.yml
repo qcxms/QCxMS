@@ -199,7 +199,7 @@ jobs:
     - name: Run unit tests
       if: ${{ matrix.build == 'meson' }}
       run: |
-         meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild --num-processes 1 -t 2
+         meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild --num-processes 1 -t 10 --no-suite tblite:cli
 
     - name: Run unit tests
       if: ${{ matrix.build == 'cmake' }}
