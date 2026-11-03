@@ -1,0 +1,31 @@
+diff --git a/app/main.f90 b/app/main.f90
+index d26f03a..038e4b9 100644
+--- a/app/main.f90
++++ b/app/main.f90
+@@ -21,6 +21,7 @@ program rmsd_main
+    use targ
+    use rmsd
+    use rmsd_toml
++   use tomlf, only : toml_dump, toml_error
+    use rmsd_config
+    use rmsd_filter
+    implicit none
+@@ -38,7 +39,7 @@ program rmsd_main
+    type(rmsd_filter_type), pointer :: filter
+    type(toml_table), allocatable :: table, opts
+    type(toml_table), pointer :: child
+-   type(toml_serializer) :: ser
++   type(toml_error), allocatable :: ser_error
+    character(len=:), allocatable :: rcfile, filter_name
+    real(wp) :: rmsd_val
+    type(targ_type) :: argparse
+@@ -98,8 +99,7 @@ program rmsd_main
+       else
+          write(output_unit, '(*(a:, 1x))') "#", "internal defaults"
+       end if
+-      ser = toml_serializer(output_unit)
+-      call table%accept(ser)
++      call toml_dump(table, output_unit, ser_error)
+       stop
+    end if
+ 

@@ -106,7 +106,7 @@ endif
 # Create the tool chain library as subproject
 mctc_dep = dependency(
   'mctc-lib',
-  version: '>=0.3',
+  version: '>=0.7',
   fallback: ['mctc-lib', 'mctc_dep'],
   default_options: ['default_library=static', 'json=disabled'],
 )
@@ -115,15 +115,17 @@ exe_deps += mctc_dep
 # Create the tight-binding framework as subproject
 tblite_dep = dependency(
   'tblite',
-  version: '>=0.2',
+  version: '>=0.8',
   fallback: ['tblite', 'tblite_dep'],
-  default_options: ['default_library=static', 'api=false'],
+  default_options: [
+    'default_library=static',
+    'api=false',
+    'ddx=false',
+    'hdf5=disabled',
+    'trexio=disabled',
+  ],
 )
 exe_deps += tblite_dep
-
-if tblite_dep.version().version_compare('>=0.3')
-  error('tblite version 0.3 or higher is not supported yet.')
-endif
  
 # Create the rmsd tool as subproject
 rmsd_dep = dependency(
